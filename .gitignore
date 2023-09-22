@@ -7,6 +7,7 @@
 *.dll
 *.so
 *.dylib
+*.bak*
 
 # Test binary, built with `go test -c`
 *.test
@@ -22,3 +23,4 @@ go.work
 src/
 test/src
 test/history
+test/nntp-history-test
