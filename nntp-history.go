@@ -356,7 +356,7 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 			return nil, fmt.Errorf("Error FseekHistoryMessageHash BAD line @offset=%d", offset)
 		}
 		hash := result[1 : len(result)-1]
-		if len(hash) == 64 {
+		if len(hash) >= 32 { // at least md5
 			return &hash, nil
 		}
 	}
