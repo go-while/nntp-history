@@ -62,8 +62,6 @@ func main() {
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 				//log.Printf("hash=%s", hash)
-				//Do := history.DoCheckAdd
-				//Do := history.DoCheckHashDupOnly
 
 				// creates the history object
 				hobj := &history.HistoryObject{
