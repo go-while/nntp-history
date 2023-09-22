@@ -190,7 +190,6 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	defer returnBoltHashOpen()
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches uint64
-	//useShorthash := false // can not be changed once db has been created!
 forever:
 	for {
 		select {
@@ -199,13 +198,8 @@ forever:
 				// receiving a nil object stops history_dbz_worker
 				break forever
 			}
-			//hash := hi.Hash
-			//if useShorthash {
-			//	ahash := string(string(*hi.Hash)[4:]) // shorterkey
-			//	hash = &ahash
-			//}
 			var key *string
-			switch HashType {
+			switch his.hashtype {
 			case HashFNV32:
 				key = FNV32S(hi.Hash)
 			case HashFNV32a:
@@ -214,8 +208,6 @@ forever:
 				key = FNV64S(hi.Hash)
 			case HashFNV64a:
 				key = FNV64aS(hi.Hash)
-			default:
-				key = FNV32S(hi.Hash)
 			}
 			bucket := string(string(*hi.Hash)[1:4])
 			//log.Printf("WORKER HDBZW char=%s hash=%s bucket=%s akey=%s numhash=%s @0x%010x|%d|%s", char, *hi.Hash, bucket, akey, numhash, hi.Offset, hi.Offset, hexoffset)
@@ -300,13 +292,15 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		log.Printf("ERROR HDBZW char=%s DupeCheck NO OFFSETS bucket=%s key=%s hash=%s", *char, *bucket, *key, *hash)
 		return false, fmt.Errorf("NO OFFSETS bucket=%s key=%s hash=%s", *bucket, *key, *hash)
 	}
-	if lo == 1 && *offset == -1 {
-		// only 1 offset stored at this key: return quick duplicate hit
-		//isDup = true
-		return true, nil
-	}
-	if lo > 1 { // got multiple offsets stored for numhash
-		log.Printf("INFO HDBZW char=%s GOT key=%s hash='%s' offsets=%d", *char, *key, *hash, lo)
+	//if lo == 1 && *offset == -1 { // DoCheckHashDupOnly
+	//	// only 1 offset stored at this key: return quick duplicate hit
+	//	//isDup = true
+	//	return true, nil
+	//}
+	if lo > 0 { // got offsets stored for numhash
+		if lo > 1 {
+			log.Printf("INFO HDBZW char=%s GOT key=%s hash='%s' multiple offsets=%d=%#v", *char, *key, *hash, lo, *offsets)
+		}
 		for _, check_offset := range *offsets {
 			// check history for duplicate hash / evades collissions
 			logf(DEBUG1, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
@@ -338,7 +332,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			log.Printf("ERROR HDBZW APPEND boltBucketPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
 			return false, err
 		}
-		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d", *char, *key, *hash, *offset, *offset, len(*offsets))
+		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
 	}
 	return
 } // end func DupeCheck
