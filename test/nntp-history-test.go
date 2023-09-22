@@ -27,7 +27,7 @@ func main() {
 	// dont change below
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
-	hashalgo := history.HashFNV64a
+	hashalgo := history.HashFNV32
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
 		bO := bolt.Options{
