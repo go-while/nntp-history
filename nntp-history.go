@@ -19,8 +19,7 @@ const (
 	HashFNV32a uint8 = 2
 	HashFNV64  uint8 = 3
 	HashFNV64a uint8 = 4
-	DoCheckHashDupOnly uint8 = 1
-	DoCheckAdd uint8 = 2
+	//DoCheckHashDupOnly uint8 = 1
 )
 
 var (
