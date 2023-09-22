@@ -104,9 +104,9 @@ func main() {
 					select {
 					case isDup, ok := <-responseChan:
 						if !ok {
-							// errorresponseChan got closed: is not a duplicate
+							// error: responseChan got closed
 							log.Printf("Error test p=%d responseChan closed! i=%d hash=%s", p, i, hash)
-							break
+							break fortodo
 						} else {
 							if isDup {
 								dupes++
