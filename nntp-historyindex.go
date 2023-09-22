@@ -244,7 +244,7 @@ forever:
 			} else {
 				dupes++
 			}
-			if added >= 10000 || lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY {
+			if added >= 10000 || (added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
 				if err := BoltSync(db, char); err != nil {
 					break forever
 				}
