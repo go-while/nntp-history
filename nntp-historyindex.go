@@ -199,7 +199,6 @@ forever:
 				// receiving a nil object stops history_dbz_worker
 				break forever
 			}
-			processed++
 			hash := hi.Hash
 			if useShorthash {
 				ahash := string(string(*hi.Hash)[4:]) // shorterkey
@@ -229,11 +228,15 @@ forever:
 				//break forever
 				continue forever
 			}
+
 			if hi.IndexRetChan != nil {
 				hi.IndexRetChan <- isDup
 			}
 			if hi.Offset == -1 {
 				searches++
+				continue forever
+			} else if hi.Offset > 0 {
+				processed++
 			}
 			if !isDup {
 				added++
@@ -241,7 +244,7 @@ forever:
 			} else {
 				dupes++
 			}
-			if added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY {
+			if added >= 10000 || lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY {
 				if err := BoltSync(db, char); err != nil {
 					break forever
 				}
