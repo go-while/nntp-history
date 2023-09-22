@@ -248,22 +248,6 @@ forever:
 	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d", char, total, dupes, processed, searches)
 } // end func History_DBZ_Worker
 
-/*
-func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hi *HistoryIndex, setempty bool) (err error) {
-	err := DupeCheck(db, char, bucket, key, hi, setempty)
-	if err != nil {
-		return err
-	}
-	AppendOffset(offsets, &his.Offset)
-	if err := boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty); err != nil {
-		log.Printf("ERROR HDBZW APPEND boltBucketPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
-		return err
-	}
-	log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d", *char, *key, *hi.Hash, hi.Offset, hi.Offset, len(*offsets))
-	return
-}
-*/
-
 func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool, add bool) (isDup bool, err error) {
 	if db == nil {
 		return false, fmt.Errorf("Error DupeCheck db=nil")
