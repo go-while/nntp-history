@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	HashType                   = HashFNV32 // can not be changed once db has been created!
+	HashType                   = HashFNV64a // can not be changed once db has been created!
 	Bolt_SYNC_EVERY      int64 = 5         // seconds
 	DEBUG                bool  = true
 	DEBUG0               bool  = false
