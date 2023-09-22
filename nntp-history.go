@@ -23,7 +23,6 @@ const (
 )
 
 var (
-	HashType                   = HashFNV32 // can not be changed once db has been created!
 	Bolt_SYNC_EVERY      int64 = 5         // seconds
 	DEBUG                bool  = true
 	DEBUG0               bool  = false
@@ -175,7 +174,7 @@ func (his *HISTORY) History_Writer() {
 	flush := true
 	boottime := utils.UnixTimeSec()
 	if his.Offset == 0 {
-		header := fmt.Sprintf("|history.dat|%d\tHT=%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime)
+		header := fmt.Sprintf("|history.dat|CD=%d|HT=%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime, his.hashtype)
 		if err := writeHistoryLine(dw, &header, &his.Offset, flush, &wbt); err != nil {
 			log.Printf("ERROR History_Writer create header err='%v'", err)
 			return
