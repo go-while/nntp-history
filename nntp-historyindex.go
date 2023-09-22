@@ -60,7 +60,11 @@ forever:
 	for {
 		select {
 		case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
-			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
+			if !ok {
+				log.Printf("Stopping History_DBZ IndexChan closed")
+				break forever
+			}
+			if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
 				log.Printf("Stopping History_DBZ IndexChan received nil pointer")
 				break forever
 			}
