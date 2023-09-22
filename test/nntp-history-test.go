@@ -132,7 +132,7 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
-	history.HISTORY_WRITER_CHAN <- nil // closes workers
+	close(history.HISTORY_WRITER_CHAN) // <- nil // closes workers
 	for {
 		if len(history.HISTORY_WRITER_LOCK) == 0 &&
 			len(history.HISTORY_INDEX_LOCK) == 0 &&
