@@ -7,19 +7,27 @@ import (
 	"github.com/patrickmn/go-cache"
 	bolt "go.etcd.io/bbolt"
 	"log"
+	//"strings"
 	"time"
+	"flag"
 )
 
 func main() {
-	useHashDB := true
+	var offset int64
+	var todo int      // todo x parallelTest
+	var parallelTest int
+	var useHashDB bool
+	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
+	flag.IntVar(&todo, "todo", 1000000, "todo per test")
+	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
+	flag.BoolVar(&useHashDB, "useHashDB", true, "<----")
+	flag.Parse()
 	storageToken := "F" // storagetoken flatfile
-	todo := 100000      // todo x parallelTest
-	parallelTest := 4
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
-
 	// dont change below
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
+	hashalgo := history.HashFNV64a
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
 		bO := bolt.Options{
@@ -32,7 +40,21 @@ func main() {
 		boltOpts = &bO
 	}
 	c := cache.New(expireCache, purgeCache)
-	history.History.History_Boot("", useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY)
+	history.History.History_Boot("", useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, hashalgo)
+	if offset >= 0 {
+		result, err := history.History.FseekHistoryLine(offset)
+		// Check for errors.
+		if err != nil {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
+		/*
+		if strings.HasPrefix(*result, "HT="){
+			hh := strings.Split(*result, "=")[1]
+		}*/
+		fmt.Printf("History @offset=%d line='%s'\n", offset, *result)
+		return
+	}
 	P_donechan := make(chan struct{}, parallelTest)
 	for p := 1; p <= parallelTest; p++ {
 
