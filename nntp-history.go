@@ -107,27 +107,38 @@ func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, 
 func LOCKfunc(achan chan struct{}, src string) bool {
 	select {
 	case achan <- struct{}{}:
+		logf(DEBUG1, "LOCKfunc src='%s' OK", src)
 		return true
 	default:
-		log.Printf("LOCKfunc src='%s' already running=%d", len(achan))
+		log.Printf("ERROR LOCKfunc src='%s' already running=%d", src, len(achan))
 	}
 	return false
 } // end LOCKfunc
 
 func UNLOCKfunc(achan chan struct{}, src string) {
+	logf(DEBUG1, "UNLOCKfunc src='%s' unlocking", src)
 	<-achan
-	//log.Printf("UNLOCKfunc src='%s' unlock", src)
-}
+	logf(DEBUG1, "UNLOCKfunc src='%s' unlocked", src)
+} // end func UNLOCKfunc
 
-func wait4HashDB(useHashDB bool) {
-	if useHashDB {
+func (his *HISTORY) wait4HashDB() {
+	now := utils.UnixTimeSec()
+	start := utils.UnixTimeMilliSec()
+	if his.useHashDB {
 		for {
-			time.Sleep(time.Second / 10)
+			time.Sleep(10 * time.Millisecond)
 			if len(BoltHashOpen) == 16 {
 				break
 			}
+			took := utils.UnixTimeSec() - now
+			if took >= 15 {
+				log.Printf("Wait booting HashDB ms=%d", utils.UnixTimeSec()-now)
+				now = utils.UnixTimeSec()
+			}
+
 		}
 	}
+	log.Printf("Booted HashDB ms=%d", utils.UnixTimeMilliSec()-start)
 } // end func wait4HashDB
 
 func (his *HISTORY) History_Writer() {
@@ -135,7 +146,7 @@ func (his *HISTORY) History_Writer() {
 		return
 	}
 	defer UNLOCKfunc(HISTORY_WRITER_LOCK, "History_Writer")
-	wait4HashDB(his.useHashDB)
+	his.wait4HashDB()
 
 	fh, err := os.OpenFile(his.HF, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	defer fh.Close()
@@ -174,11 +185,9 @@ forever:
 		case hobj, ok := <-HISTORY_WRITER_CHAN: // recevies a HistoryObject struct
 			if !ok || hobj == nil {
 				// receiving a nil object stops history_writer
-				if his.useHashDB {
-					if History.IndexChan != nil {
-						//History.IndexChan <- nil // stops history_dbz
-						close(History.IndexChan)
-					}
+				if History.IndexChan != nil {
+					History.IndexChan <- nil // stops history_dbz
+					//close(History.IndexChan) // stops history_dbz // dont close channel as clients may still send requests
 				}
 				break forever
 			}
@@ -203,13 +212,13 @@ forever:
 				select {
 				case isDup, ok := <-indexRetChan:
 					if !ok {
-						if hobj.ResponseChan != nil {
-							close(hobj.ResponseChan)
-						}
 						log.Printf("ERROR History_Writer indexRetChan closed! error in History_DBZ_Worker")
+						if hobj.ResponseChan != nil {
+							close(hobj.ResponseChan) // close responseChan to client
+						}
 						if History.IndexChan != nil {
-							//History.IndexChan <- nil // stops history_dbz
-							close(History.IndexChan)
+							History.IndexChan <- nil // stops history_dbz
+							//close(History.IndexChan) // stops history_dbz // dont close channel as clients may still send requests
 						}
 						break forever
 					}
