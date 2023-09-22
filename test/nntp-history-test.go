@@ -75,9 +75,7 @@ func main() {
 
 				// check only if hash is in hashdb: uses offset: -1 !!!
 				if useHashDB && history.History.IndexChan != nil {
-					var hi = history.HistoryIndex{Hash: hobj.MessageIDHash, Offset: -1, IndexRetChan: indexRetChan}
-					//log.Printf("check hashDB hi='%#v'", hi)
-					history.History.IndexChan <- &hi
+					history.History.IndexChan <- &history.HistoryIndex{Hash: hobj.MessageIDHash, Offset: -1, IndexRetChan: indexRetChan}
 					select {
 					case isDup, ok := <-indexRetChan:
 						if !ok {
@@ -117,7 +115,7 @@ func main() {
 				tdone++
 				done++
 				if done >= 10000 {
-					log.Printf("test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
+					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
 					done = 0
 				}
 			} // end for i
