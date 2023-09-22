@@ -310,7 +310,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		return false, fmt.Errorf("NO OFFSETS bucket=%s key=%s hash=%s", *bucket, *key, *hash)
 	}
 	if lo > 1 { // got multiple offsets stored for numhash
-		log.Printf("HDBZW char=%s GOT key=%s hash='%s' offsets=%d", *char, *key, *hash, lo)
+		log.Printf("INFO HDBZW char=%s GOT key=%s hash='%s' offsets=%d", *char, *key, *hash, lo)
 	}
 	for _, check_offset := range *offsets {
 		// check history for duplicate hash / evades collissions
