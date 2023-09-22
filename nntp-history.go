@@ -37,8 +37,8 @@ var (
 )
 
 type HISTORY struct {
-	//mux         sync.Mutex
-	rmux   sync.RWMutex
+	mux         sync.Mutex
+	//rmux   sync.RWMutex
 	Offset int64
 	HF     string // = "history/history.dat"
 	//HF_hidx    string // = "history/history.HIndex"
@@ -61,17 +61,16 @@ type HistoryObject struct {
 	Expires       int64
 	Date          int64
 	ResponseChan  chan bool // receives a true/false isDUP or closed channel on error
-	//Do            *uint8
 }
 
 func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64) {
-	his.rmux.Lock()
-	defer his.rmux.Unlock()
+	his.mux.Lock()
+	defer his.mux.Unlock()
 	if HISTORY_WRITER_CHAN != nil {
 		log.Printf("ERROR History already booted#1!")
 		return
 	}
-	if his.IndexChan != nil {
+	if useHashDB && his.IndexChan != nil {
 		log.Printf("ERROR History already booted#2!")
 		return
 	}
