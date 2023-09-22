@@ -100,6 +100,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			InitialMmapSize: 1024 * 1024,
 			PageSize:        4 * 1024,
 			NoSync:          true,
+			//NoFreelistSync: true,
 		}
 		boltOpts = &defboltOpts
 	}
@@ -236,7 +237,7 @@ forever:
 			} else {
 				dupes++
 			}
-			if added >= 10000 || (added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
+			if added >= 30000 || (added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
 				if err := BoltSync(db, char); err != nil {
 					break forever
 				}
