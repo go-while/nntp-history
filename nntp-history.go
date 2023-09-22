@@ -16,15 +16,14 @@ import (
 )
 
 const (
-	HashFNV32  uint8 = 1
-	HashFNV32a uint8 = 2
-	HashFNV64  uint8 = 3
-	HashFNV64a uint8 = 4
-	//DoCheckHashDupOnly uint8 = 1
+	HashFNV32  uint8 = 0
+	HashFNV32a uint8 = 1
+	HashFNV64  uint8 = 2
+	HashFNV64a uint8 = 3
 )
 
 var (
-	HashType                   = HashFNV64a // can not be changed once db has been created!
+	HashType                   = HashFNV32 // can not be changed once db has been created!
 	Bolt_SYNC_EVERY      int64 = 5         // seconds
 	DEBUG                bool  = true
 	DEBUG0               bool  = false
@@ -53,6 +52,7 @@ type HISTORY struct {
 	mmaps_PAK  [16]*mmap.MMap
 	charsMap   map[string]int
 	useHashDB  bool
+	hashtype   uint8
 }
 
 type HistoryObject struct {
@@ -65,7 +65,7 @@ type HistoryObject struct {
 	ResponseChan  chan bool // receives a true/false isDUP or closed channel on error
 }
 
-func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64) {
+func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64, hashalgo uint8) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if HISTORY_WRITER_CHAN != nil {
@@ -91,6 +91,19 @@ func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, 
 	}
 	if bsync > 0 {
 		Bolt_SYNC_EVERY = bsync
+	}
+	switch hashalgo {
+	case HashFNV32:
+		his.hashtype = HashFNV32
+	case HashFNV32a:
+		his.hashtype = HashFNV32a
+	case HashFNV64:
+		his.hashtype = HashFNV64
+	case HashFNV64a:
+		his.hashtype = HashFNV64a
+	default:
+		log.Printf("ERROR History_Boot unknown hashalgo")
+		return
 	}
 	his.HF = history_dir + "/" + "history.dat"
 	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
@@ -162,7 +175,7 @@ func (his *HISTORY) History_Writer() {
 	flush := true
 	boottime := utils.UnixTimeSec()
 	if his.Offset == 0 {
-		header := fmt.Sprintf("|history.dat|%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime)
+		header := fmt.Sprintf("|history.dat|%d\tHT=%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime)
 		if err := writeHistoryLine(dw, &header, &his.Offset, flush, &wbt); err != nil {
 			log.Printf("ERROR History_Writer create header err='%v'", err)
 			return
@@ -242,24 +255,6 @@ forever:
 				break forever
 			}
 			wroteLines++
-			/*
-				if wb, err := dw.WriteString(whs); err != nil {
-					log.Printf("ERROR History_Writer WriteString err='%v'", err)
-					break forever
-				} else {
-					//log.Printf("History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
-					wbt += wb
-					if err := dw.Flush(); err != nil {
-						log.Printf("ERROR History_Writer WriteString err='%v'", err)
-						break forever
-					}
-					/,*
-						if History.IndexChan != nil {
-							History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset}
-						}
-					*,/
-					his.Offset += int64(wb)
-				}*/
 		} // end select
 	} // end for
 	if err := dw.Flush(); err != nil {
