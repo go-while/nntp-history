@@ -160,7 +160,7 @@ func (his *HISTORY) History_Writer() {
 	flush := true
 	boottime := utils.UnixTimeSec()
 	if his.Offset == 0 {
-		header := fmt.Sprintf("|history.dat|%d\n|{hash}|arrival-expires-msgdate|storage\n", boottime)
+		header := fmt.Sprintf("|history.dat|%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime)
 		if err := writeHistoryLine(dw, &header, &his.Offset, flush, &wbt); err != nil {
 			log.Printf("ERROR History_Writer create header err='%v'", err)
 			return
