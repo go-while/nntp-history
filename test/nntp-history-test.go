@@ -46,11 +46,16 @@ func main() {
 			done, tdone, dupes, added, cachehits := 0, 0, 0, 0, 0 // init counters
 		fortodo:
 			for i := 1; i <= todo; i++ {
+				if done >= 10000 {
+					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
+					done = 0
+				}
+				done++
 				//time.Sleep(time.Nanosecond)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
-				hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
+				hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
 				// check go-cache for hash
 				if _, found := c.Get(hash); found {
@@ -114,11 +119,6 @@ func main() {
 					} // end select
 				} // end responseChan
 				tdone++
-				done++
-				if done >= 10000 {
-					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
-					done = 0
-				}
 			} // end for i
 			P_donechan <- struct{}{}
 			log.Printf("End test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
