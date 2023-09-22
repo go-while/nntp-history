@@ -135,7 +135,6 @@ func (his *HISTORY) wait4HashDB() {
 				log.Printf("Wait booting HashDB ms=%d", utils.UnixTimeSec()-now)
 				now = utils.UnixTimeSec()
 			}
-
 		}
 	}
 	log.Printf("Booted HashDB ms=%d", utils.UnixTimeMilliSec()-start)
