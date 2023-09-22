@@ -13,7 +13,7 @@ import (
 func main() {
 	useHashDB := true
 	storageToken := "F" // storagetoken flatfile
-	todo := 100000 // todo x parallelTest
+	todo := 100000      // todo x parallelTest
 	parallelTest := 4
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
 
@@ -44,7 +44,7 @@ func main() {
 				indexRetChan = make(chan bool, 1)
 			}
 			done, tdone, dupes, added, cachehits := 0, 0, 0, 0, 0 // init counters
-			fortodo:
+		fortodo:
 			for i := 1; i <= todo; i++ {
 				//time.Sleep(time.Nanosecond)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES DUPLICATES

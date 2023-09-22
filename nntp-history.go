@@ -37,7 +37,7 @@ var (
 )
 
 type HISTORY struct {
-	mux         sync.Mutex
+	mux sync.Mutex
 	//rmux   sync.RWMutex
 	Offset int64
 	HF     string // = "history/history.dat"
@@ -224,11 +224,10 @@ forever:
 				} // end select
 			}
 
-
 			/*
-			if hobj.Do != nil && *hobj.Do == DoCheckHashDupOnly {
-				continue forever
-			}
+				if hobj.Do != nil && *hobj.Do == DoCheckHashDupOnly {
+					continue forever
+				}
 			*/
 
 			// fake inn2 format
@@ -242,23 +241,23 @@ forever:
 			}
 			wroteLines++
 			/*
-			if wb, err := dw.WriteString(whs); err != nil {
-				log.Printf("ERROR History_Writer WriteString err='%v'", err)
-				break forever
-			} else {
-				//log.Printf("History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
-				wbt += wb
-				if err := dw.Flush(); err != nil {
+				if wb, err := dw.WriteString(whs); err != nil {
 					log.Printf("ERROR History_Writer WriteString err='%v'", err)
 					break forever
-				}
-				/,*
-					if History.IndexChan != nil {
-						History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset}
+				} else {
+					//log.Printf("History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
+					wbt += wb
+					if err := dw.Flush(); err != nil {
+						log.Printf("ERROR History_Writer WriteString err='%v'", err)
+						break forever
 					}
-				*,/
-				his.Offset += int64(wb)
-			}*/
+					/,*
+						if History.IndexChan != nil {
+							History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset}
+						}
+					*,/
+					his.Offset += int64(wb)
+				}*/
 		} // end select
 	} // end for
 	if err := dw.Flush(); err != nil {

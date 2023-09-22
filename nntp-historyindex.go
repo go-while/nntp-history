@@ -61,7 +61,7 @@ forever:
 		select {
 		case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
 			closed := false
-			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 {  // allow at least md5
+			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
 				closed = true
 			}
 			if closed {
