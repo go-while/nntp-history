@@ -330,7 +330,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return false, err
 		}
 		if historyHash != nil {
-			if *historyHash == *hash {
+			if (len(*historyHash) == 1 && *historyHash == "y") || *historyHash == *hash {
 				// hash is a duplicate in history
 				logf(DEBUG1, "WARN HDBZW DUPLICATE historyHash=%s @offset=%d +his.Offset=%d", *historyHash, offset, his.Offset)
 				return true, nil
