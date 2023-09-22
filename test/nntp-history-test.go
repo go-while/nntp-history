@@ -33,7 +33,7 @@ func main() {
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 1024 * 1024,
+			InitialMmapSize: 1024 * 1024 * 1024,
 			PageSize:        4 * 1024,
 			NoSync:          true,
 		}
