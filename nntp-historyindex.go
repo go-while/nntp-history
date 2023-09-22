@@ -300,27 +300,31 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		log.Printf("ERROR HDBZW char=%s DupeCheck NO OFFSETS bucket=%s key=%s hash=%s", *char, *bucket, *key, *hash)
 		return false, fmt.Errorf("NO OFFSETS bucket=%s key=%s hash=%s", *bucket, *key, *hash)
 	}
+	if lo == 1 && *offset == -1 {
+		// only 1 offset stored at this key: return quick duplicate hit
+		return true, nil
+	}
 	if lo > 1 { // got multiple offsets stored for numhash
 		log.Printf("INFO HDBZW char=%s GOT key=%s hash='%s' offsets=%d", *char, *key, *hash, lo)
-	}
-	for _, check_offset := range *offsets {
-		// check history for duplicate hash / evades collissions
-		logf(DEBUG1, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
-		historyHash, err := his.FseekHistoryMessageHash(check_offset)
-		if err != nil {
-			log.Printf("ERROR HDBZW char=%s FseekHistoryMessageHash bucket=%s err='%v' offset=%d", *char, *bucket, err, check_offset)
-			return false, err
-		}
-		if historyHash != nil {
-			if (len(*historyHash) == 1 && *historyHash == defhash) || *historyHash == *hash {
-				// hash is a duplicate in history
-				logf(DEBUG1, "WARN HDBZW DUPLICATE historyHash=%s @offset=%d +offset=%d", *historyHash, check_offset, *offset)
-				return true, nil
+		for _, check_offset := range *offsets {
+			// check history for duplicate hash / evades collissions
+			logf(DEBUG1, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
+			historyHash, err := his.FseekHistoryMessageHash(check_offset)
+			if err != nil {
+				log.Printf("ERROR HDBZW char=%s FseekHistoryMessageHash bucket=%s err='%v' offset=%d", *char, *bucket, err, check_offset)
+				return false, err
 			}
-		}
-		if historyHash == nil && err == nil {
-			log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
-			return false, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
+			if historyHash != nil {
+				if (len(*historyHash) == 1 && *historyHash == defhash) || *historyHash == *hash {
+					// hash is a duplicate in history
+					logf(DEBUG1, "WARN HDBZW DUPLICATE historyHash=%s @offset=%d +offset=%d", *historyHash, check_offset, *offset)
+					return true, nil
+				}
+			}
+			if historyHash == nil && err == nil {
+				log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
+				return false, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
+			}
 		}
 	}
 
