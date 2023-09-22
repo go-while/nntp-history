@@ -60,33 +60,27 @@ forever:
 	for {
 		select {
 		case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
-			closed := false
 			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
-				closed = true
-			}
-			if closed {
-				// receiving a nil object stops history_dbz
-				lenhash := 0
-				if hi != nil && hi.Hash != nil {
-					lenhash = len(*hi.Hash)
-				}
-				if ok {
-					log.Printf("WARN History_DBZ IndexChan received nil pointer ok=%t hi='%v' lh=%d", ok, hi, lenhash)
-				}
-				for _, achan := range his.IndexChans {
-					// passing nils to IndexChans will stop them too
-					// achan <- nil
-					close(achan)
-				}
+				log.Printf("Stopping History_DBZ IndexChan received nil pointer")
 				break forever
 			}
-			C1 := string(string(*hi.Hash)[0]) // gets first char of hash
-			//i := his.charsMap[C1]
+			// gets first char of hash: hash must be lowercase!
+			// hex.EncodeToString returns a lowercased string of a hashsum
+			C1 := string((string(*hi.Hash)[0]))
 			if his.IndexChans[his.charsMap[C1]] != nil {
 				his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
+			} else {
+				log.Printf("Error History_DBZ IndexChan C1=%s=nil", C1)
+				break forever
 			}
 		} // end select
 	} // end for
+	for _, achan := range his.IndexChans {
+		// passing nils to IndexChans will stop History_DBZ_Worker
+		// achan <- nil
+		close(achan)
+	}
+	log.Printf("Quit History_DBZ")
 } // end func History_DBZ
 
 func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *HistoryIndex, boltOpts *bolt.Options) {
@@ -110,12 +104,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		log.Printf("Error HashDB dbpath='%s' err='%v'", dbpath, err)
 		return
 	}
-	defer db.Close()
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer boltSyncClose(db, char)
-	defer log.Printf("Stopped HDBZW=(%02d) char=%s ", i, char)
 	testkey := "1"
 	testoffsets := []int64{1}
 	tcheck := 4096
@@ -256,7 +245,7 @@ forever:
 			}
 		} // end select
 	} // end for
-	log.Printf("HDBZW char=%s Closed added=%d dupes=%d processed=%d searches=%d", char, total, dupes, processed, searches)
+	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d", char, total, dupes, processed, searches)
 } // end func History_DBZ_Worker
 
 /*
