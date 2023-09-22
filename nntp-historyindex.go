@@ -117,7 +117,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	setempty := false
 	initLongTest := false
 	boltChanInit <- struct{}{}
-	log.Printf("HDBZW: INIT HashDB char=%s", char)
+	logf(DEBUG1, "HDBZW: INIT HashDB char=%s", char)
 	for _, c1 := range HEXCHARS {
 		for _, c2 := range HEXCHARS {
 			for _, c3 := range HEXCHARS {
