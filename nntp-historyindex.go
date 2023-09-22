@@ -334,7 +334,9 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 	}
 
 	if add && *offset > 0 {
-		AppendOffset(offsets, offset)
+		if err := AppendOffset(offsets, offset); err != nil {
+			return false, err
+		}
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty); err != nil {
 			log.Printf("ERROR HDBZW APPEND boltBucketPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
 			return false, err
@@ -419,9 +421,13 @@ func boltBucketPutString(db *bolt.DB, char *string, bucket *string, key *string,
 } // end func boltBucketPut
 */
 
-func AppendOffset(offsets *[]int64, offset *int64) {
+func AppendOffset(offsets *[]int64, offset *int64) error {
+	if offsets == nil || offset == nil || *offset <= 0 {
+		return fmt.Errorf("Error AppendOffset i/o=nil")
+	}
 	*offsets = append(*offsets, *offset)
-}
+	return nil
+} // end func AppendOffset
 
 func boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *string, offsets *[]int64, setempty bool) (err error) {
 	if char == nil {
