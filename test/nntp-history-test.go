@@ -145,5 +145,4 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
-	time.Sleep(time.Second * 5)
 } // end func main
