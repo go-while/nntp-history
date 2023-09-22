@@ -28,7 +28,7 @@ var (
 	BoltHashOpen      = make(chan struct{}, boltDBs) // dont change this
 )
 
-type HistoryAddIndex struct {
+type HistoryIndex struct {
 	Hash         *string
 	Offset       int64
 	IndexRetChan chan bool
@@ -41,7 +41,7 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		return
 	}
 	for i, char := range HEXCHARS {
-		his.IndexChans[i] = make(chan *HistoryAddIndex, 2)
+		his.IndexChans[i] = make(chan *HistoryIndex, 2)
 		his.charsMap[char] = i
 		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
@@ -59,39 +59,37 @@ func (his *HISTORY) History_DBZ() {
 forever:
 	for {
 		select {
-		case hi, ok := <-his.IndexChan: // recevies a HistoryAddIndex struct
-			if !ok || hi == nil || hi.Hash == nil {
+		case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
+			closed := false
+			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 {  // allow at least md5
+				closed = true
+			}
+			if closed {
 				// receiving a nil object stops history_dbz
+				lenhash := 0
+				if hi != nil && hi.Hash != nil {
+					lenhash = len(*hi.Hash)
+				}
+				if ok {
+					log.Printf("WARN History_DBZ IndexChan received nil pointer ok=%t hi='%v' lh=%d", ok, hi, lenhash)
+				}
 				for _, achan := range his.IndexChans {
 					// passing nils to IndexChans will stop them too
-					achan <- nil
+					// achan <- nil
+					close(achan)
 				}
 				break forever
 			}
 			C1 := string(string(*hi.Hash)[0]) // gets first char of hash
-			if C1 != "" {
-				//i := his.charsMap[C1]
-				if his.IndexChans[his.charsMap[C1]] != nil {
-					his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
-				}
+			//i := his.charsMap[C1]
+			if his.IndexChans[his.charsMap[C1]] != nil {
+				his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
 			}
 		} // end select
 	} // end for
 } // end func History_DBZ
 
-func returnBoltHashOpen() {
-	<-BoltHashOpen
-}
-
-func setBoltHashOpen() {
-	BoltHashOpen <- struct{}{}
-}
-
-func GetBoltHashOpen() int {
-	return len(BoltHashOpen)
-}
-
-func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *HistoryAddIndex, boltOpts *bolt.Options) {
+func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *HistoryIndex, boltOpts *bolt.Options) {
 	if !LOCKfunc(HISTORY_INDEX_LOCK16, "History_DBZ_Worker "+char) {
 		return
 	}
@@ -117,7 +115,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		log.Fatal(err)
 	}
 	defer boltSyncClose(db, char)
-	//defer log.Printf("Stopped HDBZW=(%02d) char=%s ", i, char)
+	defer log.Printf("Stopped HDBZW=(%02d) char=%s ", i, char)
 	testkey := "1"
 	testoffsets := []int64{1}
 	tcheck := 4096
@@ -198,16 +196,17 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	setBoltHashOpen()
 	defer returnBoltHashOpen()
 	lastsync := utils.UnixTimeSec()
-	added, total, processed := 0, uint64(0), uint64(0)
+	var added, total, processed, dupes, searches uint64
 	useShorthash := false // can not be changed once db has been created!
 forever:
 	for {
 		select {
-		case hi, ok := <-indexchan: // recevies a HistoryAddIndex struct
+		case hi, ok := <-indexchan: // recevies a HistoryIndex struct
 			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // at least md5
 				// receiving a nil object stops history_dbz_worker
 				break forever
 			}
+			processed++
 			hash := hi.Hash
 			if useShorthash {
 				ahash := string(string(*hi.Hash)[4:]) // shorterkey
@@ -230,7 +229,7 @@ forever:
 			//log.Printf("WORKER HDBZW char=%s hash=%s bucket=%s akey=%s numhash=%s @0x%010x|%d|%s", char, *hi.Hash, bucket, akey, numhash, hi.Offset, hi.Offset, hexoffset)
 			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false, true)
 			if err != nil {
-				log.Printf("ERROR HDBZW char=%s DupeCheck bucket=%s key=%s hash='%s' err='%v'", char, bucket, *key, *hi.Hash, err)
+				log.Printf("ERROR HDBZW char=%s DupeCheck err='%v'", char, err)
 				if hi.IndexRetChan != nil {
 					close(hi.IndexRetChan)
 				}
@@ -240,10 +239,14 @@ forever:
 			if hi.IndexRetChan != nil {
 				hi.IndexRetChan <- isDup
 			}
+			if hi.Offset == -1 {
+				searches++
+			}
 			if !isDup {
 				added++
 				total++
-				processed++
+			} else {
+				dupes++
 			}
 			if added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY {
 				if err := BoltSync(db, char); err != nil {
@@ -253,10 +256,11 @@ forever:
 			}
 		} // end select
 	} // end for
+	log.Printf("HDBZW char=%s Closed added=%d dupes=%d processed=%d searches=%d", char, total, dupes, processed, searches)
 } // end func History_DBZ_Worker
 
 /*
-func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hi *HistoryAddIndex, setempty bool) (err error) {
+func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hi *HistoryIndex, setempty bool) (err error) {
 	err := DupeCheck(db, char, bucket, key, hi, setempty)
 	if err != nil {
 		return err
@@ -272,12 +276,34 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 */
 
 func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool, add bool) (isDup bool, err error) {
+	if db == nil {
+		return false, fmt.Errorf("Error DupeCheck db=nil")
+	}
+	if char == nil {
+		return false, fmt.Errorf("Error DupeCheck char=nil")
+	}
+	if bucket == nil {
+		return false, fmt.Errorf("Error DupeCheck char=%s bucket=nil", *char)
+	}
+	if key == nil {
+		return false, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=nil", *char, *bucket)
+	}
+	if hash == nil {
+		return false, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=%s hash=nil", *char, *bucket, *key)
+	}
+	if offset == nil {
+		return false, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
+	}
 	offsets, err := boltBucketGetOffsets(db, char, bucket, key)
 	if err != nil {
 		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets char=%s bucket=%s key=%s hash='%s' err='%v'", *char, *bucket, *key, *hash, err)
 		return
 	}
 	if offsets == nil { // no offsets stored for numhash
+		if *offset == -1 { // DoCheckHashDupOnly
+			isDup = false
+			return
+		}
 		newoffsets := []int64{*offset}
 		// add hash to db
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, &newoffsets, setempty); err != nil {
@@ -327,7 +353,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		}
 	}
 
-	if add {
+	if add && *offset > 0 {
 		AppendOffset(offsets, &his.Offset)
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty); err != nil {
 			log.Printf("ERROR HDBZW APPEND boltBucketPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
@@ -681,3 +707,15 @@ func gobDecodeOffsets(encodedData []byte) (*[]int64, error) {
 	}
 	return &decodedOffsets, nil
 } // end func gobDecodeOffsets
+
+func returnBoltHashOpen() {
+	<-BoltHashOpen
+}
+
+func setBoltHashOpen() {
+	BoltHashOpen <- struct{}{}
+}
+
+func GetBoltHashOpen() int {
+	return len(BoltHashOpen)
+}
