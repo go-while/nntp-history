@@ -364,6 +364,10 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 		// Read a single byte
 		char, err := reader.ReadByte()
 		if err != nil {
+			if err == io.EOF {
+				// EOF Reached end of history file! entry not yet flushed
+				return nil, nil
+			}
 			return nil, err
 		}
 		// Check if the character is a '\n'
