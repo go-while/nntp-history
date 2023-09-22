@@ -187,8 +187,7 @@ forever:
 			if !ok || hobj == nil {
 				// receiving a nil object stops history_writer
 				if History.IndexChan != nil {
-					History.IndexChan <- nil // stops history_dbz
-					//close(History.IndexChan) // stops history_dbz // dont close channel as clients may still send requests
+					History.IndexChan <- nil // stops history_dbz // dont close IndexChan as clients may still send requests
 				}
 				break forever
 			}
@@ -218,8 +217,7 @@ forever:
 							close(hobj.ResponseChan) // close responseChan to client
 						}
 						if History.IndexChan != nil {
-							History.IndexChan <- nil // stops history_dbz
-							//close(History.IndexChan) // stops history_dbz // dont close channel as clients may still send requests
+							History.IndexChan <- nil // stops history_dbz // dont close IndexChan as clients may still send requests
 						}
 						break forever
 					}
@@ -291,12 +289,6 @@ func writeHistoryLine(dw *bufio.Writer, line *string, offset *int64, flush bool,
 				return err
 			}
 		}
-		/*
-			if History.IndexChan != nil {
-				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset}
-			}
-		*/
-
 	}
 	return nil
 } // end func writeHistoryLine
@@ -314,27 +306,6 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
 	}
-	/*
-		// Create a scanner to read lines as strings
-		scanner := bufio.NewScanner(file)
-
-		if scanner.Scan() {
-			line := scanner.Text()
-			if len(line) > 0 {
-				if line[0] != '{' || line[len(line)-1] != '}' {
-					return nil, fmt.Errorf("Error FseekHistoryMessageHash BAD line @offset=%d line='%s'", offset, line)
-				}
-				hash := line[1 : len(line)-1]
-				if len(hash) == 64 {
-					return &hash, nil
-				}
-			}
-		}
-
-		if scanner.Err() != nil {
-			return nil, scanner.Err()
-		}
-	*/
 
 	// Create a buffered reader for efficient reading
 	reader := bufio.NewReader(file)
