@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
+	"io"
 	//"hash/fnv"
 	"log"
 	"os"
@@ -34,6 +35,7 @@ var (
 	HISTORY_INDEX_LOCK16 = make(chan struct{}, 16)
 	HISTORY_WRITER_CHAN  chan *HistoryObject
 	HEXCHARS             = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	defhash string = "y"
 )
 
 type HISTORY struct {
@@ -167,7 +169,7 @@ func (his *HISTORY) History_Writer() {
 		}
 	}
 	var wroteLines uint64
-	flush = false // will flush when bufio gets full, default 4K
+	flush = false // will flush when bufio gets full
 	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
 	var indexRetChan chan bool
 	if History.IndexChan != nil {
@@ -232,16 +234,10 @@ forever:
 				} // end select
 			}
 
-			/*
-				if hobj.Do != nil && *hobj.Do == DoCheckHashDupOnly {
-					continue forever
-				}
-			*/
-
-			// fake inn2 format
+			// DONT! fake inn2 format... we use a lowercased hash
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
-			flush := true
+			//flush := true
 			whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *ST)
 			if err := writeHistoryLine(dw, &whs, &his.Offset, flush, &wbt); err != nil {
 				log.Printf("ERROR History_Writer writeHistoryLine err='%v'", err)
@@ -349,6 +345,10 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 		// Read a single byte
 		char, err := reader.ReadByte()
 		if err != nil {
+			if err == io.EOF {
+				// EOF Reached end of history file! entry not yet flushed, asume a hit
+				return &defhash, nil
+			}
 			return nil, err
 		}
 		// Check if the character is a '\t'
