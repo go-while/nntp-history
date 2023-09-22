@@ -47,9 +47,10 @@ func main() {
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				//time.Sleep(time.Nanosecond)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATE MORE UNIQ, ALMOST NO DUPES
-				hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+				hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
 				// check go-cache for hash
 				if _, found := c.Get(hash); found {
