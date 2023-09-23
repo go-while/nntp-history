@@ -20,6 +20,7 @@ const (
 	HashFNV32a uint8 = 1
 	HashFNV64  uint8 = 2
 	HashFNV64a uint8 = 3
+	DefaultHashLen int = 6
 )
 
 var (
@@ -52,6 +53,8 @@ type HISTORY struct {
 	charsMap   map[string]int
 	useHashDB  bool
 	hashtype   uint8
+	shorthash  bool
+	hashlen    int
 }
 
 type HistoryObject struct {
@@ -64,7 +67,7 @@ type HistoryObject struct {
 	ResponseChan  chan int // receives a 0,1,2 if not|duplicate|retrylater
 }
 
-func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64, hashalgo uint8) {
+func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64, hashalgo uint8, shorthash bool, hashlen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if HISTORY_WRITER_CHAN != nil {
@@ -104,6 +107,7 @@ func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, 
 		log.Printf("ERROR History_Boot unknown hashalgo")
 		return
 	}
+	his.shorthash, his.hashlen = shorthash, hashlen
 	his.HF = history_dir + "/" + "history.dat"
 	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
 	his.HF_hash = his.HF + ".hash"
@@ -237,7 +241,7 @@ forever:
 						hobj.ResponseChan <- isDup
 					}
 					if isDup > 0 {
-						if isDup == 2 {
+					if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
 							if err := dw.Flush(); err != nil {
 								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
 								break forever
