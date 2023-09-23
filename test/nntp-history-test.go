@@ -8,13 +8,13 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"log"
 	//"strings"
-	"time"
 	"flag"
+	"time"
 )
 
 func main() {
 	var offset int64
-	var todo int      // todo x parallelTest
+	var todo int // todo x parallelTest
 	var parallelTest int
 	var useHashDB bool
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
@@ -22,13 +22,23 @@ func main() {
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "<----")
 	flag.Parse()
-	storageToken := "F" // storagetoken flatfile
+	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
 	// dont change below
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
-	HashAlgo := history.HashFNV32
-	ShortHash, HashLen := true, 5 // shorthash=true overwrites HashAlgo
+	HashAlgo := history.HashFNV32 // default hashalgo if no shorthash is used
+	// shorthash=true overwrites HashAlgo FNV!
+	// and the HashLen defines length of hash we use in hashdb
+	// minimum is 5.
+	// a shorter hash stores more offsets per key
+	// a dupecheck checks all offsets per key to match a hash
+	// meaningful range for HashLen is 6-8. longer is not better.
+	// max 32 with md5
+	// max 40 with sha1
+	// max 64 with sha256
+	// max 128 with sha512
+	ShortHash, HashLen := true, 6
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
 		bO := bolt.Options{
@@ -50,9 +60,9 @@ func main() {
 			return
 		}
 		/*
-		if strings.HasPrefix(*result, "HT="){
-			hh := strings.Split(*result, "=")[1]
-		}*/
+			if strings.HasPrefix(*result, "HT="){
+				hh := strings.Split(*result, "=")[1]
+			}*/
 		fmt.Printf("History @offset=%d line='%s'\n", offset, *result)
 		return
 	}
@@ -112,20 +122,20 @@ func main() {
 							break fortodo
 						}
 						switch isDup {
-							case 0:
-								added++
-							case 1:
-								dupes++
-								// DUPLICATE entry
-								log.Printf("main: DUP hash='%s'", hash)
-								continue fortodo
-							case 2:
-								retry++
-								go func(hobj *history.HistoryObject){
-									time.Sleep(10 * time.Second)
-									// retry object ...
-								}(hobj)
-								continue fortodo
+						case 0:
+							added++
+						case 1:
+							dupes++
+							// DUPLICATE entry
+							log.Printf("main: DUP hash='%s'", hash)
+							continue fortodo
+						case 2:
+							retry++
+							go func(hobj *history.HistoryObject) {
+								time.Sleep(10 * time.Second)
+								// retry object ...
+							}(hobj)
+							continue fortodo
 						}
 					} // end select
 				}
@@ -142,12 +152,12 @@ func main() {
 							break fortodo
 						} else {
 							switch isDup {
-								case 0:
-									added++
-								case 1:
-									adddupes++
-								case 2:
-									retry++
+							case 0:
+								added++
+							case 1:
+								adddupes++
+							case 2:
+								retry++
 							}
 						}
 					} // end select
