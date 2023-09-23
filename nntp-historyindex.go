@@ -8,6 +8,7 @@ import (
 	//"github.com/go-while/go-utils"
 	//"github.com/edsrzf/mmap-go"
 	"hash/fnv"
+	"io"
 	"log"
 	//"os"
 	//"github.com/nutsdb/nutsdb"
@@ -31,7 +32,7 @@ var (
 type HistoryIndex struct {
 	Hash         *string
 	Offset       int64
-	IndexRetChan chan bool
+	IndexRetChan chan int
 }
 
 func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
@@ -41,7 +42,7 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		return
 	}
 	for i, char := range HEXCHARS {
-		his.IndexChans[i] = make(chan *HistoryIndex, 2)
+		his.IndexChans[i] = make(chan *HistoryIndex, 1)
 		his.charsMap[char] = i
 		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
@@ -190,7 +191,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	setBoltHashOpen()
 	defer returnBoltHashOpen()
 	lastsync := utils.UnixTimeSec()
-	var added, total, processed, dupes, searches uint64
+	var added, total, processed, dupes, searches, retry uint64
 forever:
 	for {
 		select {
@@ -214,12 +215,14 @@ forever:
 			//log.Printf("WORKER HDBZW char=%s hash=%s bucket=%s akey=%s numhash=%s @0x%010x|%d|%s", char, *hi.Hash, bucket, akey, numhash, hi.Offset, hi.Offset, hexoffset)
 			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false)
 			if err != nil {
-				log.Printf("ERROR HDBZW char=%s DupeCheck err='%v'", char, err)
-				if hi.IndexRetChan != nil {
-					close(hi.IndexRetChan)
+				if err != io.EOF {
+					if hi.IndexRetChan != nil {
+						close(hi.IndexRetChan)
+					}
+					log.Printf("ERROR HDBZW char=%s DupeCheck err='%v'", char, err)
+					break forever
 				}
-				//break forever
-				continue forever
+				// dupecheck got EOF from history file
 			}
 
 			if hi.IndexRetChan != nil {
@@ -231,13 +234,16 @@ forever:
 			} else if hi.Offset > 0 {
 				processed++
 			}
-			if !isDup {
-				added++
-				total++
-			} else {
-				dupes++
+			switch isDup {
+				case 0:
+					added++
+					total++
+				case 1:
+					dupes++
+				case 2:
+					retry++
 			}
-			if added >= 30000 || (added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
+			if added >= 30000 || (added >= 1000 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
 				if err := BoltSync(db, char); err != nil {
 					break forever
 				}
@@ -245,53 +251,53 @@ forever:
 			}
 		} // end select
 	} // end for
-	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d", char, total, dupes, processed, searches)
+	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
 } // end func History_DBZ_Worker
 
-func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool) (isDup bool, err error) {
+func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool) (int, error) {
 	if db == nil {
-		return false, fmt.Errorf("Error DupeCheck db=nil")
+		return -1, fmt.Errorf("Error DupeCheck db=nil")
 	}
 	if char == nil {
-		return false, fmt.Errorf("Error DupeCheck char=nil")
+		return -1, fmt.Errorf("Error DupeCheck char=nil")
 	}
 	if bucket == nil {
-		return false, fmt.Errorf("Error DupeCheck char=%s bucket=nil", *char)
+		return -1, fmt.Errorf("Error DupeCheck char=%s bucket=nil", *char)
 	}
 	if key == nil {
-		return false, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=nil", *char, *bucket)
+		return -1, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=nil", *char, *bucket)
 	}
 	if hash == nil {
-		return false, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=%s hash=nil", *char, *bucket, *key)
+		return -1, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=%s hash=nil", *char, *bucket, *key)
 	}
 	if offset == nil {
-		return false, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
+		return -1, fmt.Errorf("Error DupeCheck char=%s bucket=%s key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
 	}
 	offsets, err := boltBucketGetOffsets(db, char, bucket, key)
 	if err != nil {
 		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets char=%s bucket=%s key=%s hash='%s' err='%v'", *char, *bucket, *key, *hash, err)
-		return
+		return -1, err
 	}
 	if offsets == nil { // no offsets stored for numhash
-		if *offset == -1 { // DoCheckHashDupOnly
-			isDup = false
-			return
+		if *offset == -1 {
+			//isDup = false
+			return 0, nil
 		}
 		newoffsets := []int64{*offset}
 		// add hash to db
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, &newoffsets, setempty); err != nil {
 			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketPutOffsets bucket=%s err='%v'", *char, *bucket, err)
-			return false, err
+			return -1, err
 		}
 		logf(DEBUG0, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
-		return
+		return 0, nil
 	}
 
 	lo := len(*offsets)
 	if lo == 0 {
 		// error: 0 offsets stored at this key?!
 		log.Printf("ERROR HDBZW char=%s DupeCheck NO OFFSETS bucket=%s key=%s hash=%s", *char, *bucket, *key, *hash)
-		return false, fmt.Errorf("NO OFFSETS bucket=%s key=%s hash=%s", *bucket, *key, *hash)
+		return -1, fmt.Errorf("NO OFFSETS bucket=%s key=%s hash=%s", *bucket, *key, *hash)
 	}
 	//if lo == 1 && *offset == -1 { // DoCheckHashDupOnly
 	//	// only 1 offset stored at this key: return quick duplicate hit
@@ -308,34 +314,37 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			historyHash, err := his.FseekHistoryMessageHash(check_offset)
 			if err != nil {
 				log.Printf("ERROR HDBZW char=%s FseekHistoryMessageHash bucket=%s err='%v' offset=%d", *char, *bucket, err, check_offset)
-				return false, err
+				return -1, err
 			}
 			if historyHash != nil {
-				if (len(*historyHash) == 1 && *historyHash == defhash) || *historyHash == *hash {
+				if (len(*historyHash) == 3 && *historyHash == eofhash){
+					return 2, nil
+				} else
+				if *historyHash == *hash {
 					// hash is a duplicate in history
 					logf(DEBUG1, "WARN HDBZW DUPLICATE historyHash=%s @offset=%d +offset=%d", *historyHash, check_offset, *offset)
 					//isDup = true
-					return true, nil
+					return 1, nil
 				}
 			}
 			if historyHash == nil && err == nil {
 				log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
-				return false, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
+				return -1, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
 			}
 		}
 	}
 
 	if *offset > 0 {
 		if err := AppendOffset(offsets, offset); err != nil {
-			return false, err
+			return -1, err
 		}
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty); err != nil {
 			log.Printf("ERROR HDBZW APPEND boltBucketPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
-			return false, err
+			return -1, err
 		}
 		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
 	}
-	return
+	return 0, nil
 } // end func DupeCheck
 
 func BoltSync(db *bolt.DB, char string) error {
