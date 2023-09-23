@@ -20,7 +20,7 @@ const (
 	HashFNV32a     uint8 = 1
 	HashFNV64      uint8 = 2
 	HashFNV64a     uint8 = 3
-	DefaultHashLen int   = 6
+	DefaultHashLen int   = 5
 )
 
 var (
