@@ -208,35 +208,23 @@ forever:
 			}
 			var key *string
 			bucket := string(string(*hi.Hash)[1:4]) // get 3 chars for bucket
-			/*
-			if his.shorthash {
+			switch his.hashtype {
+			case HashShort:
 				max := len(*hi.Hash)
 				if cutHashlen > max {
 					cutHashlen = max
 				}
 				shorthash := string(string(*hi.Hash)[4:cutHashlen])
-				//log.Printf("shorthash=%d his.hashlen=%d setHashlen=4:%d max=%d", len(shorthash), his.hashlen, setHashlen, max)
 				key = &shorthash
-			} else {
-			*/
-				switch his.hashtype {
-				case HashShort:
-					max := len(*hi.Hash)
-					if cutHashlen > max {
-						cutHashlen = max
-					}
-					shorthash := string(string(*hi.Hash)[4:cutHashlen])
-					key = &shorthash
-				case HashFNV32:
-					key = FNV32S(hi.Hash)
-				case HashFNV32a:
-					key = FNV32aS(hi.Hash)
-				case HashFNV64:
-					key = FNV64S(hi.Hash)
-				case HashFNV64a:
-					key = FNV64aS(hi.Hash)
-				}
-			//}
+			case HashFNV32:
+				key = FNV32S(hi.Hash)
+			case HashFNV32a:
+				key = FNV32aS(hi.Hash)
+			case HashFNV64:
+				key = FNV64S(hi.Hash)
+			case HashFNV64a:
+				key = FNV64aS(hi.Hash)
+			}
 			//log.Printf("WORKER HDBZW char=%s hash=%s bucket=%s akey=%s numhash=%s @0x%010x|%d|%s", char, *hi.Hash, bucket, akey, numhash, hi.Offset, hi.Offset, hexoffset)
 			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false)
 			if err != nil {
