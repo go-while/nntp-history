@@ -126,7 +126,8 @@ func main() {
 						}
 						switch isDup {
 						case 0:
-							added++
+							// pass
+							//added++
 						case 1:
 							dupes++
 							// DUPLICATE entry
