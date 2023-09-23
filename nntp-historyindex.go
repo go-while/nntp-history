@@ -25,7 +25,6 @@ const (
 
 var (
 	BoltCheckParallel int = boltDBs // set this via 'history.BoltCheckParallel = 1' before calling History_Boot.
-	boltChanInit      chan struct{}
 	BoltHashOpen      = make(chan struct{}, boltDBs) // dont change this
 )
 
@@ -37,7 +36,7 @@ type HistoryIndex struct {
 
 func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 	log.Printf("his.History_DBZinit()")
-	if boltChanInit != nil {
+	if his.boltChanInit != nil {
 		log.Printf("ERROR History_DBZinit already loaded")
 		return
 	}
@@ -47,7 +46,7 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		his.charsMap[char] = i
 		go his.History_DBZ_Worker(char, i, indexchan, boltOpts)
 	}
-	boltChanInit = make(chan struct{}, BoltCheckParallel)
+	his.boltChanInit = make(chan struct{}, BoltCheckParallel)
 	go his.History_DBZ()
 
 } // end func History_DBZinit
@@ -57,7 +56,8 @@ func (his *HISTORY) History_DBZ() {
 		return
 	}
 	defer UNLOCKfunc(HISTORY_INDEX_LOCK, "History_DBZ")
-	log.Printf("OK History_DBZ")
+	his.wait4HashDB()
+	log.Printf("Boot History_DBZ")
 forever:
 	for {
 		select {
@@ -119,9 +119,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	created := 0
 	setempty := false
 	initLongTest := false
-	his.mux.Lock()
-	boltChanInit <- struct{}{}
-	his.mux.Unlock()
+	his.boltChanInit <- struct{}{}
 	logf(DEBUG1, "HDBZW: INIT HashDB char=%s", char)
 	for _, c1 := range HEXCHARS {
 		for _, c2 := range HEXCHARS {
@@ -185,9 +183,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		} // end for c2
 		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 	} // end for c1
-	his.mux.Lock()
-	<-boltChanInit
-	his.mux.Unlock()
+	<-his.boltChanInit
 	//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 	if checked != 4096 {
 		log.Printf("ERROR HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
@@ -717,20 +713,13 @@ func gobDecodeOffsets(encodedData []byte) (*[]int64, error) {
 } // end func gobDecodeOffsets
 
 func (his *HISTORY) returnBoltHashOpen() {
-	his.mux.Lock()
 	<-BoltHashOpen
-	his.mux.Unlock()
 }
 
 func (his *HISTORY) setBoltHashOpen() {
-	his.mux.Lock()
 	BoltHashOpen <- struct{}{}
-	his.mux.Unlock()
 }
 
 func (his *HISTORY) GetBoltHashOpen() int {
-	his.mux.Lock()
-	retlen := len(BoltHashOpen)
-	his.mux.Unlock()
-	return retlen
+	return len(BoltHashOpen)
 }
