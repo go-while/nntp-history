@@ -16,15 +16,15 @@ import (
 )
 
 const (
-	HashFNV32  uint8 = 0
-	HashFNV32a uint8 = 1
-	HashFNV64  uint8 = 2
-	HashFNV64a uint8 = 3
-	DefaultHashLen int = 6
+	HashFNV32      uint8 = 0
+	HashFNV32a     uint8 = 1
+	HashFNV64      uint8 = 2
+	HashFNV64a     uint8 = 3
+	DefaultHashLen int   = 6
 )
 
 var (
-	Bolt_SYNC_EVERY      int64 = 5         // seconds
+	Bolt_SYNC_EVERY      int64 = 5 // seconds
 	DEBUG                bool  = true
 	DEBUG0               bool  = false
 	DEBUG1               bool  = false
@@ -33,8 +33,8 @@ var (
 	HISTORY_INDEX_LOCK   = make(chan struct{}, 1)
 	HISTORY_INDEX_LOCK16 = make(chan struct{}, 16)
 	HISTORY_WRITER_CHAN  chan *HistoryObject
-	HEXCHARS             = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash string = "EOF"
+	HEXCHARS                    = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash              string = "EOF"
 )
 
 type HISTORY struct {
@@ -241,7 +241,7 @@ forever:
 						hobj.ResponseChan <- isDup
 					}
 					if isDup > 0 {
-					if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
+						if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
 							if err := dw.Flush(); err != nil {
 								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
 								break forever
