@@ -186,6 +186,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			// pass
 		default:
 			log.Printf("ERROR History_Boot gobDecodeHeader Unknown HashType=%d'", his.hashtype)
+			os.Exit(1)
 		}
 		his.hashlen = history_settings.HashLen
 		log.Printf("Loaded History Settings: '%#v'", history_settings)
