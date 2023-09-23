@@ -42,6 +42,7 @@ type HISTORY struct {
 	//rmux   sync.RWMutex
 	Offset int64
 	HF     string // = "history/history.dat"
+	HD     string // = "hashdb"
 	//HF_hidx    string // = "history/history.HIndex"
 	HF_hash    string // = "history/history.HHash"
 	IndexChan  chan *HistoryIndex
@@ -67,7 +68,7 @@ type HistoryObject struct {
 	ResponseChan  chan int // receives a 0,1,2 if not|duplicate|retrylater
 }
 
-func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64, hashalgo uint8, shorthash bool, hashlen int) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERY int64, hashalgo uint8, shorthash bool, hashlen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if HISTORY_WRITER_CHAN != nil {
@@ -78,12 +79,6 @@ func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, 
 		log.Printf("ERROR History already booted#2!")
 		return
 	}
-	if readq <= 0 {
-		readq = 1
-	}
-	if writeq <= 0 {
-		writeq = 1
-	}
 	if history_dir == "" {
 		history_dir = "history"
 	} else {
@@ -91,8 +86,32 @@ func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, 
 			history_dir = history_dir[:len(history_dir)-1] // remove final slash
 		}
 	}
-	if bsync > 0 {
-		Bolt_SYNC_EVERY = bsync
+	his.HF = history_dir + "/" + "history.dat"
+
+	if hashdb_dir == "" {
+		his.HF_hash = his.HF + ".hash"
+	} else {
+		if hashdb_dir[len(hashdb_dir)-1] == '/' {
+			hashdb_dir = hashdb_dir[:len(hashdb_dir)-1] // remove final slash
+		}
+		his.HF_hash = hashdb_dir + "/" + ".hash"
+	}
+	if !utils.DirExists(history_dir) && !utils.Mkdir(history_dir) {
+		log.Printf("Error creating history_dir='%s'", history_dir)
+		os.Exit(1)
+	}
+	if useHashDB && !utils.DirExists(hashdb_dir) && !utils.Mkdir(hashdb_dir) {
+		log.Printf("Error creating hashdb_dir='%s'", hashdb_dir)
+		os.Exit(1)
+	}
+	if readq <= 0 {
+		readq = 1
+	}
+	if writeq <= 0 {
+		writeq = 1
+	}
+	if bolt_SYNC_EVERY > 0 {
+		Bolt_SYNC_EVERY = bolt_SYNC_EVERY
 	}
 	switch hashalgo {
 	case HashFNV32:
@@ -108,12 +127,9 @@ func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, 
 		return
 	}
 	his.shorthash, his.hashlen = shorthash, hashlen
-	his.HF = history_dir + "/" + "history.dat"
 	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
-	his.HF_hash = his.HF + ".hash"
-	//his.HF_hidx = his.HF + ".hidx" // unused
-	his.IndexChan = make(chan *HistoryIndex, boltDBs)
 	if useHashDB {
+		his.IndexChan = make(chan *HistoryIndex, readq)
 		his.useHashDB = true
 		his.charsMap = make(map[string]int, boltDBs)
 		his.History_DBZinit(boltOpts)
