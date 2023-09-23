@@ -27,7 +27,8 @@ func main() {
 	// dont change below
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
-	hashalgo := history.HashFNV32
+	HashAlgo := history.HashFNV32
+	ShortHash, HashLen := true, 5 // shorthash=true overwrites HashAlgo
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
 		bO := bolt.Options{
@@ -40,7 +41,7 @@ func main() {
 		boltOpts = &bO
 	}
 	c := cache.New(expireCache, purgeCache)
-	history.History.History_Boot("", useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, hashalgo)
+	history.History.History_Boot("", useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, ShortHash, HashLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		// Check for errors.
@@ -75,8 +76,8 @@ func main() {
 				done++
 				//time.Sleep(time.Nanosecond)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-				hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
 				// check go-cache for hash
