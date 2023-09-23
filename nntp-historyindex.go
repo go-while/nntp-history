@@ -98,7 +98,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		defboltOpts := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 1024 * 1024,
+			InitialMmapSize: 16 * 1024 * 1024,
 			PageSize:        4 * 1024,
 			NoSync:          true,
 			//NoFreelistSync: true,
