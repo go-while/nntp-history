@@ -40,15 +40,14 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		log.Printf("ERROR History_DBZinit already loaded")
 		return
 	}
+	his.boltChanInit = make(chan struct{}, BoltCheckParallel)
 	for i, char := range HEXCHARS {
 		indexchan := make(chan *HistoryIndex, 1)
 		his.IndexChans[i] = indexchan
 		his.charsMap[char] = i
 		go his.History_DBZ_Worker(char, i, indexchan, boltOpts)
 	}
-	his.boltChanInit = make(chan struct{}, BoltCheckParallel)
 	go his.History_DBZ()
-
 } // end func History_DBZinit
 
 func (his *HISTORY) History_DBZ() {
