@@ -34,11 +34,10 @@ func main() {
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
 	HistoryDir := "history"
 	HashDBDir := "history/hashdb"
-	// default hashalgo if no shorthash is used
-	HashAlgo := history.HashFNV32
-	// shorthash=true overwrites HashAlgo FNV!
-	// and the HashLen defines length of hash we use in hashdb
-	// minimum is 5.
+	HashAlgo := history.HashShort
+	HashLen := 8
+	// the HashLen defines length of hash we use in hashdb: minimum is 5
+	// hashlen is only used with ShortHash. FNV hashes have predefined length
 	// a shorter hash stores more offsets per key
 	// a dupecheck checks all offsets per key to match a hash
 	// meaningful range for HashLen is 6-8. longer is not better.
@@ -46,7 +45,6 @@ func main() {
 	// HashLen max 40 with sha1
 	// HashLen max 64 with sha256
 	// HashLen max 128 with sha512
-	ShortHash, HashLen := true, 8
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
 		bO := bolt.Options{
@@ -61,7 +59,7 @@ func main() {
 	}
 
 	c := cache.New(expireCache, purgeCache)
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, ShortHash, HashLen)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, HashLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
