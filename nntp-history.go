@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	Bolt_SYNC_EVERY      int64 = 5 // seconds
+	Bolt_SYNC_EVERY      int64 = 15 // seconds
 	DEBUG                bool  = true
 	DEBUG0               bool  = false
 	DEBUG1               bool  = false
@@ -39,12 +39,11 @@ var (
 
 type HISTORY struct {
 	mux sync.Mutex
+	boltChanInit      chan struct{}
 	//rmux   sync.RWMutex
 	Offset int64
 	HF     string // = "history/history.dat"
-	HD     string // = "hashdb"
-	//HF_hidx    string // = "history/history.HIndex"
-	HF_hash    string // = "history/history.HHash"
+	HF_hash    string // = "history/history.Hash"
 	IndexChan  chan *HistoryIndex
 	IndexChans [16]chan *HistoryIndex
 	files_IDX  [16]*os.File
@@ -60,7 +59,7 @@ type HISTORY struct {
 
 type HistoryObject struct {
 	MessageIDHash *string
-	StorageToken  *string // "F" = flatstorage | "M" = mongodb | "" = not stored
+	StorageToken  *string // "F" = flatstorage | "M" = mongodb | "X" = deleted
 	Char          string
 	Arrival       int64
 	Expires       int64
@@ -94,7 +93,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		if hashdb_dir[len(hashdb_dir)-1] == '/' {
 			hashdb_dir = hashdb_dir[:len(hashdb_dir)-1] // remove final slash
 		}
-		his.HF_hash = hashdb_dir + "/" + ".hash"
+		his.HF_hash = hashdb_dir + "/" + ".hash" // + ".a-f0-9"
 	}
 	if !utils.DirExists(history_dir) && !utils.Mkdir(history_dir) {
 		log.Printf("Error creating history_dir='%s'", history_dir)
@@ -127,6 +126,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		return
 	}
 	his.shorthash, his.hashlen = shorthash, hashlen
+	if his.hashlen < DefaultHashLen {
+		log.Printf("Error History_Boot hashlen=%d < DefaultHashLen=%d", DefaultHashLen)
+		os.Exit(1)
+	}
 	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
 	if useHashDB {
 		his.IndexChan = make(chan *HistoryIndex, readq)
@@ -157,7 +160,7 @@ func UNLOCKfunc(achan chan struct{}, src string) {
 
 func (his *HISTORY) wait4HashDB() {
 	now := utils.UnixTimeSec()
-	start := utils.UnixTimeMilliSec()
+	//start := utils.UnixTimeMilliSec()
 	if his.useHashDB {
 		for {
 			time.Sleep(10 * time.Millisecond)
@@ -171,7 +174,7 @@ func (his *HISTORY) wait4HashDB() {
 			}
 		}
 	}
-	log.Printf("Booted HashDB ms=%d", utils.UnixTimeMilliSec()-start)
+	//log.Printf("Booted HashDB ms=%d", utils.UnixTimeMilliSec()-start)
 } // end func wait4HashDB
 
 func (his *HISTORY) History_Writer() {
