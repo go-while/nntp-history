@@ -31,6 +31,8 @@ func main() {
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
+	HistoryDir := "history"
+	HashDBDir := "history/hashdb"
 	// default hashalgo if no shorthash is used
 	HashAlgo := history.HashFNV32
 	// shorthash=true overwrites HashAlgo FNV!
@@ -56,8 +58,9 @@ func main() {
 		}
 		boltOpts = &bO
 	}
+
 	c := cache.New(expireCache, purgeCache)
-	history.History.History_Boot("", useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, ShortHash, HashLen)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, ShortHash, HashLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		// Check for errors.
