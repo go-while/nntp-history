@@ -42,13 +42,14 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		return
 	}
 	for i, char := range HEXCHARS {
-		his.IndexChans[i] = make(chan *HistoryIndex, 1)
+		indexchan := make(chan *HistoryIndex, 1)
+		his.IndexChans[i] = indexchan
 		his.charsMap[char] = i
-		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
+		go his.History_DBZ_Worker(char, i, indexchan, boltOpts)
 	}
 	boltChanInit = make(chan struct{}, BoltCheckParallel)
 	go his.History_DBZ()
-	time.Sleep(time.Millisecond)
+
 } // end func History_DBZinit
 
 func (his *HISTORY) History_DBZ() {
@@ -118,7 +119,9 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	created := 0
 	setempty := false
 	initLongTest := false
+	his.mux.Lock()
 	boltChanInit <- struct{}{}
+	his.mux.Unlock()
 	logf(DEBUG1, "HDBZW: INIT HashDB char=%s", char)
 	for _, c1 := range HEXCHARS {
 		for _, c2 := range HEXCHARS {
@@ -182,14 +185,16 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		} // end for c2
 		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 	} // end for c1
+	his.mux.Lock()
 	<-boltChanInit
+	his.mux.Unlock()
 	//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 	if checked != 4096 {
 		log.Printf("ERROR HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 		return
 	}
-	setBoltHashOpen()
-	defer returnBoltHashOpen()
+	his.setBoltHashOpen()
+	defer his.returnBoltHashOpen()
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches, retry uint64
 	setHashlen := 9 // 4:9 = 5 chars
@@ -711,14 +716,21 @@ func gobDecodeOffsets(encodedData []byte) (*[]int64, error) {
 	return &decodedOffsets, nil
 } // end func gobDecodeOffsets
 
-func returnBoltHashOpen() {
+func (his *HISTORY) returnBoltHashOpen() {
+	his.mux.Lock()
 	<-BoltHashOpen
+	his.mux.Unlock()
 }
 
-func setBoltHashOpen() {
+func (his *HISTORY) setBoltHashOpen() {
+	his.mux.Lock()
 	BoltHashOpen <- struct{}{}
+	his.mux.Unlock()
 }
 
-func GetBoltHashOpen() int {
-	return len(BoltHashOpen)
+func (his *HISTORY) GetBoltHashOpen() int {
+	his.mux.Lock()
+	retlen := len(BoltHashOpen)
+	his.mux.Unlock()
+	return retlen
 }
