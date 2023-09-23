@@ -59,18 +59,18 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 
 ## Benchmark with 4 parallel tests
 ```sh
-2023/09/23 21:38:48 RUN test p=1 nntp-history done=10000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:48 RUN test p=4 nntp-history done=10000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:48 RUN test p=2 nntp-history done=10000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:48 RUN test p=3 nntp-history done=10000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:51 RUN test p=1 nntp-history done=20000/1000000 added=40000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:51 RUN test p=3 nntp-history done=20000/1000000 added=40000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:51 RUN test p=4 nntp-history done=20000/1000000 added=40000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:51 RUN test p=2 nntp-history done=20000/1000000 added=40000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:53 RUN test p=1 nntp-history done=30000/1000000 added=60000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:53 RUN test p=3 nntp-history done=30000/1000000 added=60000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:53 RUN test p=4 nntp-history done=30000/1000000 added=60000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/23 21:38:53 RUN test p=2 nntp-history done=30000/1000000 added=60000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:06 RUN test p=2 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:06 RUN test p=1 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:06 RUN test p=3 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:06 RUN test p=4 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:08 RUN test p=1 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:08 RUN test p=2 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:08 RUN test p=4 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:08 RUN test p=3 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:10 RUN test p=2 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:10 RUN test p=1 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:10 RUN test p=4 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:07:10 RUN test p=3 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
 ```
 
 ## Message-ID Hash Splitting with BoltDB
