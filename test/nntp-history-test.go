@@ -9,6 +9,7 @@ import (
 	"log"
 	//"strings"
 	"flag"
+	"os"
 	"runtime"
 	"time"
 )
@@ -63,17 +64,12 @@ func main() {
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, ShortHash, HashLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
-		// Check for errors.
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
-			return
+			os.Exit(1)
 		}
-		/*
-			if strings.HasPrefix(*result, "HT="){
-				hh := strings.Split(*result, "=")[1]
-			}*/
 		fmt.Printf("History @offset=%d line='%s'\n", offset, *result)
-		return
+		os.Exit(0)
 	}
 	P_donechan := make(chan struct{}, parallelTest)
 	for p := 1; p <= parallelTest; p++ {
