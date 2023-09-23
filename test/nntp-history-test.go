@@ -9,10 +9,14 @@ import (
 	"log"
 	//"strings"
 	"flag"
+	"runtime"
 	"time"
 )
 
 func main() {
+	numCPU := runtime.NumCPU()
+	fmt.Printf("Number of CPU cores: %d\n", numCPU)
+	runtime.GOMAXPROCS(numCPU)
 	var offset int64
 	var todo int // todo x parallelTest
 	var parallelTest int
@@ -20,6 +24,7 @@ func main() {
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
+	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "<----")
 	flag.Parse()
 	storageToken := "F"                                       // storagetoken flatfile
@@ -38,15 +43,16 @@ func main() {
 	// HashLen max 40 with sha1
 	// HashLen max 64 with sha256
 	// HashLen max 128 with sha512
-	ShortHash, HashLen := true, 6
+	ShortHash, HashLen := true, 8
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 1024 * 1024 * 1024,
+			InitialMmapSize: 64 * 1024 * 1024,
 			PageSize:        4 * 1024,
 			NoSync:          true,
+			NoFreelistSync: true,
 		}
 		boltOpts = &bO
 	}
@@ -127,14 +133,14 @@ func main() {
 						case 1:
 							dupes++
 							// DUPLICATE entry
-							log.Printf("main: DUP hash='%s'", hash)
+							//log.Printf("main: DUP hash='%s'", hash)
 							continue fortodo
 						case 2:
 							retry++
-							go func(hobj *history.HistoryObject) {
-								time.Sleep(10 * time.Second)
-								// retry object ...
-							}(hobj)
+							//go func(hobj *history.HistoryObject) {
+							//	time.Sleep(10 * time.Second)
+							//	// retry object ...
+							//}(hobj)
 							continue fortodo
 						}
 					} // end select
