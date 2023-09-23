@@ -196,7 +196,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	//setHashlen := 10 // 4:10 = 6 chars
 	if his.shorthash {
 		if his.hashlen > 6 {
-			setHashlen = 4+his.hashlen
+			setHashlen = 4 + his.hashlen
 		}
 	}
 forever:
@@ -252,13 +252,13 @@ forever:
 				processed++
 			}
 			switch isDup {
-				case 0:
-					added++
-					total++
-				case 1:
-					dupes++
-				case 2:
-					retry++
+			case 0:
+				added++
+				total++
+			case 1:
+				dupes++
+			case 2:
+				retry++
 			}
 			if added >= 30000 || (added >= 1000 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
 				if err := BoltSync(db, char); err != nil {
@@ -334,10 +334,9 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 				return -1, err
 			}
 			if historyHash != nil {
-				if (len(*historyHash) == 3 && *historyHash == eofhash){
+				if len(*historyHash) == 3 && *historyHash == eofhash {
 					return 2, nil
-				} else
-				if *historyHash == *hash {
+				} else if *historyHash == *hash {
 					// hash is a duplicate in history
 					logf(DEBUG1, "WARN HDBZW DUPLICATE historyHash=%s @offset=%d +offset=%d", *historyHash, check_offset, *offset)
 					//isDup = true
