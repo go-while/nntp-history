@@ -33,7 +33,7 @@ var (
 	HISTORY_INDEX_LOCK16 = make(chan struct{}, 16)
 	HISTORY_WRITER_CHAN  chan *HistoryObject
 	HEXCHARS             = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	defhash string = "y"
+	eofhash string = "EOF"
 )
 
 type HISTORY struct {
@@ -61,7 +61,7 @@ type HistoryObject struct {
 	Arrival       int64
 	Expires       int64
 	Date          int64
-	ResponseChan  chan bool // receives a true/false isDUP or closed channel on error
+	ResponseChan  chan int // receives a 0,1,2 if not|duplicate|retrylater
 }
 
 func (his *HISTORY) History_Boot(history_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bsync int64, hashalgo uint8) {
@@ -183,9 +183,9 @@ func (his *HISTORY) History_Writer() {
 	var wroteLines uint64
 	flush = false // will flush when bufio gets full
 	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
-	var indexRetChan chan bool
+	var indexRetChan chan int
 	if History.IndexChan != nil {
-		indexRetChan = make(chan bool, 1)
+		indexRetChan = make(chan int, 1)
 	}
 	storageToken := "?"
 forever:
@@ -236,7 +236,13 @@ forever:
 					if hobj.ResponseChan != nil {
 						hobj.ResponseChan <- isDup
 					}
-					if isDup {
+					if isDup > 0 {
+						if isDup == 2 {
+							if err := dw.Flush(); err != nil {
+								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
+								break forever
+							}
+						}
 						// DUPLICATE entry
 						logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
 						continue forever
@@ -247,7 +253,6 @@ forever:
 			// DONT! fake inn2 format... we use a lowercased hash
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
-			//flush := true
 			whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *ST)
 			if err := writeHistoryLine(dw, &whs, &his.Offset, flush, &wbt); err != nil {
 				log.Printf("ERROR History_Writer writeHistoryLine err='%v'", err)
@@ -311,8 +316,9 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 		char, err := reader.ReadByte()
 		if err != nil {
 			if err == io.EOF {
-				// EOF Reached end of history file! entry not yet flushed, asume a hit
-				return &defhash, nil
+				log.Printf("WARN FseekHistoryMessageHash EOF offset=%d", offset)
+				// EOF Reached end of history file! entry not yet flushed: asume a hit or return 436 retry later?
+				return &eofhash, nil
 			}
 			return nil, err
 		}
