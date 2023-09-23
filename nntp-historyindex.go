@@ -193,7 +193,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches, retry uint64
 	cutHashlen := 9 // 4:9 = 5 chars
-	if his.shorthash {
+	if his.hashtype == HashShort {
 		if his.hashlen >= 5 {
 			cutHashlen = 4 + his.hashlen
 		}
@@ -208,6 +208,7 @@ forever:
 			}
 			var key *string
 			bucket := string(string(*hi.Hash)[1:4]) // get 3 chars for bucket
+			/*
 			if his.shorthash {
 				max := len(*hi.Hash)
 				if cutHashlen > max {
@@ -217,7 +218,15 @@ forever:
 				//log.Printf("shorthash=%d his.hashlen=%d setHashlen=4:%d max=%d", len(shorthash), his.hashlen, setHashlen, max)
 				key = &shorthash
 			} else {
+			*/
 				switch his.hashtype {
+				case HashShort:
+					max := len(*hi.Hash)
+					if cutHashlen > max {
+						cutHashlen = max
+					}
+					shorthash := string(string(*hi.Hash)[4:cutHashlen])
+					key = &shorthash
 				case HashFNV32:
 					key = FNV32S(hi.Hash)
 				case HashFNV32a:
@@ -227,7 +236,7 @@ forever:
 				case HashFNV64a:
 					key = FNV64aS(hi.Hash)
 				}
-			}
+			//}
 			//log.Printf("WORKER HDBZW char=%s hash=%s bucket=%s akey=%s numhash=%s @0x%010x|%d|%s", char, *hi.Hash, bucket, akey, numhash, hi.Offset, hi.Offset, hexoffset)
 			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false)
 			if err != nil {
@@ -467,7 +476,11 @@ func boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *str
 	if setempty && len(*offsets) != 0 {
 		return fmt.Errorf("Error boltBucketKeyPutOffsets char=%s bucket=%s offsetsN=%d setempty=%t", char, *bucket, len(*offsets), setempty)
 	}
-	gobEncodedOffsets := gobEncodeOffsets(offsets)
+	gobEncodedOffsets, err := gobEncodeOffsets(offsets)
+	if err != nil {
+		log.Printf("ERROR boltBucketKeyPutOffsets gobEncodedOffsets err='%v'", err)
+		return err
+	}
 	if err := db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(*bucket))
 		err := b.Put([]byte(*key), *gobEncodedOffsets)
@@ -688,16 +701,38 @@ func FNV64aS(data *string) *string {
 	return &s
 } // end func FNV64aS
 
-func gobEncodeOffsets(offsets *[]int64) *[]byte {
+func gobEncodeOffsets(offsets *[]int64) (*[]byte, error) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
 	err := encoder.Encode(offsets)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	encodedData := buf.Bytes()
-	return &encodedData
+	return &encodedData, nil
 } // end func gobEncodeOffsets
+
+func gobEncodeHeader(settings *HistorySettings) (*[]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(settings)
+	if err != nil {
+		return nil, err
+	}
+	encodedData := buf.Bytes()
+	return &encodedData, nil
+} // end func gobEncodeHeader
+
+func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
+	buf := bytes.NewBuffer(encodedData)
+	decoder := gob.NewDecoder(buf)
+	settings := &HistorySettings{}
+	err := decoder.Decode(&settings)
+	if err != nil {
+		return nil, err
+	}
+	return settings, nil
+} // end func gobDecodeHeader
 
 func gobDecodeOffsets(encodedData []byte) (*[]int64, error) {
 	buf := bytes.NewBuffer(encodedData)
