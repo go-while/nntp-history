@@ -59,17 +59,17 @@ func main() {
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int) {
-			var responseChan chan bool
-			var indexRetChan chan bool
+			var responseChan chan int
+			var indexRetChan chan int
 			if useHashDB {
-				responseChan = make(chan bool, 1)
-				indexRetChan = make(chan bool, 1)
+				responseChan = make(chan int, 1)
+				indexRetChan = make(chan int, 1)
 			}
-			done, tdone, dupes, added, cachehits := 0, 0, 0, 0, 0 // init counters
+			var done, tdone, dupes, added, cachehits, retry, adddupes uint64
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if done >= 10000 {
-					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
+					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes)
 					done = 0
 				}
 				done++
@@ -110,19 +110,27 @@ func main() {
 							log.Printf("main: ERROR indexRetChan closed! error in History_DBZ_Worker")
 							break fortodo
 						}
-						if isDup {
-							dupes++
-							tdone++
-							//log.Printf("main: DUP hash='%s'", hash)
-							// DUPLICATE entry
-							continue fortodo
+						switch isDup {
+							case 0:
+								added++
+							case 1:
+								dupes++
+								// DUPLICATE entry
+								log.Printf("main: DUP hash='%s'", hash)
+								continue fortodo
+							case 2:
+								retry++
+								go func(hobj *history.HistoryObject){
+									time.Sleep(10 * time.Second)
+									// retry object ...
+								}(hobj)
+								continue fortodo
 						}
 					} // end select
 				}
 				// if we are here, hash is not a duplicate in hashdb.
-				// place code here to add article to storage
-
-				// send the history object to history_writer
+				// place code here to add article to storage and overview
+				// when done: send the history object to history_writer
 				history.HISTORY_WRITER_CHAN <- hobj
 				if useHashDB && responseChan != nil {
 					select {
@@ -132,10 +140,13 @@ func main() {
 							log.Printf("Error test p=%d responseChan closed! i=%d hash=%s", p, i, hash)
 							break fortodo
 						} else {
-							if isDup {
-								dupes++
-							} else {
-								added++
+							switch isDup {
+								case 0:
+									added++
+								case 1:
+									adddupes++
+								case 2:
+									retry++
 							}
 						}
 					} // end select
@@ -143,7 +154,7 @@ func main() {
 				tdone++
 			} // end for i
 			P_donechan <- struct{}{}
-			log.Printf("End test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d", p, tdone, todo, added, dupes, cachehits)
+			log.Printf("End test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes)
 		}(p) // end go func parallel
 
 	} // end for parallel
