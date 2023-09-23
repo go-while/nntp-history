@@ -10,10 +10,10 @@ This module is suitable for building applications related to Usenet news servers
 go get github.com/go-while/nntp-history
 ```
 
-# Before running the test application, you can configure its behavior by modifying the test/nntp-history-test.go file.
+## Before running the test application, you can configure its behavior by modifying the test/nntp-history-test.go file.
 
 
-# Code Hints
+## Code Hints
 
 ## History_Boot Function
 
@@ -29,13 +29,13 @@ To use the `History_Boot` function, follow these steps:
 
 2. The history management system will be initialized and ready for use.
 
-# history.HISTORY_WRITER_CHAN
+## history.HISTORY_WRITER_CHAN
 
 - `HISTORY_WRITER_CHAN` is a Go channel used for sending and processing historical data entries.
 
 - It is primarily responsible for writing data to a historical data storage system, using a HashDB (BoltDB) to avoid duplicate entries.
 
-# history.History.IndexChan
+## history.History.IndexChan
 
 - `history.History.IndexChan` is a Go channel used for checking message-ID hashs for duplicates in history file.
 
@@ -72,3 +72,18 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 2023/09/23 21:38:53 RUN test p=4 nntp-history done=30000/1000000 added=60000 dupes=0 cachehits=0 retry=0 adddupes=0
 2023/09/23 21:38:53 RUN test p=2 nntp-history done=30000/1000000 added=60000 dupes=0 cachehits=0 retry=0 adddupes=0
 ```
+
+## Message-ID Hash Splitting with BoltDB
+
+This README explains the process of splitting Message-ID hashes and using BoltDB to organize data into 16 different databases based on the first character of the hash, and further dividing each database into buckets using the next 3 characters of the hash.
+
+The remaining hash can be customized based on the "HashLen" setting.
+
+## Example
+
+Suppose you have a Message-ID hash of "1a2b3c4d5e6f7g8h9i0j". Using the described approach:
+
+- The first character "1" selects the database "1".
+- The next 3 characters "a2b" select the bucket "a2b" within the "1" database.
+- The remaining hash "3c4d5e6f7g8h9i0j" can be used for further data organization within the "a2b" bucket based on the "HashLen" setting.
+
