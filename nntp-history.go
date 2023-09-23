@@ -16,10 +16,11 @@ import (
 )
 
 const (
-	HashFNV32      uint8 = 0
-	HashFNV32a     uint8 = 1
-	HashFNV64      uint8 = 2
-	HashFNV64a     uint8 = 3
+	HashShort      uint8 = 11
+	HashFNV32      uint8 = 22
+	HashFNV32a     uint8 = 33
+	HashFNV64      uint8 = 44
+	HashFNV64a     uint8 = 55
 	DefaultHashLen int   = 5
 )
 
@@ -49,7 +50,7 @@ type HISTORY struct {
 	charsMap   map[string]int
 	useHashDB  bool
 	hashtype   uint8
-	shorthash  bool
+	//shorthash  bool
 	hashlen    int
 }
 
@@ -63,7 +64,13 @@ type HistoryObject struct {
 	ResponseChan  chan int // receives a 0,1,2 if not|duplicate|retrylater
 }
 
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERY int64, hashalgo uint8, shorthash bool, hashlen int) {
+/* builds the history.dat header */
+type HistorySettings struct {
+	HashType uint8
+	HashLen int
+}
+
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERY int64, hashalgo uint8, hashlen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if HISTORY_WRITER_CHAN != nil {
@@ -109,6 +116,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		Bolt_SYNC_EVERY = bolt_SYNC_EVERY
 	}
 	switch hashalgo {
+	case HashShort:
+		his.hashtype = HashShort
 	case HashFNV32:
 		his.hashtype = HashFNV32
 	case HashFNV32a:
@@ -121,21 +130,76 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot unknown hashalgo")
 		return
 	}
-	his.shorthash, his.hashlen = shorthash, hashlen
+	//his.shorthash, his.hashlen = shorthash, hashlen
+	his.hashlen = hashlen
 	if his.hashlen < DefaultHashLen {
-		log.Printf("Error History_Boot hashlen=%d < DefaultHashLen=%d", DefaultHashLen)
+		log.Printf("ERROR History_Boot hashlen=%d < DefaultHashLen=%d", DefaultHashLen)
 		os.Exit(1)
 	}
-	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
+	history_settings := &HistorySettings{ HashType: his.hashtype, HashLen: his.hashlen }
+	var fh *os.File
+	new := false
+	if !utils.FileExists(his.HF) {
+		new = true
+	}
+	fh, err := os.OpenFile(his.HF, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Printf("ERROR History_Boot os.OpenFile err='%v'", err)
+		os.Exit(1)
+	}
+	dw := bufio.NewWriterSize(fh, 32*1024)
+	if new {
+		// create new history.dat
+		data, err := gobEncodeHeader(history_settings)
+		if err != nil {
+			log.Printf("ERROR History_Boot gobEncodeHeader err='%v'", err)
+			os.Exit(1)
+		}
+		if err := writeHistoryHeader(dw, data, &his.Offset, true); err != nil {
+			log.Printf("ERROR History_Boot writeHistoryHeader err='%v'", err)
+			os.Exit(1)
+		}
+	} else {
+		// load header settings from history.dat
+		header, err := his.FseekHistoryHeader()
+		if err != nil || header == nil {
+			log.Printf("ERROR History_Boot header FseekHistoryLine err='%v' header='%v'", err, header)
+			os.Exit(1)
+		}
+		log.Printf("header='%v'", header)
+		history_settings, err = gobDecodeHeader(*header)
+		if err != nil {
+			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
+			os.Exit(1)
+		}
+		his.hashtype = history_settings.HashType
+		switch his.hashtype {
+		case HashShort:
+			// pass
+		case HashFNV32:
+			// pass
+		case HashFNV32a:
+			// pass
+		case HashFNV64:
+			// pass
+		case HashFNV64a:
+			// pass
+		default:
+			log.Printf("ERROR History_Boot gobDecodeHeader Unknown HashType=%d'", his.hashtype)
+		}
+		his.hashlen = history_settings.HashLen
+		log.Printf("Loaded History Settings: '%#v'", history_settings)
+	}
 	if useHashDB {
 		his.IndexChan = make(chan *HistoryIndex, readq)
 		his.useHashDB = true
 		his.charsMap = make(map[string]int, boltDBs)
 		his.History_DBZinit(boltOpts)
 	}
-	go his.History_Writer()
+	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
+	go his.History_Writer(fh, dw)
 	log.Printf("History_Boot: file='%s'", his.HF)
-} // emd func History_Boot
+} // end func History_Boot
 
 func LOCKfunc(achan chan struct{}, src string) bool {
 	select {
@@ -173,16 +237,17 @@ func (his *HISTORY) wait4HashDB() {
 	//log.Printf("Booted HashDB ms=%d", utils.UnixTimeMilliSec()-start)
 } // end func wait4HashDB
 
-func (his *HISTORY) History_Writer() {
+func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
+	if fh == nil || dw == nil {
+		log.Printf("ERROR History_Writer fh=nil || dw=nil")
+		return
+	}
 	if !LOCKfunc(HISTORY_WRITER_LOCK, "History_Writer") {
 		return
 	}
+	defer fh.Close()
 	defer UNLOCKfunc(HISTORY_WRITER_LOCK, "History_Writer")
 	his.wait4HashDB()
-
-	fh, err := os.OpenFile(his.HF, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	defer fh.Close()
-	dw := bufio.NewWriterSize(fh, 4*1024)
 	var wbt int
 	fileInfo, err := fh.Stat()
 	if err != nil {
@@ -191,6 +256,7 @@ func (his *HISTORY) History_Writer() {
 	}
 	his.Offset = fileInfo.Size()
 	flush := true
+	/*
 	boottime := utils.UnixTimeSec()
 	if his.Offset == 0 {
 		header := fmt.Sprintf("|history.dat|CD=%d|HT=%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime, his.hashtype)
@@ -198,7 +264,7 @@ func (his *HISTORY) History_Writer() {
 			log.Printf("ERROR History_Writer create header err='%v'", err)
 			return
 		}
-	}
+	}*/
 	var wroteLines uint64
 	flush = false // will flush when bufio gets full
 	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
@@ -206,7 +272,7 @@ func (his *HISTORY) History_Writer() {
 	if History.IndexChan != nil {
 		indexRetChan = make(chan int, 1)
 	}
-	storageToken := "?"
+	//storageToken := "?"
 forever:
 	for {
 		if HISTORY_WRITER_CHAN == nil {
@@ -229,10 +295,14 @@ forever:
 				log.Printf("ERROR History_Writer hobj.MessageIDHash=nil")
 				continue forever
 			}
-			ST := &storageToken
-			if hobj.StorageToken != nil && *hobj.StorageToken != "" {
-				ST = hobj.StorageToken
+			if hobj.StorageToken == nil {
+				log.Printf("ERROR History_Writer hobj.StorageToken=nil")
+				continue forever
 			}
+			//ST := &storageToken
+			//if hobj.StorageToken != nil && *hobj.StorageToken != "" {
+			//	ST = hobj.StorageToken
+			//}
 			expiresStr := "-"
 			if hobj.Expires >= 0 {
 				expiresStr = fmt.Sprintf("%d", hobj.Expires)
@@ -269,10 +339,10 @@ forever:
 				} // end select
 			}
 
-			// DONT! fake inn2 format... we use a lowercased hash
+			// DONT! fake inn2 format... we use a lowercased hash and { as indicator, not < or [.
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
-			whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *ST)
+			whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			if err := writeHistoryLine(dw, &whs, &his.Offset, flush, &wbt); err != nil {
 				log.Printf("ERROR History_Writer writeHistoryLine err='%v'", err)
 				break forever
@@ -310,6 +380,25 @@ func writeHistoryLine(dw *bufio.Writer, line *string, offset *int64, flush bool,
 	}
 	return nil
 } // end func writeHistoryLine
+
+func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush bool) error {
+	*data = append(*data, '\n')
+	if wb, err := dw.Write(*data); err != nil {
+		log.Printf("ERROR writeHistoryHeader Write err='%v'", err)
+		return err
+	} else {
+		if flush {
+			if err := dw.Flush(); err != nil {
+				log.Printf("ERROR writeHistoryHeader Flush err='%v'", err)
+				return err
+			}
+		}
+		if offset != nil {
+			*offset += int64(wb)
+		}
+	}
+	return nil
+} // end func writeHistoryHeader
 
 func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
@@ -361,6 +450,41 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 	return nil, nil
 } // end func FseekHistoryMessageHash
 
+func (his *HISTORY) FseekHistoryHeader() (*[]byte, error) {
+	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	/*
+	// Seek to the specified offset
+	_, seekErr := file.Seek(0, 1024)
+	if seekErr != nil {
+		return nil, seekErr
+	}
+	*/
+	// Create a buffered reader for efficient reading
+	reader := bufio.NewReader(file)
+
+	var result []byte
+
+	for {
+		// Read a single byte
+		char, err := reader.ReadByte()
+		if err != nil {
+			return nil, err
+		}
+		// Check if the character is a '\n'
+		if char == '\n' {
+			break
+		}
+		// Append the character to the result string
+		result = append(result, char)
+	}
+	return &result, nil
+} // end func FseekHistoryHeader
+
 func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
 	if err != nil {
@@ -397,7 +521,7 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 		result += string(char)
 	}
 	if len(result) > 0 {
-		if result[0] != '{' {
+		if offset > 0 && result[0] != '{' {
 			return nil, fmt.Errorf("Error FseekHistoryLine line[0]!='{' offset=%d", offset)
 		}
 	}
