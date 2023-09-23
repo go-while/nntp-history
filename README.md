@@ -73,6 +73,28 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 2023/09/24 00:07:10 RUN test p=3 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
 ```
 
+## Benchmark with 6 parallel tests
+```sh
+2023/09/24 00:09:39 RUN test p=6 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:39 RUN test p=1 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:39 RUN test p=2 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:39 RUN test p=3 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:39 RUN test p=5 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:39 RUN test p=4 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:43 RUN test p=2 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:43 RUN test p=6 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:43 RUN test p=1 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:43 RUN test p=5 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:43 RUN test p=4 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:43 RUN test p=3 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:46 RUN test p=2 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:46 RUN test p=6 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:46 RUN test p=1 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:46 RUN test p=5 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:46 RUN test p=3 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/24 00:09:46 RUN test p=4 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+```
+
 ## Message-ID Hash Splitting with BoltDB
 
 This README explains the process of splitting Message-ID hashes and using BoltDB to organize data into 16 different databases based on the first character of the hash, and further dividing each database into buckets using the next 3 characters of the hash.
