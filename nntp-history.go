@@ -3,7 +3,7 @@ package history
 import (
 	"bufio"
 	"fmt"
-	"github.com/edsrzf/mmap-go"
+	//"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
 	"io"
 	//"hash/fnv"
@@ -46,10 +46,6 @@ type HISTORY struct {
 	HF_hash    string // = "history/history.Hash"
 	IndexChan  chan *HistoryIndex
 	IndexChans [16]chan *HistoryIndex
-	files_IDX  [16]*os.File
-	files_PAK  [16]*os.File
-	mmaps_IDX  [16]*mmap.MMap
-	mmaps_PAK  [16]*mmap.MMap
 	charsMap   map[string]int
 	useHashDB  bool
 	hashtype   uint8
