@@ -190,7 +190,7 @@ func main() {
 		if len(history.HISTORY_WRITER_LOCK) == 0 &&
 			len(history.HISTORY_INDEX_LOCK) == 0 &&
 			len(history.HISTORY_INDEX_LOCK16) == 0 &&
-			history.GetBoltHashOpen() == 0 {
+			history.History.GetBoltHashOpen() == 0 {
 			break
 		}
 		time.Sleep(time.Second)
