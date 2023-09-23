@@ -193,11 +193,10 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	defer his.returnBoltHashOpen()
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches, retry uint64
-	setHashlen := 9 // 4:9 = 5 chars
-	//setHashlen := 10 // 4:10 = 6 chars
+	cutHashlen := 9 // 4:9 = 5 chars
 	if his.shorthash {
-		if his.hashlen > 6 {
-			setHashlen = 4 + his.hashlen
+		if his.hashlen >= 5 {
+			cutHashlen = 4 + his.hashlen
 		}
 	}
 forever:
@@ -212,10 +211,10 @@ forever:
 			bucket := string(string(*hi.Hash)[1:4]) // get 3 chars for bucket
 			if his.shorthash {
 				max := len(*hi.Hash)
-				if setHashlen > max {
-					setHashlen = max
+				if cutHashlen > max {
+					cutHashlen = max
 				}
-				shorthash := string(string(*hi.Hash)[4:setHashlen])
+				shorthash := string(string(*hi.Hash)[4:cutHashlen])
 				//log.Printf("shorthash=%d his.hashlen=%d setHashlen=4:%d max=%d", len(shorthash), his.hashlen, setHashlen, max)
 				key = &shorthash
 			} else {
