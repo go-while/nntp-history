@@ -24,20 +24,20 @@ func main() {
 	flag.Parse()
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
-	// dont change below
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
-	HashAlgo := history.HashFNV32 // default hashalgo if no shorthash is used
+	// default hashalgo if no shorthash is used
+	HashAlgo := history.HashFNV32
 	// shorthash=true overwrites HashAlgo FNV!
 	// and the HashLen defines length of hash we use in hashdb
 	// minimum is 5.
 	// a shorter hash stores more offsets per key
 	// a dupecheck checks all offsets per key to match a hash
 	// meaningful range for HashLen is 6-8. longer is not better.
-	// max 32 with md5
-	// max 40 with sha1
-	// max 64 with sha256
-	// max 128 with sha512
+	// HashLen max 32 with md5
+	// HashLen max 40 with sha1
+	// HashLen max 64 with sha256
+	// HashLen max 128 with sha512
 	ShortHash, HashLen := true, 6
 	if useHashDB {
 		Bolt_SYNC_EVERY = 30
