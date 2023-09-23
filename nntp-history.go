@@ -166,7 +166,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot header FseekHistoryLine err='%v' header='%v'", err, header)
 			os.Exit(1)
 		}
-		log.Printf("header='%v'", header)
+		logf(DEBUG0, "History_Boot history.dat headerBytes='%v'", header)
 		history_settings, err = gobDecodeHeader(*header)
 		if err != nil {
 			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
