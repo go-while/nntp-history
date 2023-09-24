@@ -10,8 +10,7 @@ This module is suitable for building applications related to Usenet news servers
 go get github.com/go-while/nntp-history
 ```
 
-## Before running the test application, you can configure its behavior by modifying the test/nntp-history-test.go file.
-
+- Test application: [test/nntp-history-test.go](https://github.com/go-while/nntp-history/blob/main/test/nntp-history-test.go)
 
 ## Code Hints
 
