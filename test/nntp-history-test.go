@@ -31,8 +31,8 @@ func main() {
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
 	var boltOpts *bolt.Options
-	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs
-	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn
+	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs // gets defaults
+	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
 	HashAlgo := history.HashShort
@@ -60,8 +60,8 @@ func main() {
 		boltOpts = &bO
 	}
 
-	c := cache.New(expireCache, purgeCache)
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen)
+	gocache := cache.New(expireCache, purgeCache)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen, gocache)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
@@ -96,18 +96,18 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
 				// check go-cache for hash
-				if _, found := c.Get(hash); found {
+				if _, found := gocache.Get(hash); found {
 					// cache hits, already in processing
 					cachehits++
 					tdone++
 					continue
 				}
-				c.Set(hash, "1", expireCache) // adds key=hash to temporary go-cache with value "1"
+				gocache.Set(hash, "1", expireCache) // adds key=hash to temporary go-cache with value "1"
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 				//log.Printf("hash=%s", hash)
 
-				// creates the history object
+				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
 					MessageIDHash: &hash,
 					StorageToken:  &storageToken,
