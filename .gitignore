@@ -23,4 +23,5 @@ go.work
 src/
 test/src
 test/history
+test/hashdb
 test/nntp-history-test
