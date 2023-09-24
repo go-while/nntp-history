@@ -5,6 +5,7 @@ import (
 	"fmt"
 	//"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
+	"github.com/patrickmn/go-cache"
 	"io"
 	//"hash/fnv"
 	"log"
@@ -41,6 +42,7 @@ var (
 
 type HISTORY struct {
 	mux sync.Mutex
+	Cache *cache.Cache
 	boltChanInit      chan struct{}
 	//rmux   sync.RWMutex
 	Offset int64
@@ -73,7 +75,7 @@ type HistorySettings struct {
 	HashLen int
 }
 
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int, cache *cache.Cache) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -227,7 +229,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.charsMap = make(map[string]int, boltDBs)
 		his.History_DBZinit(boltOpts)
 	}
-	log.Printf("History Settings: '%#v' file='%s' hashdb='%s'", history_settings, his.HF, his.HF_hash)
+	if cache != nil {
+		his.Cache = cache
+	}
+	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.Cache, his.hashtype, his.hashlen)
 	his.WriterChan = make(chan *HistoryObject, writeq)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
