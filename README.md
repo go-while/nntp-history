@@ -37,7 +37,22 @@ To use the `History_Boot` function, follow these steps:
 
 ## history.History.IndexChan
 
-- `history.History.IndexChan` is a Go channel used for checking message-ID hashs for duplicates in history file.
+- The `history.History.IndexChan` is a Go channel with a dual purpose.
+
+- Its primary function is to facilitate the detection of duplicate message-ID hashes within the history file.
+
+- When the offset is set to -1, the channel performs a check for duplicate hashes but does not add the hash to the BoltDB database.
+
+- When the offset is set to a value greater than zero, the channel functions as a mechanism for adding these message-ID hashes to the BoltDB database.
+
+- If the `ResponseChan` channel is provided, it receives one of the following (int) values:
+```go
+  /*
+  0: Indicates "not a duplicate."
+  1: Indicates "duplicate."
+  2: Indicates "retry later."
+  */
+```
 
 ## Sending History Data
 
