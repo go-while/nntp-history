@@ -25,7 +25,8 @@ const (
 )
 
 var (
-	Bolt_SYNC_EVERY      int64 = 15 // seconds
+	Bolt_SYNC_EVERYs     int64 = 60 // call db.sync() every seconds
+	Bolt_SYNC_EVERYn     uint64 = 1000 // call db.sync() after N inserts
 	DEBUG                bool  = true
 	DEBUG0               bool  = false
 	DEBUG1               bool  = false
@@ -33,7 +34,7 @@ var (
 	HISTORY_WRITER_LOCK  = make(chan struct{}, 1)
 	HISTORY_INDEX_LOCK   = make(chan struct{}, 1)
 	HISTORY_INDEX_LOCK16 = make(chan struct{}, 16)
-	HISTORY_WRITER_CHAN  chan *HistoryObject
+	//HISTORY_WRITER_CHAN  chan *HistoryObject
 	HEXCHARS                    = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash              string = "EOF"
 )
@@ -45,6 +46,7 @@ type HISTORY struct {
 	Offset int64
 	HF     string // = "history/history.dat"
 	HF_hash    string // = "history/history.Hash"
+	WriterChan chan *HistoryObject
 	IndexChan  chan *HistoryIndex
 	IndexChans [16]chan *HistoryIndex
 	charsMap   map[string]int
@@ -52,6 +54,7 @@ type HISTORY struct {
 	hashtype   uint8
 	//shorthash  bool
 	hashlen    int
+	win bool
 }
 
 type HistoryObject struct {
@@ -70,33 +73,55 @@ type HistorySettings struct {
 	HashLen int
 }
 
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERY int64, hashalgo uint8, hashlen int) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
-	if HISTORY_WRITER_CHAN != nil {
-		log.Printf("ERROR History already booted#1!")
+	if his.WriterChan != nil {
+		log.Printf("ERROR History WriterChan already booted")
 		return
 	}
 	if useHashDB && his.IndexChan != nil {
-		log.Printf("ERROR History already booted#2!")
+		log.Printf("ERROR History IndexChan already booted!")
 		return
 	}
+
+	linSlashS := "/"
+	winSlashS := "\\" // escaped
+	linSlashB := byte('/')
+	winSlashB := byte('\\') // escaped
+
+	useSlash := linSlashS
+
 	if history_dir == "" {
 		history_dir = "history"
 	} else {
-		if history_dir[len(history_dir)-1] == '/' {
+		delslash := false // detect windows if history_dir ends with a winSlash
+		if history_dir[len(history_dir)-1] == winSlashB {
+			his.win, delslash, useSlash = true, true, winSlashS
+		} else
+		if history_dir[len(history_dir)-1] == linSlashB {
+			delslash = true
+		}
+		if delslash {
 			history_dir = history_dir[:len(history_dir)-1] // remove final slash
 		}
 	}
-	his.HF = history_dir + "/" + "history.dat"
+	his.HF = history_dir + useSlash + "history.dat"
 
 	if hashdb_dir == "" {
 		his.HF_hash = his.HF + ".hash"
 	} else {
-		if hashdb_dir[len(hashdb_dir)-1] == '/' {
+		delslash := false // detect windows if hashdb_dir ends with a winSlash
+		if hashdb_dir[len(hashdb_dir)-1] == winSlashB {
+			his.win, delslash, useSlash = true, true, winSlashS
+		} else
+		if hashdb_dir[len(hashdb_dir)-1] == linSlashB {
+			delslash = true
+		}
+		if delslash {
 			hashdb_dir = hashdb_dir[:len(hashdb_dir)-1] // remove final slash
 		}
-		his.HF_hash = hashdb_dir + "/" + ".hash" // + ".a-f0-9"
+		his.HF_hash = hashdb_dir + useSlash + "history.dat.hash" // + ".a-f0-9"
 	}
 	if !utils.DirExists(history_dir) && !utils.Mkdir(history_dir) {
 		log.Printf("Error creating history_dir='%s'", history_dir)
@@ -112,8 +137,11 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if writeq <= 0 {
 		writeq = 1
 	}
-	if bolt_SYNC_EVERY > 0 {
-		Bolt_SYNC_EVERY = bolt_SYNC_EVERY
+	if bolt_SYNC_EVERYs > 0 {
+		Bolt_SYNC_EVERYs = bolt_SYNC_EVERYs
+	}
+	if bolt_SYNC_EVERYn > 0 {
+		Bolt_SYNC_EVERYn = bolt_SYNC_EVERYn
 	}
 	switch hashalgo {
 	case HashShort:
@@ -136,7 +164,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot hashlen=%d < DefaultHashLen=%d", DefaultHashLen)
 		os.Exit(1)
 	}
+	// default history settings
 	history_settings := &HistorySettings{ HashType: his.hashtype, HashLen: his.hashlen }
+	// opens history.dat
 	var fh *os.File
 	new := false
 	if !utils.FileExists(his.HF) {
@@ -149,7 +179,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	dw := bufio.NewWriterSize(fh, 32*1024)
 	if new {
-		// create new history.dat
+		// create history.dat
 		data, err := gobEncodeHeader(history_settings)
 		if err != nil {
 			log.Printf("ERROR History_Boot gobEncodeHeader err='%v'", err)
@@ -160,7 +190,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			os.Exit(1)
 		}
 	} else {
-		// load header settings from history.dat
+		// read history.dat header history_settings
 		header, err := his.FseekHistoryHeader()
 		if err != nil || header == nil {
 			log.Printf("ERROR History_Boot header FseekHistoryLine err='%v' header='%v'", err, header)
@@ -189,7 +219,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			os.Exit(1)
 		}
 		his.hashlen = history_settings.HashLen
-		log.Printf("Loaded History Settings: '%#v'", history_settings)
+		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
 	if useHashDB {
 		his.IndexChan = make(chan *HistoryIndex, readq)
@@ -197,9 +227,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.charsMap = make(map[string]int, boltDBs)
 		his.History_DBZinit(boltOpts)
 	}
-	HISTORY_WRITER_CHAN = make(chan *HistoryObject, writeq)
+	log.Printf("History Settings: '%#v' file='%s' hashdb='%s'", history_settings, his.HF, his.HF_hash)
+	his.WriterChan = make(chan *HistoryObject, writeq)
 	go his.History_Writer(fh, dw)
-	log.Printf("History_Boot: file='%s'", his.HF)
 } // end func History_Boot
 
 func LOCKfunc(achan chan struct{}, src string) bool {
@@ -214,9 +244,9 @@ func LOCKfunc(achan chan struct{}, src string) bool {
 } // end LOCKfunc
 
 func UNLOCKfunc(achan chan struct{}, src string) {
-	logf(DEBUG1, "UNLOCKfunc src='%s' unlocking", src)
+	//logf(DEBUG1, "UNLOCKfunc src='%s' unlocking", src)
 	<-achan
-	logf(DEBUG1, "UNLOCKfunc src='%s' unlocked", src)
+	//logf(DEBUG1, "UNLOCKfunc src='%s' unlocked", src)
 } // end func UNLOCKfunc
 
 func (his *HISTORY) wait4HashDB() {
@@ -276,12 +306,12 @@ func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 	//storageToken := "?"
 forever:
 	for {
-		if HISTORY_WRITER_CHAN == nil {
-			log.Printf("History_Writer HISTORY_WRITER_CHAN=nil")
+		if his.WriterChan == nil {
+			log.Printf("History_Writer WriterChan=nil")
 			return
 		}
 		select {
-		case hobj, ok := <-HISTORY_WRITER_CHAN: // recevies a HistoryObject struct
+		case hobj, ok := <-his.WriterChan: // recevies a HistoryObject struct
 			if !ok || hobj == nil {
 				// receiving a nil object stops history_writer
 				if History.IndexChan != nil {
@@ -383,6 +413,15 @@ func writeHistoryLine(dw *bufio.Writer, line *string, offset *int64, flush bool,
 } // end func writeHistoryLine
 
 func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush bool) error {
+	if dw == nil {
+		return fmt.Errorf("Error writeHistoryHeader dw=nil")
+	}
+	if data == nil {
+		return fmt.Errorf("Error writeHistoryHeader data=nil")
+	}
+	if offset == nil {
+		return fmt.Errorf("Error writeHistoryHeader offset=nil")
+	}
 	*data = append(*data, '\n')
 	if wb, err := dw.Write(*data); err != nil {
 		log.Printf("ERROR writeHistoryHeader Write err='%v'", err)
