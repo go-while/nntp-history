@@ -256,7 +256,7 @@ forever:
 			case 2:
 				retry++
 			}
-			if added >= 30000 || (added >= 1000 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERY) {
+			if added >= Bolt_SYNC_EVERYn || (added > 0 && lastsync <= utils.UnixTimeSec()-Bolt_SYNC_EVERYs) {
 				if err := BoltSync(db, char); err != nil {
 					break forever
 				}
