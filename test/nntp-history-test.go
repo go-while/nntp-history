@@ -31,9 +31,10 @@ func main() {
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
 	var boltOpts *bolt.Options
-	Bolt_SYNC_EVERY := history.Bolt_SYNC_EVERY
+	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs
+	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn
 	HistoryDir := "history"
-	HashDBDir := "history/hashdb"
+	HashDBDir := "hashdb"
 	HashAlgo := history.HashShort
 	HashLen := 8
 	// the HashLen defines length of hash we use in hashdb: minimum is 5
@@ -46,7 +47,8 @@ func main() {
 	// HashLen max 64 with sha256
 	// HashLen max 128 with sha512
 	if useHashDB {
-		Bolt_SYNC_EVERY = 30
+		Bolt_SYNC_EVERYs = 900
+		Bolt_SYNC_EVERYn = 100000
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
@@ -59,7 +61,7 @@ func main() {
 	}
 
 	c := cache.New(expireCache, purgeCache)
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERY, HashAlgo, HashLen)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
@@ -146,7 +148,7 @@ func main() {
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
-				history.HISTORY_WRITER_CHAN <- hobj
+				history.History.WriterChan <- hobj
 				if useHashDB && responseChan != nil {
 					select {
 					case isDup, ok := <-responseChan:
@@ -180,7 +182,7 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
-	close(history.HISTORY_WRITER_CHAN) // <- nil // closes workers
+	close(history.History.WriterChan) // <- nil // closes workers
 	for {
 		if len(history.HISTORY_WRITER_LOCK) == 0 &&
 			len(history.HISTORY_INDEX_LOCK) == 0 &&
