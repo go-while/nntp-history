@@ -70,6 +70,10 @@ forever:
 				log.Printf("Stopping History_DBZ IndexChan received nil pointer")
 				break forever
 			}
+			if hi.Offset == 0 {
+				log.Printf("ERROR History_DBZ offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
+				break forever
+			}
 			// gets first char of hash: hash must be lowercase!
 			// hex.EncodeToString returns a lowercased string of a hashsum
 			C1 := string((string(*hi.Hash)[0]))
