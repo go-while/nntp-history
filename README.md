@@ -53,6 +53,10 @@ To use the `History_Boot` function, follow these steps:
 
 - When the offset is set to a value greater than zero, the channel functions as a mechanism for adding these message-ID hashes to the BoltDB database.
 
+- Beware: Adding message-ID hashes is then normally done via `history.History.WriterChan` if you want to write the history file too!
+
+- If desired, one could only use the `IndexChan` and avoid writing the history file. Use the full `HashLen` (-4) of hash and provide a uniq up-counter for their Offsets.
+
 - If the `IndexRetChan` channel is provided, it receives one of the following (int) values:
 ```go
   /*
