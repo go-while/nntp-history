@@ -35,6 +35,15 @@ To use the `History_Boot` function, follow these steps:
 
 - It is primarily responsible for writing data to a historical data storage system, using a HashDB (BoltDB) to avoid duplicate entries.
 
+- If the `ResponseChan` channel is provided, it receives one of the following (int) values:
+```go
+  /*
+  0: Indicates "not a duplicate."
+  1: Indicates "duplicate."
+  2: Indicates "retry later."
+  */
+```
+
 ## history.History.IndexChan
 
 - The `history.History.IndexChan` is a Go channel with a dual purpose.
@@ -45,7 +54,7 @@ To use the `History_Boot` function, follow these steps:
 
 - When the offset is set to a value greater than zero, the channel functions as a mechanism for adding these message-ID hashes to the BoltDB database.
 
-- If the `ResponseChan` channel is provided, it receives one of the following (int) values:
+- If the `IndexRetChan` channel is provided, it receives one of the following (int) values:
 ```go
   /*
   0: Indicates "not a duplicate."
