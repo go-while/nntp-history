@@ -29,9 +29,9 @@ To use the `History_Boot` function, follow these steps:
 
 2. The history management system will be initialized and ready for use.
 
-## history.HISTORY_WRITER_CHAN
+## history.History.WriterChan
 
-- `HISTORY_WRITER_CHAN` is a Go channel used for sending and processing historical data entries.
+- `history.History.WriterChan` is a Go channel used for sending and processing historical data entries.
 
 - It is primarily responsible for writing data to a historical data storage system, using a HashDB (BoltDB) to avoid duplicate entries.
 
