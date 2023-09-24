@@ -35,7 +35,7 @@ type HistoryIndex struct {
 }
 
 func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
-	log.Printf("his.History_DBZinit()")
+	logf(DEBUG1, "his.History_DBZinit()")
 	if his.boltChanInit != nil {
 		log.Printf("ERROR History_DBZinit already loaded")
 		return
@@ -56,7 +56,8 @@ func (his *HISTORY) History_DBZ() {
 	}
 	defer UNLOCKfunc(HISTORY_INDEX_LOCK, "History_DBZ")
 	his.wait4HashDB()
-	log.Printf("Boot History_DBZ")
+	logf(DEBUG1,"Boot History_DBZ")
+	defer log.Printf("Quit History_DBZ")
 forever:
 	for {
 		select {
@@ -85,7 +86,6 @@ forever:
 		// achan <- nil
 		close(achan)
 	}
-	log.Printf("Quit History_DBZ")
 } // end func History_DBZ
 
 func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *HistoryIndex, boltOpts *bolt.Options) {
@@ -183,7 +183,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 	} // end for c1
 	<-his.boltChanInit
-	//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
+	logf(DEBUG1,"HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 	if checked != 4096 {
 		log.Printf("ERROR HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
 		return
@@ -225,7 +225,7 @@ forever:
 			case HashFNV64a:
 				key = FNV64aS(hi.Hash)
 			}
-			//log.Printf("WORKER HDBZW char=%s hash=%s bucket=%s akey=%s numhash=%s @0x%010x|%d|%s", char, *hi.Hash, bucket, akey, numhash, hi.Offset, hi.Offset, hexoffset)
+			logf(DEBUG1,"WORKER HDBZW char=%s hash=%s bucket=%s key=%s @0x%010x|%d|%x", char, *hi.Hash, bucket, *key, hi.Offset, hi.Offset, hi.Offset)
 			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false)
 			if err != nil {
 				if err != io.EOF {
@@ -360,6 +360,9 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 } // end func DupeCheck
 
 func BoltSync(db *bolt.DB, char string) error {
+	if db == nil {
+		return fmt.Errorf("ERROR BoltSync db=nil")
+	}
 	log.Printf("BoltDB SYNC char=%s", char)
 	// Manually sync the database to flush changes to disk
 	if err := db.Sync(); err != nil {
@@ -370,6 +373,9 @@ func BoltSync(db *bolt.DB, char string) error {
 } // end func BoltSync
 
 func boltSyncClose(db *bolt.DB, char string) error {
+	if db == nil {
+		return fmt.Errorf("ERROR boltSyncClose db=nil")
+	}
 	if err := BoltSync(db, char); err != nil {
 		return err
 	}
