@@ -333,6 +333,9 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -1, err
 		}
 		logf(DEBUG0, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
+		if his.Cache != nil {
+			his.Cache.Set(*hash, "1", 15) // offset of history entry added to key: hash is a duplicate in cached response now
+		}
 		return 0, nil
 	}
 
@@ -393,7 +396,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		}
 		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
 		if his.Cache != nil {
-			his.Cache.Set(*hash, "1", 15)
+			his.Cache.Set(*hash, "1", 15) // offset of history entry added to key: hash is a duplicate in cached response now
 		}
 	}
 	return 0, nil
