@@ -26,19 +26,27 @@ func main() {
 	var gocache *cache.Cache
 	var boltOpts *bolt.Options
 	var KeyAlgo int
-	var HashLen int
+	var KeyLen int
+	var debugs int
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
 	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
-	flag.IntVar(&HashLen, "hashlen", 6, "md5: 3-32|sha256: 3-64|sha512: 3-128")
+	flag.IntVar(&KeyLen, "keylen", 6, "md5: 3-32|sha256: 3-64|sha512: 3-128")
 	flag.BoolVar(&useGoCache, "useGoCache", true, "true|false")
+	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
 	flag.Parse()
+	switch debugs {
+		case 0:
+			history.DEBUG0 = true
+		case 1:
+			history.DEBUG0 = true
+			history.DEBUG1 = true
+	}
 	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
-	fmt.Printf("useHashDB: %t\n", useHashDB)
-	fmt.Printf("useGoCache: %t\n", useGoCache)
+	fmt.Printf("useHashDB: %t | useGoCache: %t\n", useHashDB, useGoCache)
 	time.Sleep(3*time.Second)
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
@@ -47,16 +55,15 @@ func main() {
 	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
-	//KeyAlgo :=
-	// the HashLen defines length of hash we use in hashdb: minimum is 5
-	// hashlen is only used with ShortHash. FNV hashes have predefined length
+	// the KeyLen defines length of hash we use in hashdb: minimum is 5
+	// keylen is only used with ShortHash. FNV hashes have predefined length
 	// a shorter hash stores more offsets per key
 	// a dupecheck checks all offsets per key to match a hash
-	// meaningful range for HashLen is 6-8. longer is not better.
-	// HashLen max 32(-4) with md5
-	// HashLen max 40(-4) with sha1
-	// HashLen max 64(-4) with sha256
-	// HashLen max 128(-4) with sha512
+	// meaningful range for KeyLen is 6-8. longer is not better.
+	// KeyLen max 32(-4) with md5
+	// KeyLen max 40(-4) with sha1
+	// KeyLen max 64(-4) with sha256
+	// KeyLen max 128(-4) with sha512
 	if useHashDB {
 		Bolt_SYNC_EVERYs = 900
 		Bolt_SYNC_EVERYn = 1000000
@@ -73,7 +80,7 @@ func main() {
 	if useGoCache {
 		gocache = cache.New(expireCache, purgeCache)
 	}
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, KeyAlgo, HashLen, gocache)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, KeyAlgo, KeyLen, gocache)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
@@ -102,7 +109,8 @@ func main() {
 				}
 				done++
 				//time.Sleep(time.Nanosecond)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES
+				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
 				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
@@ -201,5 +209,9 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
+	key_add := history.History.GetCounter("key_add")
+	key_app := history.History.GetCounter("key_app")
+	total := key_add + key_app
+	log.Printf("key_add=%d key_app=%d total=%d", key_add, key_app, total)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
 } // end func main
