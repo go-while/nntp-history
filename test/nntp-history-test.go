@@ -44,7 +44,7 @@ func main() {
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
 	HashAlgo := history.HashShort
-	HashLen := 8
+	HashLen := 4
 	// the HashLen defines length of hash we use in hashdb: minimum is 5
 	// hashlen is only used with ShortHash. FNV hashes have predefined length
 	// a shorter hash stores more offsets per key
