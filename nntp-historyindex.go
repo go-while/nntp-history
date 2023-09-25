@@ -204,11 +204,11 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	defer his.returnBoltHashOpen()
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches, retry uint64
-	cutHashlen := 9 // 4:9 = 5 chars
+	cutHashlen := 7 // 4:7 = 3 chars
 	if his.hashtype == HashShort {
-		if his.hashlen >= 5 {
+		//if his.hashlen >= 3 {
 			cutHashlen = 4 + his.hashlen
-		}
+		//}
 	}
 forever:
 	for {
