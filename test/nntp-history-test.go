@@ -25,11 +25,15 @@ func main() {
 	var useGoCache bool
 	var gocache *cache.Cache
 	var boltOpts *bolt.Options
+	var KeyAlgo int
+	var HashLen int
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
 	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
+	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
+	flag.IntVar(&HashLen, "hashlen", 6, "md5: 3-32|sha256: 3-64|sha512: 3-128")
 	flag.BoolVar(&useGoCache, "useGoCache", true, "true|false")
 	flag.Parse()
 	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
@@ -43,8 +47,7 @@ func main() {
 	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
-	HashAlgo := history.HashShort
-	HashLen := 4
+	//KeyAlgo :=
 	// the HashLen defines length of hash we use in hashdb: minimum is 5
 	// hashlen is only used with ShortHash. FNV hashes have predefined length
 	// a shorter hash stores more offsets per key
@@ -70,7 +73,7 @@ func main() {
 	if useGoCache {
 		gocache = cache.New(expireCache, purgeCache)
 	}
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen, gocache)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, KeyAlgo, HashLen, gocache)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
