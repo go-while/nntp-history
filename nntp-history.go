@@ -23,14 +23,14 @@ const (
 	HashFNV32a     int = 33
 	HashFNV64      int = 44
 	HashFNV64a     int = 55
-	DefaultHashLen int = 3
+	DefaultKeyLen int = 3
 	DefexpiresStr string = "-"
 )
 
 var (
 	Bolt_SYNC_EVERYs     int64 = 60 // call db.sync() every seconds
 	Bolt_SYNC_EVERYn     uint64 = 1000 // call db.sync() after N inserts
-	DEBUG                bool  = true
+	//DEBUG                bool  = true
 	DEBUG0               bool  = false
 	DEBUG1               bool  = false
 	History              HISTORY
@@ -44,6 +44,7 @@ var (
 
 type HISTORY struct {
 	mux sync.Mutex
+	cmux sync.Mutex
 	Cache *cache.Cache
 	boltChanInit      chan struct{}
 	//rmux   sync.RWMutex
@@ -57,8 +58,11 @@ type HISTORY struct {
 	useHashDB  bool
 	hashtype   int
 	//shorthash  bool
-	hashlen    int
+	keylen    int
 	win bool
+	Counter map[string]uint64
+	//count_key_added uint64
+	//count_key_append uint64
 }
 
 type HistoryObject struct {
@@ -74,7 +78,7 @@ type HistoryObject struct {
 /* builds the history.dat header */
 type HistorySettings struct {
 	HashType int
-	HashLen int
+	KeyLen int
 }
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -91,9 +95,9 @@ type HistorySettings struct {
 //   - bolt_SYNC_EVERYs: Interval (in seconds) for syncing the Bolt database with HashDB.
 //   - bolt_SYNC_EVERYn: Number of entries to write before syncing the Bolt database with HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
-//   - hashlen: The length of the hash values used for indexing.
+//   - keylen: The length of the hash values used for indexing.
 //   - cache: An optional cache component to use for caching.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, keyalgo int, hashlen int, gocache *cache.Cache) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, keyalgo int, keylen int, gocache *cache.Cache) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -178,13 +182,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot unknown keyalgo")
 		return
 	}
-	his.hashlen = hashlen
-	if his.hashlen < DefaultHashLen {
-		log.Printf("ERROR History_Boot hashlen=%d < DefaultHashLen=%d", DefaultHashLen)
+	his.keylen = keylen
+	if his.keylen < DefaultKeyLen {
+		log.Printf("ERROR History_Boot keylen=%d < DefaultKeyLen=%d", DefaultKeyLen)
 		os.Exit(1)
 	}
 	// default history settings
-	history_settings := &HistorySettings{ HashType: his.hashtype, HashLen: his.hashlen }
+	history_settings := &HistorySettings{ HashType: his.hashtype, KeyLen: his.keylen }
 	// opens history.dat
 	var fh *os.File
 	new := false
@@ -237,7 +241,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot gobDecodeHeader Unknown HashType=%d'", his.hashtype)
 			os.Exit(1)
 		}
-		his.hashlen = history_settings.HashLen
+		his.keylen = history_settings.KeyLen
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
 	if useHashDB {
@@ -249,7 +253,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if gocache != nil {
 		his.Cache = gocache
 	}
-	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.Cache, his.hashtype, his.hashlen)
+	his.Counter = make(map[string]uint64)
+	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.Cache, his.hashtype, his.keylen)
 	his.WriterChan = make(chan *HistoryObject, writeq)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
@@ -463,14 +468,17 @@ func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush boo
 // It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
 // If a valid hash is found, it returns the hash as a string without curly braces.
 // If the end of the file (EOF) is reached, it returns a special EOF marker.
-func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
+func (his *HISTORY) FseekHistoryMessageHash(offset *int64) (*string, error) {
+	if offset == nil {
+		return nil, fmt.Errorf("ERROR FseekHistoryMessageHash offset=nil")
+	}
 	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 	// Seek to the specified offset
-	_, seekErr := file.Seek(offset, 0)
+	_, seekErr := file.Seek(*offset, 0)
 	if seekErr != nil {
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
@@ -481,7 +489,7 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 		char, err := reader.ReadByte()
 		if err != nil {
 			if err == io.EOF {
-				log.Printf("WARN FseekHistoryMessageHash EOF offset=%d", offset)
+				log.Printf("WARN FseekHistoryMessageHash EOF offset=%d", *offset)
 				// EOF Reached end of history file! entry not yet flushed: asume a hit or return 436 retry later?
 				return &eofhash, nil
 			}
@@ -494,7 +502,7 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 	}
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
-			return nil, fmt.Errorf("Error FseekHistoryMessageHash BAD line @offset=%d", offset)
+			return nil, fmt.Errorf("Error FseekHistoryMessageHash BAD line @offset=%d", *offset)
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
