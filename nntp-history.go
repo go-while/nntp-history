@@ -18,12 +18,12 @@ import (
 )
 
 const (
-	HashShort      uint8 = 11
-	HashFNV32      uint8 = 22
-	HashFNV32a     uint8 = 33
-	HashFNV64      uint8 = 44
-	HashFNV64a     uint8 = 55
-	DefaultHashLen int   = 3
+	HashShort      int = 11
+	HashFNV32      int = 22
+	HashFNV32a     int = 33
+	HashFNV64      int = 44
+	HashFNV64a     int = 55
+	DefaultHashLen int = 3
 	DefexpiresStr string = "-"
 )
 
@@ -55,7 +55,7 @@ type HISTORY struct {
 	IndexChans [16]chan *HistoryIndex
 	charsMap   map[string]int
 	useHashDB  bool
-	hashtype   uint8
+	hashtype   int
 	//shorthash  bool
 	hashlen    int
 	win bool
@@ -73,7 +73,7 @@ type HistoryObject struct {
 
 /* builds the history.dat header */
 type HistorySettings struct {
-	HashType uint8
+	HashType int
 	HashLen int
 }
 
@@ -90,10 +90,10 @@ type HistorySettings struct {
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - bolt_SYNC_EVERYs: Interval (in seconds) for syncing the Bolt database with HashDB.
 //   - bolt_SYNC_EVERYn: Number of entries to write before syncing the Bolt database with HashDB.
-//   - hashalgo: The hash algorithm used for indexing historical data.
+//   - keyalgo: The hash algorithm used for indexing historical data.
 //   - hashlen: The length of the hash values used for indexing.
 //   - cache: An optional cache component to use for caching.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int, gocache *cache.Cache) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, keyalgo int, hashlen int, gocache *cache.Cache) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -163,7 +163,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if bolt_SYNC_EVERYn > 0 {
 		Bolt_SYNC_EVERYn = bolt_SYNC_EVERYn
 	}
-	switch hashalgo {
+	switch keyalgo {
 	case HashShort:
 		his.hashtype = HashShort
 	case HashFNV32:
@@ -175,7 +175,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	case HashFNV64a:
 		his.hashtype = HashFNV64a
 	default:
-		log.Printf("ERROR History_Boot unknown hashalgo")
+		log.Printf("ERROR History_Boot unknown keyalgo")
 		return
 	}
 	his.hashlen = hashlen
