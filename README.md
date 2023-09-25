@@ -119,7 +119,7 @@ done=4000000 took 359 seconds
 ```sh
 ./nntp-history-test -useHashDB=true -useGoCache=true -keylen=6
 ...
-key_add=4000000 key_app=10 total=4000000
+key_add=3999990 key_app=10 total=4000000
 done=4000000 took 412 seconds
 ```
 
