@@ -84,6 +84,36 @@ If you have suggestions for improvements or find issues, please feel free to ope
 
 This code is provided under the MIT License. See the [LICENSE](LICENSE) file for details.
 
+
+
+## Benchmark of pure writes (no dupe check via hashdb) to history file with 4K bufio.
+```sh
+./nntp-history-test -useHashDB=false -useGoCache=false
+Number of CPU cores: 4/12
+useHashDB: false
+useGoCache: false
+2023/09/25 03:44:27 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='<nil>' HT=11 HL=8
+2023/09/25 03:44:27 History_Writer opened fp='history/history.dat' filesize=408000064
+2023/09/25 03:44:28 RUN test p=4 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:28 RUN test p=2 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:28 RUN test p=1 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:28 RUN test p=3 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:30 RUN test p=4 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:30 RUN test p=2 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:30 RUN test p=1 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:30 RUN test p=3 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:31 RUN test p=4 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:31 RUN test p=2 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:32 RUN test p=3 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:32 RUN test p=1 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:33 End test p=4 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:33 End test p=2 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:33 End test p=3 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:33 End test p=1 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
+2023/09/25 03:44:34 History_Writer closed fp='history/history.dat' wbt=408000000 offset=816000064 wroteLines=4000000
+2023/09/25 03:44:35 done=4000000 took 11 seconds
+```
+
 ## Benchmark with 4 parallel tests
 ```sh
 2023/09/24 00:07:06 RUN test p=2 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
