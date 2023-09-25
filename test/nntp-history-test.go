@@ -22,18 +22,23 @@ func main() {
 	var todo int // todo x parallelTest
 	var parallelTest int
 	var useHashDB bool
+	var useGoCache bool
+	var gocache *cache.Cache
+	var boltOpts *bolt.Options
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
 	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
-	flag.BoolVar(&useHashDB, "useHashDB", true, "<----")
+	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
+	flag.BoolVar(&useHashDB, "useGoCache", true, "true|false")
 	flag.Parse()
 	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
+	fmt.Printf("useHashDB: %t\n", useHashDB)
+	fmt.Printf("useGoCache: %t\n", useGoCache)
+	time.Sleep(3*time.Second)
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
-	gocache := cache.New(expireCache, purgeCache)
 	readq, writeq := parallelTest, parallelTest
-	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs // gets defaults
 	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
 	HistoryDir := "history"
@@ -45,10 +50,10 @@ func main() {
 	// a shorter hash stores more offsets per key
 	// a dupecheck checks all offsets per key to match a hash
 	// meaningful range for HashLen is 6-8. longer is not better.
-	// HashLen max 32 with md5
-	// HashLen max 40 with sha1
-	// HashLen max 64 with sha256
-	// HashLen max 128 with sha512
+	// HashLen max 32(-4) with md5
+	// HashLen max 40(-4) with sha1
+	// HashLen max 64(-4) with sha256
+	// HashLen max 128(-4) with sha512
 	if useHashDB {
 		Bolt_SYNC_EVERYs = 900
 		Bolt_SYNC_EVERYn = 1000000
@@ -61,6 +66,9 @@ func main() {
 			NoFreelistSync: true,
 		}
 		boltOpts = &bO
+	}
+	if useGoCache {
+		gocache = cache.New(expireCache, purgeCache)
 	}
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen, gocache)
 	if offset >= 0 {
@@ -85,7 +93,7 @@ func main() {
 			var done, tdone, dupes, added, cachehits, retry, adddupes uint64
 		fortodo:
 			for i := 1; i <= todo; i++ {
-				if done >= 10000 {
+				if done >= 250000 {
 					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes)
 					done = 0
 				}
@@ -97,13 +105,15 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
 				// check go-cache for hash
-				if _, found := gocache.Get(hash); found {
-					// cache hits, already in processing
-					cachehits++
-					tdone++
-					continue
+				if gocache != nil {
+					if _, found := gocache.Get(hash); found {
+						// cache hits, already in processing
+						cachehits++
+						tdone++
+						continue
+					}
+					gocache.Set(hash, "-1", expireCache) // adds key=hash to temporary go-cache with value "-1"
 				}
-				gocache.Set(hash, "-1", expireCache) // adds key=hash to temporary go-cache with value "-1"
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 				//log.Printf("hash=%s", hash)
