@@ -30,6 +30,8 @@ func main() {
 	flag.Parse()
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
+	gocache := cache.New(expireCache, purgeCache)
+	readq, writeq := parallelTest, parallelTest
 	var boltOpts *bolt.Options
 	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs // gets defaults
 	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
@@ -59,9 +61,7 @@ func main() {
 		}
 		boltOpts = &bO
 	}
-
-	gocache := cache.New(expireCache, purgeCache)
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, 4, 4, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen, gocache)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, HashAlgo, HashLen, gocache)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
@@ -182,7 +182,7 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
-	close(history.History.WriterChan) // <- nil // closes workers
+	history.History.WriterChan <- nil // closes workers
 	for {
 		if len(history.HISTORY_WRITER_LOCK) == 0 &&
 			len(history.HISTORY_INDEX_LOCK) == 0 &&
