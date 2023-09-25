@@ -75,6 +75,22 @@ type HistorySettings struct {
 	HashLen int
 }
 
+// History_Boot initializes the history component, configuring its settings and preparing it for operation.
+// It sets up the necessary directories for history and hash databases, and opens the history data file.
+// The function also manages the communication channels for reading and writing historical data.
+// If the `useHashDB` parameter is set to true, it initializes the history database (HashDB) and starts worker routines.
+// Parameters:
+//   - history_dir: The directory where history data will be stored.
+//   - hashdb_dir: The directory where the history database (HashDB) will be stored.
+//   - useHashDB: If true, enables the use of the history database (HashDB).
+//   - readq: The size of the read queue.
+//   - writeq: The size of the write queue.
+//   - boltOpts: Bolt database options for configuring the HashDB.
+//   - bolt_SYNC_EVERYs: Interval (in seconds) for syncing the Bolt database with HashDB.
+//   - bolt_SYNC_EVERYn: Number of entries to write before syncing the Bolt database with HashDB.
+//   - hashalgo: The hash algorithm used for indexing historical data.
+//   - hashlen: The length of the hash values used for indexing.
+//   - cache: An optional cache component to use for caching.
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int, cache *cache.Cache) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
@@ -160,7 +176,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot unknown hashalgo")
 		return
 	}
-	//his.shorthash, his.hashlen = shorthash, hashlen
 	his.hashlen = hashlen
 	if his.hashlen < DefaultHashLen {
 		log.Printf("ERROR History_Boot hashlen=%d < DefaultHashLen=%d", DefaultHashLen)
@@ -256,7 +271,6 @@ func UNLOCKfunc(achan chan struct{}, src string) {
 
 func (his *HISTORY) wait4HashDB() {
 	now := utils.UnixTimeSec()
-	//start := utils.UnixTimeMilliSec()
 	if his.useHashDB {
 		for {
 			time.Sleep(10 * time.Millisecond)
@@ -270,9 +284,13 @@ func (his *HISTORY) wait4HashDB() {
 			}
 		}
 	}
-	//log.Printf("Booted HashDB ms=%d", utils.UnixTimeMilliSec()-start)
+	//log.Printf("Booted HashDB")
 } // end func wait4HashDB
 
+// History_Writer writes historical data to the specified file and manages the communication with the history database (HashDB).
+// It listens to incoming HistoryObject structs on the WriterChan channel, processes them, and writes formatted data to the file.
+// If an index channel (IndexChan) is provided, it also interacts with the history database for duplicate checks.
+// The function periodically flushes the data to the file to ensure data integrity.
 func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 	if fh == nil || dw == nil {
 		log.Printf("ERROR History_Writer fh=nil || dw=nil")
@@ -308,7 +326,6 @@ func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 	if History.IndexChan != nil {
 		indexRetChan = make(chan int, 1)
 	}
-	//storageToken := "?"
 forever:
 	for {
 		if his.WriterChan == nil {
@@ -324,26 +341,21 @@ forever:
 				}
 				break forever
 			}
-			if hobj.Arrival == 0 {
-				hobj.Arrival = utils.UnixTimeSec()
-			}
 			if hobj.MessageIDHash == nil {
 				log.Printf("ERROR History_Writer hobj.MessageIDHash=nil")
-				continue forever
+				break forever
 			}
 			if hobj.StorageToken == nil {
 				log.Printf("ERROR History_Writer hobj.StorageToken=nil")
-				continue forever
+				break forever
 			}
-			//ST := &storageToken
-			//if hobj.StorageToken != nil && *hobj.StorageToken != "" {
-			//	ST = hobj.StorageToken
-			//}
+			if hobj.Arrival == 0 {
+				hobj.Arrival = utils.UnixTimeSec()
+			}
 			expiresStr := "-"
 			if hobj.Expires >= 0 {
 				expiresStr = fmt.Sprintf("%d", hobj.Expires)
 			}
-
 			if History.IndexChan != nil {
 				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset, IndexRetChan: indexRetChan}
 				select {
@@ -374,7 +386,6 @@ forever:
 					}
 				} // end select
 			}
-
 			// DONT! fake inn2 format... we use a lowercased hash and { as indicator, not < or [.
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
@@ -445,44 +456,39 @@ func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush boo
 	return nil
 } // end func writeHistoryHeader
 
+// FseekHistoryMessageHash seeks to a specified offset in the history file and extracts a message-ID hash.
+// It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
+// If a valid hash is found, it returns the hash as a string without curly braces.
+// If the end of the file (EOF) is reached, it returns a special EOF marker.
 func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
-
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
 	if seekErr != nil {
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
 	}
-
-	// Create a buffered reader for efficient reading
 	reader := bufio.NewReader(file)
-
 	var result string
-
 	for {
-		// Read a single byte
 		char, err := reader.ReadByte()
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("WARN FseekHistoryMessageHash EOF offset=%d", offset)
-				// EOF Reached end of history file! entry not yet flushed: asume a hit or return 436 retry later?
+				// EOF Reached end of history file! entry yet flushed: asume a hit or return 436 retry later?
 				return &eofhash, nil
 			}
 			return nil, err
 		}
-		// Check if the character is a '\t'
 		if char == '\t' {
 			break
 		}
-		// Append the character to the result string
 		result += string(char)
 	}
-
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
 			return nil, fmt.Errorf("Error FseekHistoryMessageHash BAD line @offset=%d", offset)
@@ -501,30 +507,16 @@ func (his *HISTORY) FseekHistoryHeader() (*[]byte, error) {
 		return nil, err
 	}
 	defer file.Close()
-
-	/*
-	// Seek to the specified offset
-	_, seekErr := file.Seek(0, 1024)
-	if seekErr != nil {
-		return nil, seekErr
-	}
-	*/
-	// Create a buffered reader for efficient reading
 	reader := bufio.NewReader(file)
-
 	var result []byte
-
 	for {
-		// Read a single byte
 		char, err := reader.ReadByte()
 		if err != nil {
 			return nil, err
 		}
-		// Check if the character is a '\n'
 		if char == '\n' {
 			break
 		}
-		// Append the character to the result string
 		result = append(result, char)
 	}
 	return &result, nil
@@ -536,33 +528,25 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 		return nil, err
 	}
 	defer file.Close()
-
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
 	if seekErr != nil {
 		return nil, seekErr
 	}
-
-	// Create a buffered reader for efficient reading
 	reader := bufio.NewReader(file)
-
 	var result string
-
 	for {
-		// Read a single byte
 		char, err := reader.ReadByte()
 		if err != nil {
-			if err == io.EOF {
-				// EOF Reached end of history file! entry not yet flushed
-				return nil, nil
-			}
+			//if err == io.EOF {
+			//	// EOF Reached end of history file!
+			//	return nil, nil
+			//}
 			return nil, err
 		}
-		// Check if the character is a '\n'
 		if char == '\n' {
 			break
 		}
-		// Append the character to the result string
 		result += string(char)
 	}
 	if len(result) > 0 {
