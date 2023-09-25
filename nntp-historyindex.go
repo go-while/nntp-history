@@ -307,6 +307,20 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets char=%s bucket=%s key=%s hash='%s' err='%v'", *char, *bucket, *key, *hash, err)
 		return -1, err
 	}
+	// check go-cache for hash
+	if his.Cache != nil {
+		if val, found := his.Cache.Get(*hash); found {
+			// cache hits
+			switch val {
+				case "-1":
+					// pass
+				case "1":
+					return 1, nil
+				case "2":
+					return 2, nil
+			}
+		}
+	}
 	if offsets == nil { // no offsets stored for numhash
 		if *offset == -1 {
 			//isDup = false
@@ -341,6 +355,10 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			// check history for duplicate hash / evades collissions
 			logf(DEBUG1, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
 			historyHash, err := his.FseekHistoryMessageHash(check_offset)
+			if historyHash == nil && err == nil {
+				log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
+				return -1, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
+			}
 			if err != nil {
 				log.Printf("ERROR HDBZW char=%s FseekHistoryMessageHash bucket=%s err='%v' offset=%d", *char, *bucket, err, check_offset)
 				return -1, err
@@ -348,17 +366,19 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			if historyHash != nil {
 				if len(*historyHash) == 3 && *historyHash == eofhash {
 					// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
+					if his.Cache != nil {
+						his.Cache.Set(*hash, "2", 10)
+					}
 					return 2, nil
 				} else if *historyHash == *hash {
 					// hash is a duplicate in history
 					logf(DEBUG1, "WARN HDBZW DUPLICATE historyHash=%s @offset=%d +offset=%d", *historyHash, check_offset, *offset)
 					//isDup = true
+					if his.Cache != nil {
+						his.Cache.Set(*hash, "1", 15)
+					}
 					return 1, nil
 				}
-			}
-			if historyHash == nil && err == nil {
-				log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
-				return -1, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
 			}
 		}
 	}
@@ -372,6 +392,9 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -1, err
 		}
 		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
+		if his.Cache != nil {
+			his.Cache.Set(*hash, "1", 15)
+		}
 	}
 	return 0, nil
 } // end func DupeCheck
