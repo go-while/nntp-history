@@ -50,11 +50,11 @@ func main() {
 	// HashLen max 128 with sha512
 	if useHashDB {
 		Bolt_SYNC_EVERYs = 900
-		Bolt_SYNC_EVERYn = 100000
+		Bolt_SYNC_EVERYn = 500000
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 64 * 1024 * 1024,
+			InitialMmapSize: 1024 * 1024 * 1024,
 			PageSize:        4 * 1024,
 			NoSync:          true,
 			NoFreelistSync: true,
@@ -102,7 +102,7 @@ func main() {
 					tdone++
 					continue
 				}
-				gocache.Set(hash, "1", expireCache) // adds key=hash to temporary go-cache with value "1"
+				gocache.Set(hash, "-1", expireCache) // adds key=hash to temporary go-cache with value "-1"
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 				//log.Printf("hash=%s", hash)
@@ -129,7 +129,6 @@ func main() {
 						switch isDup {
 						case 0:
 							// pass
-							//added++
 						case 1:
 							dupes++
 							// DUPLICATE entry
@@ -137,10 +136,6 @@ func main() {
 							continue fortodo
 						case 2:
 							retry++
-							//go func(hobj *history.HistoryObject) {
-							//	time.Sleep(10 * time.Second)
-							//	// retry object ...
-							//}(hobj)
 							continue fortodo
 						}
 					} // end select
