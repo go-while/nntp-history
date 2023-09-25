@@ -30,7 +30,7 @@ func main() {
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
 	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
-	flag.BoolVar(&useHashDB, "useGoCache", true, "true|false")
+	flag.BoolVar(&useGoCache, "useGoCache", true, "true|false")
 	flag.Parse()
 	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
 	fmt.Printf("useHashDB: %t\n", useHashDB)
