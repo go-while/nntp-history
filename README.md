@@ -55,7 +55,7 @@ To use the `History_Boot` function, follow these steps:
 
 - Beware: Adding message-ID hashes is then normally done via `history.History.WriterChan` if you want to write the history file too!
 
-- If desired, one could only use the `IndexChan` and avoid writing the history file. Use the full `HashLen` (-4) of hash and provide a uniq up-counter for their Offsets.
+- If desired, one could only use the `IndexChan` and avoid writing the history file. Use the full `KeyLen` (-4) of hash and provide a uniq up-counter for their Offsets.
 
 - If the `IndexRetChan` channel is provided, it receives one of the following (int) values:
 ```go
@@ -65,6 +65,12 @@ To use the `History_Boot` function, follow these steps:
   2: Indicates "retry later."
   */
 ```
+
+## File Descriptors (max 33)
+- History.dat: 1
+- HashDB: 16
+- DB Fseeks: 16
+
 
 ## Sending History Data
 
@@ -86,77 +92,50 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 
 
 
-## Benchmark of pure writes (no dupe check via hashdb) to history file with 4K bufio.
+## Benchmark pure writes (no dupe check via hashdb) to history file with 4K bufio.
 ```sh
 ./nntp-history-test -useHashDB=false -useGoCache=false
-Number of CPU cores: 4/12
-useHashDB: false
-useGoCache: false
-2023/09/25 03:44:27 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='<nil>' HT=11 HL=8
-2023/09/25 03:44:27 History_Writer opened fp='history/history.dat' filesize=408000064
-2023/09/25 03:44:28 RUN test p=4 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:28 RUN test p=2 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:28 RUN test p=1 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:28 RUN test p=3 nntp-history done=250000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:30 RUN test p=4 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:30 RUN test p=2 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:30 RUN test p=1 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:30 RUN test p=3 nntp-history done=500000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:31 RUN test p=4 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:31 RUN test p=2 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:32 RUN test p=3 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:32 RUN test p=1 nntp-history done=750000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:33 End test p=4 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:33 End test p=2 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:33 End test p=3 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:33 End test p=1 nntp-history done=1000000/1000000 added=0 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/25 03:44:34 History_Writer closed fp='history/history.dat' wbt=408000000 offset=816000064 wroteLines=4000000
-2023/09/25 03:44:35 done=4000000 took 11 seconds
+...
+2023/09/25 04:19:34 done=4000000 took 10 seconds
 ```
 
-## Benchmark with 4 parallel tests
+## Benchmark
 ```sh
-2023/09/24 00:07:06 RUN test p=2 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:06 RUN test p=1 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:06 RUN test p=3 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:06 RUN test p=4 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:08 RUN test p=1 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:08 RUN test p=2 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:08 RUN test p=4 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:08 RUN test p=3 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:10 RUN test p=2 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:10 RUN test p=1 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:10 RUN test p=4 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:07:10 RUN test p=3 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+./nntp-history-test -useHashDB=true -useGoCache=true -keylen=3
+...
+key_add=3970459 key_app=29541 total=4000000
+done=4000000 took 391 seconds
 ```
 
-## Benchmark with 6 parallel tests
+## Benchmark
 ```sh
-2023/09/24 00:09:39 RUN test p=6 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:39 RUN test p=1 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:39 RUN test p=2 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:39 RUN test p=3 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:39 RUN test p=5 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:39 RUN test p=4 nntp-history done=10000/1000000 added=10000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:43 RUN test p=2 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:43 RUN test p=6 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:43 RUN test p=1 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:43 RUN test p=5 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:43 RUN test p=4 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:43 RUN test p=3 nntp-history done=20000/1000000 added=20000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:46 RUN test p=2 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:46 RUN test p=6 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:46 RUN test p=1 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:46 RUN test p=5 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:46 RUN test p=3 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
-2023/09/24 00:09:46 RUN test p=4 nntp-history done=30000/1000000 added=30000 dupes=0 cachehits=0 retry=0 adddupes=0
+./nntp-history-test -useHashDB=true -useGoCache=true -keylen=5
+...
+key_add=3999895 key_app=105 total=4000000
+done=4000000 took 359 seconds
 ```
+
+## Benchmark
+```sh
+./nntp-history-test -useHashDB=true -useGoCache=true -keylen=6
+...
+key_add=4000000 key_app=10 total=4000000
+done=4000000 took 412 seconds
+```
+
+## Benchmark
+```sh
+./nntp-history-test -useHashDB=true -useGoCache=true -keylen=8
+key_add=4000000 key_app=0 total=4000000
+done=4000000 took 444 seconds
+```
+
 
 ## Message-ID Hash Splitting with BoltDB
 
 This README explains the process of splitting Message-ID hashes and using BoltDB to organize data into 16 different databases based on the first character of the hash, and further dividing each database into buckets using the next 3 characters of the hash.
 
-The remaining hash can be customized based on the "HashLen" setting.
+The remaining hash can be customized based on the "KeyLen" setting.
 
 ## Example
 
@@ -164,5 +143,5 @@ Suppose you have a Message-ID hash of "1a2b3c4d5e6f7g8h9i0j". Using the describe
 
 - The first character "1" selects the database "1".
 - The next 3 characters "a2b" select the bucket "a2b" within the "1" database.
-- The remaining hash "3c4d5e6f7g8h9i0j" can be used for further data organization within the "a2b" bucket based on the "HashLen" setting.
+- The remaining hash "3c4d5e6f7g8h9i0j" can be used for further data organization within the "a2b" bucket based on the "KeyLen" setting.
 
