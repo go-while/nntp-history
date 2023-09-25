@@ -15,8 +15,8 @@ import (
 )
 
 func main() {
+	start := utils.UnixTimeSec()
 	numCPU := runtime.NumCPU()
-	fmt.Printf("Number of CPU cores: %d\n", numCPU)
 	runtime.GOMAXPROCS(numCPU)
 	var offset int64
 	var todo int // todo x parallelTest
@@ -28,6 +28,7 @@ func main() {
 	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "<----")
 	flag.Parse()
+	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
 	gocache := cache.New(expireCache, purgeCache)
@@ -50,7 +51,7 @@ func main() {
 	// HashLen max 128 with sha512
 	if useHashDB {
 		Bolt_SYNC_EVERYs = 900
-		Bolt_SYNC_EVERYn = 500000
+		Bolt_SYNC_EVERYn = 1000000
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
@@ -187,4 +188,5 @@ func main() {
 		}
 		time.Sleep(time.Second)
 	}
+	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
 } // end func main
