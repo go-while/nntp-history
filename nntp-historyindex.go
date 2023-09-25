@@ -206,8 +206,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	var added, total, processed, dupes, searches, retry uint64
 	cutHashlen := 7 // 4:7 = 3 chars
 	if his.hashtype == HashShort {
-		//if his.hashlen >= 3 {
-			cutHashlen = 4 + his.hashlen
+		//if his.keylen >= 3 {
+			cutHashlen = 4 + his.keylen
 		//}
 	}
 forever:
@@ -336,6 +336,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		if his.Cache != nil {
 			his.Cache.Set(*hash, "1", 15) // offset of history entry added to key: hash is a duplicate in cached response now
 		}
+		go his.Sync_upcounter("key_add")
 		return 0, nil
 	}
 
@@ -352,12 +353,12 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 	//}
 	if lo > 0 { // got offsets stored for numhash
 		if lo > 1 {
-			log.Printf("INFO HDBZW char=%s GOT key=%s hash='%s' multiple offsets=%d=%#v", *char, *key, *hash, lo, *offsets)
+			logf(DEBUG0, "INFO HDBZW char=%s GOT key=%s hash='%s' multiple offsets=%d=%#v", *char, *key, *hash, lo, *offsets)
 		}
 		for _, check_offset := range *offsets {
 			// check history for duplicate hash / evades collissions
 			logf(DEBUG1, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
-			historyHash, err := his.FseekHistoryMessageHash(check_offset)
+			historyHash, err := his.FseekHistoryMessageHash(&check_offset)
 			if historyHash == nil && err == nil {
 				log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
 				return -1, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
@@ -394,13 +395,27 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			log.Printf("ERROR HDBZW APPEND boltBucketKeyPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
 			return -1, err
 		}
-		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
+		logf(DEBUG0,"HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
 		if his.Cache != nil {
 			his.Cache.Set(*hash, "1", 15) // offset of history entry added to key: hash is a duplicate in cached response now
 		}
+		go his.Sync_upcounter("key_app")
 	}
 	return 0, nil
 } // end func DupeCheck
+
+func (his *HISTORY) Sync_upcounter(counter string) {
+	his.cmux.Lock()
+	his.Counter[counter] += 1
+	his.cmux.Unlock()
+} // end func sync_upcounter
+
+func (his *HISTORY) GetCounter(counter string) uint64 {
+	his.cmux.Lock()
+	retval := his.Counter[counter]
+	his.cmux.Unlock()
+	return retval
+} // end func GetCounter
 
 func BoltSync(db *bolt.DB, char string) error {
 	if db == nil {
