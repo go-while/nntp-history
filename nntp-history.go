@@ -91,7 +91,7 @@ type HistorySettings struct {
 //   - hashalgo: The hash algorithm used for indexing historical data.
 //   - hashlen: The length of the hash values used for indexing.
 //   - cache: An optional cache component to use for caching.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int, cache *cache.Cache) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, hashalgo uint8, hashlen int, gocache *cache.Cache) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -194,7 +194,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot os.OpenFile err='%v'", err)
 		os.Exit(1)
 	}
-	dw := bufio.NewWriterSize(fh, 32*1024)
+	dw := bufio.NewWriterSize(fh, 4*1024)
 	if new {
 		// create history.dat
 		data, err := gobEncodeHeader(history_settings)
@@ -244,8 +244,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.charsMap = make(map[string]int, boltDBs)
 		his.History_DBZinit(boltOpts)
 	}
-	if cache != nil {
-		his.Cache = cache
+	if gocache != nil {
+		his.Cache = gocache
 	}
 	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.Cache, his.hashtype, his.hashlen)
 	his.WriterChan = make(chan *HistoryObject, writeq)
@@ -479,7 +479,7 @@ func (his *HISTORY) FseekHistoryMessageHash(offset int64) (*string, error) {
 		if err != nil {
 			if err == io.EOF {
 				log.Printf("WARN FseekHistoryMessageHash EOF offset=%d", offset)
-				// EOF Reached end of history file! entry yet flushed: asume a hit or return 436 retry later?
+				// EOF Reached end of history file! entry not yet flushed: asume a hit or return 436 retry later?
 				return &eofhash, nil
 			}
 			return nil, err
