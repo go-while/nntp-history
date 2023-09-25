@@ -12,6 +12,7 @@ import (
 	"os"
 	//"strings"
 	bolt "go.etcd.io/bbolt"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -22,7 +23,8 @@ const (
 	HashFNV32a     uint8 = 33
 	HashFNV64      uint8 = 44
 	HashFNV64a     uint8 = 55
-	DefaultHashLen int   = 5
+	DefaultHashLen int   = 3
+	DefexpiresStr string = "-"
 )
 
 var (
@@ -302,7 +304,7 @@ func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 	defer fh.Close()
 	defer UNLOCKfunc(HISTORY_WRITER_LOCK, "History_Writer")
 	his.wait4HashDB()
-	var wbt int
+	var wbt uint64
 	fileInfo, err := fh.Stat()
 	if err != nil {
 		log.Printf("ERROR History_Writer fh open Stat err='%v'", err)
@@ -352,10 +354,6 @@ forever:
 			if hobj.Arrival == 0 {
 				hobj.Arrival = utils.UnixTimeSec()
 			}
-			expiresStr := "-"
-			if hobj.Expires >= 0 {
-				expiresStr = fmt.Sprintf("%d", hobj.Expires)
-			}
 			if History.IndexChan != nil {
 				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset, IndexRetChan: indexRetChan}
 				select {
@@ -389,8 +387,9 @@ forever:
 			// DONT! fake inn2 format... we use a lowercased hash and { as indicator, not < or [.
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
-			whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
-			if err := writeHistoryLine(dw, &whs, &his.Offset, flush, &wbt); err != nil {
+			//whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
+			//if err := writeHistoryLine(dw, &whs, &his.Offset, flush, &wbt); err != nil {
+			if err := his.writeHistoryLine(dw, hobj, flush, &wbt); err != nil {
 				log.Printf("ERROR History_Writer writeHistoryLine err='%v'", err)
 				break forever
 			}
@@ -406,18 +405,22 @@ forever:
 	log.Printf("History_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.HF, wbt, his.Offset, wroteLines)
 } // end func History_Writer
 
-func writeHistoryLine(dw *bufio.Writer, line *string, offset *int64, flush bool, wbt *int) error {
-	if wb, err := dw.WriteString(*line); err != nil {
+func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flush bool, wbt *uint64) error {
+	expiresStr := DefexpiresStr
+	if hobj.Expires >= 0 {
+		expiresStr = strconv.FormatInt(hobj.Expires, 10)
+	}
+	line := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
+	//line := "{" + *hobj.MessageIDHash + "}\t" + strconv.FormatInt(hobj.Arrival, 10) + "~" + expiresStr + "~" + strconv.FormatInt(hobj.Date, 10) + "\t" + *hobj.StorageToken + "\n"
+	if wb, err := dw.WriteString(line); err != nil {
 		log.Printf("ERROR History_Writer WriteString err='%v'", err)
 		return err
 	} else {
 		//log.Printf("History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
 		if wbt != nil {
-			*wbt += wb
+			*wbt += uint64(wb)
 		}
-		if offset != nil {
-			*offset += int64(wb)
-		}
+		his.Offset += int64(wb)
 		if flush {
 			if err := dw.Flush(); err != nil {
 				log.Printf("ERROR History_Writer WriteString err='%v'", err)
