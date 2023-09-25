@@ -34,6 +34,9 @@ type HistoryIndex struct {
 	IndexRetChan chan int
 }
 
+// History_DBZinit initializes the history database (HashDB) and starts the worker goroutines for processing historical data.
+// It creates worker channels for each character in HEXCHARS and launches corresponding worker goroutines.
+// The provided boltOpts parameter allows configuring the BoltDB database options.
 func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 	logf(DEBUG1, "his.History_DBZinit()")
 	if his.boltChanInit != nil {
@@ -50,6 +53,8 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 	go his.History_DBZ()
 } // end func History_DBZinit
 
+// History_DBZ is the main routine for managing the historical data processing.
+// It listens to incoming HistoryIndex structs on the IndexChan channel and distributes them to corresponding worker goroutines.
 func (his *HISTORY) History_DBZ() {
 	if !LOCKfunc(HISTORY_INDEX_LOCK, "History_DBZ") {
 		return
@@ -92,6 +97,9 @@ forever:
 	}
 } // end func History_DBZ
 
+// History_DBZ_Worker is a worker function responsible for processing historical data.
+// It manages BoltDB operations, including storing and retrieving offsets, and handles duplicate checks
+// to ensure message-ID hashes are correctly tracked in the history file.
 func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *HistoryIndex, boltOpts *bolt.Options) {
 	if !LOCKfunc(HISTORY_INDEX_LOCK16, "History_DBZ_Worker "+char) {
 		return
@@ -147,7 +155,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 					}
 					// put1
 					if err := boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, &testoffsets, setempty); err != nil {
-						log.Printf("ERROR HDBZW INIT HashDB boltBucketPutOffsets1 char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
+						log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets1 char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
 						return
 					}
 					// get1
@@ -163,7 +171,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 					// put2
 					*offsets1 = append(*offsets1, 2)
 					if err := boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, offsets1, setempty); err != nil {
-						log.Printf("ERROR HDBZW INIT HashDB boltBucketPutOffsets2 char=%s bucket=%s err='%v'", char, bucket, err)
+						log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets2 char=%s bucket=%s err='%v'", char, bucket, err)
 						return
 					}
 				}
@@ -271,6 +279,10 @@ forever:
 	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
 } // end func History_DBZ_Worker
 
+// DupeCheck checks for duplicate message-ID hashes in a BoltDB bucket.
+// It manages offsets associated with message hashes and handles duplicates, ensuring the integrity of the historical data.
+// If a hash is a duplicate, it returns 1, otherwise, it returns 0.
+// It also handles the creation of new hash entries in the bucket when needed.
 func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool) (int, error) {
 	if db == nil {
 		return -1, fmt.Errorf("Error DupeCheck db=nil")
@@ -303,7 +315,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		newoffsets := []int64{*offset}
 		// add hash to db
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, &newoffsets, setempty); err != nil {
-			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketPutOffsets bucket=%s err='%v'", *char, *bucket, err)
+			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketKeyPutOffsets bucket=%s err='%v'", *char, *bucket, err)
 			return -1, err
 		}
 		logf(DEBUG0, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
@@ -335,6 +347,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			}
 			if historyHash != nil {
 				if len(*historyHash) == 3 && *historyHash == eofhash {
+					// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
 					return 2, nil
 				} else if *historyHash == *hash {
 					// hash is a duplicate in history
@@ -355,7 +368,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -1, err
 		}
 		if err := boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty); err != nil {
-			log.Printf("ERROR HDBZW APPEND boltBucketPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
+			log.Printf("ERROR HDBZW APPEND boltBucketKeyPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
 			return -1, err
 		}
 		log.Printf("HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
@@ -441,7 +454,7 @@ func boltBucketPutString(db *bolt.DB, char *string, bucket *string, key *string,
 		return err
 	}
 	return
-} // end func boltBucketPut
+} // end func boltBucketPutString
 */
 
 func AppendOffset(offsets *[]int64, offset *int64) error {
@@ -488,9 +501,8 @@ func boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *str
 		return err
 	}
 	return
-} // end func boltBucketPutOffsets
+} // end func boltBucketKeyPutOffsets
 
-/*
 func boltBucketGetBytes(db *bolt.DB, char *string, bucket *string, key *string) (retval *[]byte, err error) {
 	if char == nil {
 		return nil, fmt.Errorf("Error boltBucketGet char=nil")
@@ -520,7 +532,6 @@ func boltBucketGetBytes(db *bolt.DB, char *string, bucket *string, key *string) 
 	}
 	return
 } // end func boltBucketGetBytes
-*/
 
 func boltBucketGetOffsets(db *bolt.DB, char *string, bucket *string, key *string) (offsets *[]int64, err error) {
 	if char == nil {
