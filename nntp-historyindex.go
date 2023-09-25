@@ -421,7 +421,7 @@ func BoltSync(db *bolt.DB, char string) error {
 	if db == nil {
 		return fmt.Errorf("ERROR BoltSync db=nil")
 	}
-	log.Printf("BoltDB SYNC char=%s", char)
+	logf(DEBUG0, "BoltDB SYNC char=%s", char)
 	// Manually sync the database to flush changes to disk
 	if err := db.Sync(); err != nil {
 		log.Printf("ERROR BoltSync char=%s db.Sync failed err='%v'", char, err)
@@ -437,7 +437,7 @@ func boltSyncClose(db *bolt.DB, char string) error {
 	if err := BoltSync(db, char); err != nil {
 		return err
 	}
-	log.Printf("BoltDB Close char=%s", char)
+	logf(DEBUG0, "BoltDB Close char=%s", char)
 	return db.Close()
 } // end func boltSyncClose
 
