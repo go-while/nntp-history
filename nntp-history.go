@@ -244,14 +244,14 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.keylen = history_settings.KeyLen
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
+	if gocache != nil {
+		his.Cache = gocache
+	}
 	if useHashDB {
 		his.IndexChan = make(chan *HistoryIndex, readq)
 		his.useHashDB = true
 		his.charsMap = make(map[string]int, boltDBs)
 		his.History_DBZinit(boltOpts)
-	}
-	if gocache != nil {
-		his.Cache = gocache
 	}
 	his.Counter = make(map[string]uint64)
 	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.Cache, his.hashtype, his.keylen)
@@ -286,7 +286,7 @@ func (his *HISTORY) wait4HashDB() {
 			}
 			took := utils.UnixTimeSec() - now
 			if took >= 15 {
-				log.Printf("Wait booting HashDB ms=%d", utils.UnixTimeSec()-now)
+				log.Printf("Wait booting HashDB")
 				now = utils.UnixTimeSec()
 			}
 		}
@@ -315,20 +315,10 @@ func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 		log.Printf("ERROR History_Writer fh open Stat err='%v'", err)
 		os.Exit(1)
 	}
-	his.Offset = fileInfo.Size()
-	flush := true
-	/*
-	boottime := utils.UnixTimeSec()
-	if his.Offset == 0 {
-		header := fmt.Sprintf("|history.dat|CD=%d|HT=%d\n|{hash}|arrival~expires~msgdate|storage\n", boottime, his.hashtype)
-		if err := writeHistoryLine(dw, &header, &his.Offset, flush, &wbt); err != nil {
-			log.Printf("ERROR History_Writer create header err='%v'", err)
-			return
-		}
-	}*/
-	var wroteLines uint64
-	flush = false // will flush when bufio gets full
 	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
+	his.Offset = fileInfo.Size()
+	var wroteLines uint64
+	flush := false // will flush when bufio gets full
 	var indexRetChan chan int
 	if History.IndexChan != nil {
 		indexRetChan = make(chan int, 1)
