@@ -25,6 +25,8 @@ const (
 	HashFNV64a     int = 55
 	DefaultKeyLen int = 3
 	DefexpiresStr string = "-"
+	DefaultCacheExpires = 10*time.Second
+	DefaultCachePurge = 15*time.Second
 )
 
 var (
@@ -225,8 +227,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}
-		his.hashtype = history_settings.HashType
-		switch his.hashtype {
+		switch history_settings.HashType {
 		case HashShort:
 			// pass
 		case HashFNV32:
@@ -241,6 +242,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot gobDecodeHeader Unknown HashType=%d'", his.hashtype)
 			os.Exit(1)
 		}
+		his.hashtype = history_settings.HashType
 		his.keylen = history_settings.KeyLen
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
@@ -281,7 +283,7 @@ func (his *HISTORY) wait4HashDB() {
 	if his.useHashDB {
 		for {
 			time.Sleep(10 * time.Millisecond)
-			if len(BoltHashOpen) == 16 {
+			if len(BoltHashOpen) == boltDBs {
 				break
 			}
 			took := utils.UnixTimeSec() - now
