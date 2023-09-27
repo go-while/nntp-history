@@ -315,8 +315,8 @@ func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 		log.Printf("ERROR History_Writer fh open Stat err='%v'", err)
 		os.Exit(1)
 	}
-	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
 	his.Offset = fileInfo.Size()
+	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
 	var wroteLines uint64
 	flush := false // will flush when bufio gets full
 	var indexRetChan chan int
@@ -479,7 +479,7 @@ func (his *HISTORY) FseekHistoryMessageHash(offset *int64) (*string, error) {
 		char, err := reader.ReadByte()
 		if err != nil {
 			if err == io.EOF {
-				log.Printf("WARN FseekHistoryMessageHash EOF offset=%d", *offset)
+				logf(DEBUG0, "WARN FseekHistoryMessageHash EOF offset=%d", *offset)
 				// EOF Reached end of history file! entry not yet flushed: asume a hit or return 436 retry later?
 				return &eofhash, nil
 			}
