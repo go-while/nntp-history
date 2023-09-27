@@ -49,7 +49,7 @@ func main() {
 	fmt.Printf("useHashDB: %t | useGoCache: %t\n", useHashDB, useGoCache)
 	time.Sleep(3*time.Second)
 	storageToken := "F"                                       // storagetoken flatfile
-	expireCache, purgeCache := 10*time.Second, 30*time.Second // cache
+	expireCache, purgeCache := history.DefaultCacheExpires, history.DefaultCachePurge // cache
 	readq, writeq := parallelTest, parallelTest
 	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs // gets defaults
 	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
