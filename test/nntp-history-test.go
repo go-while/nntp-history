@@ -113,9 +113,9 @@ func main() {
 				}
 				done++
 				//time.Sleep(time.Nanosecond)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
@@ -124,7 +124,6 @@ func main() {
 					if _, found := gocache.Get(hash); found {
 						// cache hits, already in processing
 						cachehits++
-						tdone++
 						continue
 					}
 					gocache.Set(hash, "-1", expireCache) // adds key=hash to temporary go-cache with value "-1"
