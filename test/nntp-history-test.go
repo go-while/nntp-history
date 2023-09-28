@@ -10,6 +10,7 @@ import (
 	//"strings"
 	"flag"
 	"os"
+	"syscall"
 	"runtime"
 	"time"
 )
@@ -17,7 +18,6 @@ import (
 func main() {
 	start := utils.UnixTimeSec()
 	numCPU := runtime.NumCPU()
-	runtime.GOMAXPROCS(numCPU)
 	var offset int64
 	var todo int // todo x parallelTest
 	var parallelTest int
@@ -45,6 +45,7 @@ func main() {
 			history.DEBUG0 = true
 			history.DEBUG1 = true
 	}
+	runtime.GOMAXPROCS(numCPU)
 	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
 	fmt.Printf("useHashDB: %t | useGoCache: %t\n", useHashDB, useGoCache)
 	time.Sleep(3*time.Second)
@@ -69,8 +70,10 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		Bolt_SYNC_EVERYs = 900
-		Bolt_SYNC_EVERYn = 1000000/4
+		Bolt_SYNC_EVERYs = 60
+		Bolt_SYNC_EVERYn = 50000
+		history.BoltINITParallel = 4 // default: history.BoltDBs ( can be 1-16 )
+		history.BoltSYNCParallel = 1 // default: history.BoltDBs ( can be 1-16 )
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
@@ -78,6 +81,9 @@ func main() {
 			PageSize:        4 * 1024,
 			NoSync:          true,
 			NoFreelistSync: true,
+			// If you want to read the entire database fast, you can set MmapFlag to
+			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
+			MmapFlags: syscall.MAP_POPULATE,
 		}
 		boltOpts = &bO
 	}
@@ -104,29 +110,40 @@ func main() {
 				responseChan = make(chan int, 1)
 				indexRetChan = make(chan int, 1)
 			}
-			var done, tdone, dupes, added, cachehits, retry, adddupes uint64
+			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry uint64
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if done >= 250000 {
-					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes)
+					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
 					done = 0
 				}
 				done++
 				//time.Sleep(time.Nanosecond)
-				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
-				// check go-cache for hash
-				if gocache != nil {
-					if _, found := gocache.Get(hash); found {
-						// cache hits, already in processing
-						cachehits++
+				if gocache != nil { // check go-cache for hash
+					//history.History.RMUX.RLock()
+					if val, found := gocache.Get(hash); found {
+						//history.History.RMUX.RUnlock()
+						switch val {
+						case "-1":
+							// cache hits, already in processing
+							cachehits++
+						case "1":
+							cachedupes++
+						case "2":
+							cacheretry++
+						}
 						continue
 					}
-					gocache.Set(hash, "-1", expireCache) // adds key=hash to temporary go-cache with value "-1"
+					//history.History.RMUX.RUnlock()
+					//history.History.RMUX.Lock()
+					gocache.Set(hash, "-1", expireCache) // adds hash to temporary go-cache with value "-1"
+					//history.History.RMUX.Unlock()
 				}
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
@@ -174,7 +191,7 @@ func main() {
 					case isDup, ok := <-responseChan:
 						if !ok {
 							// error: responseChan got closed
-							log.Printf("Error test p=%d responseChan closed! i=%d hash=%s", p, i, hash)
+							log.Printf("ERROR test p=%d responseChan closed! i=%d hash=%s", p, i, hash)
 							break fortodo
 						} else {
 							switch isDup {
@@ -191,7 +208,7 @@ func main() {
 				tdone++
 			} // end for i
 			P_donechan <- struct{}{}
-			log.Printf("End test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes)
+			log.Printf("End test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
 		}(p) // end go func parallel
 
 	} // end for parallel
