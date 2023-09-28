@@ -16,7 +16,6 @@ import (
 )
 
 func main() {
-	start := utils.UnixTimeSec()
 	numCPU := runtime.NumCPU()
 	var offset int64
 	var todo int // todo x parallelTest
@@ -47,13 +46,11 @@ func main() {
 	}
 	runtime.GOMAXPROCS(numCPU)
 	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
-	fmt.Printf("useHashDB: %t | useGoCache: %t\n", useHashDB, useGoCache)
+	fmt.Printf("useHashDB: %t | useGoCache: %t | jobs=%d | todo=%d | keyalgo=%d | keylen=%d\n", useHashDB, useGoCache, parallelTest, todo, KeyAlgo, KeyLen)
 	time.Sleep(3*time.Second)
 	storageToken := "F"                                       // storagetoken flatfile
 	expireCache, purgeCache := history.DefaultCacheExpires, history.DefaultCachePurge // cache
 	readq, writeq := parallelTest, parallelTest
-	Bolt_SYNC_EVERYs := history.Bolt_SYNC_EVERYs // gets defaults
-	Bolt_SYNC_EVERYn := history.Bolt_SYNC_EVERYn // gets defaults
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
 	// the KeyLen defines length of hash we use as key in 'boltDB[a-f0-9][bucket][key]' minimum is 3
@@ -70,10 +67,10 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		Bolt_SYNC_EVERYs = 60
-		Bolt_SYNC_EVERYn = 50000
-		history.BoltINITParallel = 4 // default: history.BoltDBs ( can be 1-16 )
-		history.BoltSYNCParallel = 1 // default: history.BoltDBs ( can be 1-16 )
+		history.Bolt_SYNC_EVERYs = 60
+		history.Bolt_SYNC_EVERYn = 50000
+		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
+		history.BoltSYNCParallel = 1 // ( can be 1-16 ) default: `history.BoltDBs`
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
@@ -90,7 +87,8 @@ func main() {
 	if useGoCache {
 		gocache = cache.New(expireCache, purgeCache)
 	}
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, Bolt_SYNC_EVERYs, Bolt_SYNC_EVERYn, KeyAlgo, KeyLen, gocache)
+	start := utils.UnixTimeSec()
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, KeyAlgo, KeyLen, gocache)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
