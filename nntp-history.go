@@ -95,12 +95,10 @@ type HistorySettings struct {
 //   - readq: The size of the read queue.
 //   - writeq: The size of the write queue.
 //   - boltOpts: Bolt database options for configuring the HashDB.
-//   - bolt_SYNC_EVERYs: Interval (in seconds) for syncing the Bolt database with HashDB.
-//   - bolt_SYNC_EVERYn: Number of entries to write before syncing the Bolt database with HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
 //   - cache: An optional cache component to use for caching.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, bolt_SYNC_EVERYs int64, bolt_SYNC_EVERYn uint64, keyalgo int, keylen int, gocache *cache.Cache) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, keyalgo int, keylen int, gocache *cache.Cache) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -163,12 +161,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	if writeq <= 0 {
 		writeq = 1
-	}
-	if bolt_SYNC_EVERYs > 0 {
-		Bolt_SYNC_EVERYs = bolt_SYNC_EVERYs
-	}
-	if bolt_SYNC_EVERYn > 0 {
-		Bolt_SYNC_EVERYn = bolt_SYNC_EVERYn
 	}
 	switch keyalgo {
 	case HashShort:
