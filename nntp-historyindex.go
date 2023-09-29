@@ -629,23 +629,23 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 	if setempty && len(*offsets) != 0 {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s offsetsN=%d setempty=%t", *char, *bucket, len(*offsets), setempty)
 	}
-	gobEncodedOffsets, err := gobEncodeOffsets(offsets)
+	gobEncodedOffsets, err := gobEncodeOffsets(*offsets, "boltBucketKeyPutOffsets")
 	if err != nil {
 		log.Printf("ERROR boltBucketKeyPutOffsets gobEncodedOffsets err='%v'", err)
 		return err
 	}
 	if his.Cache != nil {
-		his.OffsetsCache.Set(*char+*bucket+*key, *gobEncodedOffsets, DefaultOffsetsCacheExpires)
+		his.OffsetsCache.Set(*char+*bucket+*key, gobEncodedOffsets, DefaultOffsetsCacheExpires)
 	}
 	if batchQueue != nil {
 		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
-		batchQueue <- &BatchOffset{bucket: bucket, key: key, gobEncodedOffsets: gobEncodedOffsets }
+		batchQueue <- &BatchOffset{bucket: bucket, key: key, gobEncodedOffsets: &gobEncodedOffsets }
 		return nil
 	}
 	if batchQueue == nil {
 		if err := db.Update(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(*bucket))
-			err := b.Put([]byte(*key), *gobEncodedOffsets)
+			err := b.Put([]byte(*key), gobEncodedOffsets)
 			return err
 		}); err != nil {
 			log.Printf("ERROR boltBucketKeyPutOffsets char=%s buk=%s key=%s offsetsN=%d err='%v'", *char, *bucket, *key, len(*offsets), err)
@@ -834,7 +834,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
 			gobEncodedOffsets, isByte := cached_data.([]byte) // type assertion
 			if isByte {
-				decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets)
+				decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets, "boltBucketGetOffsets:CACHE")
 				if err != nil || decodedOffsets == nil {
 					log.Printf("WARN boltBucketGetOffsets CACHE FAULT gobDecodeOffsets char=%s buk=%s key=%s err='%v' decodedOffsets='%#v'", *char, *bucket, *key, err, decodedOffsets)
 					//return nil, err
@@ -867,7 +867,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		return nil, err
 	}
 	if len(gobEncodedOffsets) > 0 {
-		decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets)
+		decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets, "boltBucketGetOffsets:boltDB")
 		if err != nil || decodedOffsets == nil {
 			log.Printf("ERROR boltBucketGetOffsets gobDecodeOffsets char=%s buk=%s key=%s err='%v'", *char, *bucket, *key, err)
 			return nil, err
@@ -1014,25 +1014,29 @@ func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
 	return settings, nil
 } // end func gobDecodeHeader
 
-func gobEncodeOffsets(offsets *[]int64) (*[]byte, error) {
+func gobEncodeOffsets(offsets []int64, src string) ([]byte, error) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
-	err := encoder.Encode(*offsets)
+	err := encoder.Encode(offsets)
 	if err != nil {
-		log.Printf("ERROR gobEncodeOffsets offsets='%#v' err='%#v'", offsets, err)
+		log.Printf("ERROR gobEncodeOffsets offsets='%#v' err='%v'", offsets, err)
 		return nil, err
 	}
 	encodedData := buf.Bytes()
-	return &encodedData, nil
+	// costly check try decode encodedData
+	//if _, err := gobDecodeOffsets(encodedData, src+":test:gobEncodeOffsets"); err != nil {
+	//	return nil, err
+	//}
+	return encodedData, nil
 } // end func gobEncodeOffsets
 
-func gobDecodeOffsets(encodedData []byte) (*[]int64, error) {
+func gobDecodeOffsets(encodedData []byte, src string) (*[]int64, error) {
 	buf := bytes.NewBuffer(encodedData)
 	decoder := gob.NewDecoder(buf)
 	var decodedOffsets []int64
 	err := decoder.Decode(&decodedOffsets)
 	if err != nil {
-		log.Printf("ERROR gobDecodeOffsets encodedData='%#v'='%s' len=%d err='%#v'", encodedData, encodedData, len(encodedData), err)
+		log.Printf("ERROR gobDecodeOffsets encodedData='%#v' len=%d err='%v' src=%s", encodedData, len(encodedData), err, src)
 		return nil, err
 	}
 	return &decodedOffsets, nil
