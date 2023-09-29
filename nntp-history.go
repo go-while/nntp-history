@@ -20,10 +20,10 @@ import (
 
 const (
 	DefexpiresStr string = "-"
-	DefaultCacheExpires = 15*time.Second
-	DefaultOffsetCacheExpires = 15*time.Second
-	DefaultOffsetsCacheExpires = 15*time.Second
-	DefaultCachePurge = 15*time.Second
+	DefaultCacheExpires = 5*time.Second
+	DefaultOffsetCacheExpires = 5*time.Second
+	DefaultOffsetsCacheExpires = 5*time.Second
+	DefaultCachePurge = 5*time.Second
 )
 
 var (
