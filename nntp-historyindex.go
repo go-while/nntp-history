@@ -21,10 +21,17 @@ import (
 )
 
 const (
+	HashShort      int = 11
+	HashFNV32      int = 22
+	HashFNV32a     int = 33
+	HashFNV64      int = 44
+	HashFNV64a     int = 55
+	DefaultKeyLen int = 3
 	BoltDBs int = 16 // never change this
 )
 
 var (
+	BATCH bool = true
 	Bolt_SYNC_EVERYs     int64 = 60 // call db.sync() every seconds
 	Bolt_SYNC_EVERYn     uint64 = 1000 // call db.sync() after N inserts
 	BoltINITParallel int = BoltDBs // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
@@ -53,11 +60,14 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 	if BoltSYNCParallel != BoltDBs && BoltSYNCParallel >= 1 || BoltSYNCParallel < BoltSYNCParallel {
 		his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
 	}
+	his.BatchLocks = make(map[string]chan struct{}, BoltDBs)
 	for i, char := range HEXCHARS {
-		indexchan := make(chan *HistoryIndex, 1)
-		his.IndexChans[i] = indexchan
 		his.charsMap[char] = i
-		go his.History_DBZ_Worker(char, i, indexchan, boltOpts)
+		his.IndexChans[i] = make(chan *HistoryIndex, 1)
+		his.BatchLocks[char] = make(chan struct{}, 1)
+	}
+	for i, char := range HEXCHARS {
+		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
 	logf(DEBUG, "his.History_DBZinit() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
 	go his.History_DBZ()
@@ -89,9 +99,12 @@ forever:
 				log.Printf("ERROR History_DBZ offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
 				break forever
 			}
+
 			// gets first char of hash: hash must be lowercase!
 			// hex.EncodeToString returns a lowercased string of a hashsum
-			C1 := string((string(*hi.Hash)[0]))
+			C1 := string(string(*hi.Hash)[0])
+			//hash := *hi.Hash
+			//C1 := string(hash[0])
 			if his.IndexChans[his.charsMap[C1]] != nil {
 				his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
 			} else {
@@ -120,7 +133,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		defboltOpts := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 16 * 1024 * 1024,
+			InitialMmapSize: 128 * 1024 * 1024,
 			PageSize:        4 * 1024,
 			NoSync:          true,
 			//NoFreelistSync: true,
@@ -135,23 +148,27 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	defer his.boltSyncClose(db, &char)
 	testkey := "1"
 	testoffsets := []int64{1}
-	tcheck := 4096
+	//tocheck := 4096
+	tocheck := 1
 	checked := 0
 	created := 0
 	setempty := false
 	initLongTest := false
 	his.boltInitChan <- struct{}{}
-	logf(DEBUG1, "HDBZW: INIT HashDB char=%s", char)
-	for _, c1 := range HEXCHARS {
-		for _, c2 := range HEXCHARS {
-			for _, c3 := range HEXCHARS {
+	logf(DEBUG0, "HDBZW: INIT HashDB char=%s", char)
+	//for _, c1 := range HEXCHARS {
+		//for _, c2 := range HEXCHARS {
+			//for _, c3 := range HEXCHARS {
+			for {
+				c1, c2, c3 := "0", "0", "0"
 				bucket := c1 + c2 + c3
 				retbool, err := boltCreateBucket(db, &char, &bucket)
 				if err != nil || !retbool {
 					if err == bolt.ErrBucketExists {
 						if !initLongTest {
 							checked++
-							continue
+							//continue
+							break
 						}
 					} else {
 						log.Printf("ERROR HDBZW INIT HashDB boltCreateBucket char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
@@ -161,10 +178,11 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 					created++ // <= bucket has been created
 					if !initLongTest {
 						checked++
-						continue
+						//continue
+						break
 					}
 					// put1
-					if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, &testoffsets, setempty); err != nil {
+					if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, &testoffsets, setempty, nil); err != nil {
 						log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets1 char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
 						return
 					}
@@ -180,13 +198,14 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 					}
 					// put2
 					*offsets1 = append(*offsets1, 2)
-					if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, offsets1, setempty); err != nil {
+					if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, offsets1, setempty, nil); err != nil {
 						log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets2 char=%s bucket=%s err='%v'", char, bucket, err)
 						return
 					}
 				}
 				if !initLongTest {
-					continue
+					//continue
+					break
 				}
 				// get2
 				offsets2, err := his.boltBucketGetOffsets(db, &char, &bucket, &testkey)
@@ -200,14 +219,17 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				} else if len(*keys) == 1 {
 					checked++
 				}
-			} // enf for c3
-		} // end for c2
-		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
-	} // end for c1
+				break
+			}
+			//} // end for c3
+		//} // end for c2
+		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tcheck)
+	//} // end for c1
 	<-his.boltInitChan
-	logf(DEBUG1,"HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
-	if checked != 4096 {
-		log.Printf("ERROR HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tcheck, created, tcheck)
+	logf(DEBUG0,"HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	//if checked != 4096 {
+	if checked != tocheck || created != tocheck {
+		log.Printf("ERROR HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
 	}
 	his.setBoltHashOpen()
@@ -215,11 +237,11 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	time.Sleep(time.Second)
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches, retry uint64
-	cutHashlen := 7 // 4:7 = 3 chars
+	//cutHashlen := 7 // 4:7 = 3 chars
+	cutHashlen := 4 // 1:4 = 3 chars
 	if his.hashtype == HashShort {
-		//if his.keylen >= 3 {
-			cutHashlen = 4 + his.keylen
-		//}
+		//cutHashlen = 4 + his.keylen
+		cutHashlen = 1 + his.keylen
 	}
 
 	historyfile, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
@@ -228,17 +250,46 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		return
 	}
 	defer historyfile.Close()
-
+	batchQueue := make(chan *BatchOffset, 100000)
+	bucket := "000"
+	go func(db *bolt.DB, char *string, bucket *string, batchQueue chan *BatchOffset) {
+		timer := 5000
+		for {
+			time.Sleep(time.Duration(timer) * time.Millisecond)
+			err := his.boltBucketPutBatch(db, char, bucket, batchQueue, false, fmt.Sprintf("sleep:%d", timer))
+			if err != nil {
+				return
+			}
+			Q := len(batchQueue)
+			if Q >= 10000 {
+				timer -= 2000
+			} else
+			if Q >= 1000 {
+				timer -= 500
+			} else
+			if Q <= 100 {
+				timer += 10
+			}
+			if timer <= 0 {
+				timer = 1
+			} else if timer > 5000 {
+				timer = 5000
+			}
+		}
+	}(db, &char, &bucket, batchQueue)
+	defer his.boltBucketPutBatch(db, &char, &bucket, batchQueue, true, "defer")
 forever:
 	for {
 		select {
-		case hi, ok := <-indexchan: // recevies a HistoryIndex struct
+		case hi, ok := <-indexchan: // receives a HistoryIndex struct
 			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // at least md5
 				// receiving a nil object stops history_dbz_worker
+				batchQueue <- nil
 				break forever
 			}
 			var key *string
-			bucket := string(string(*hi.Hash)[1:4]) // get 3 chars for bucket
+			//bucket := string(string(*hi.Hash)[1:4]) // get 3 chars for bucket
+
 			switch his.hashtype {
 			case HashShort:
 				max := len(*hi.Hash)
@@ -257,7 +308,7 @@ forever:
 				key = FNV64aS(hi.Hash)
 			}
 			logf(DEBUG1,"WORKER HDBZW char=%s bucket=%s key=%s hash=%s @0x%010x|%d|%x", char, bucket, *key, *hi.Hash, hi.Offset, hi.Offset, hi.Offset)
-			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false, historyfile)
+			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false, historyfile, batchQueue)
 			if err != nil {
 				if err != io.EOF {
 					if hi.IndexRetChan != nil {
@@ -302,7 +353,7 @@ forever:
 // It manages offsets associated with message hashes and handles duplicates, ensuring the integrity of the historical data.
 // If a hash is a duplicate, it returns 1, otherwise, it returns 0.
 // It also handles the creation of new hash entries in the bucket when needed.
-func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool, file *os.File) (int, error) {
+func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool, file *os.File, batchQueue chan *BatchOffset) (int, error) {
 	if db == nil {
 		return -1, fmt.Errorf("ERROR DupeCheck db=nil")
 	}
@@ -345,12 +396,12 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return 0, nil // no duplicate
 		}
 		newoffsets := []int64{*offset}
-		// add hash to db
-		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, &newoffsets, setempty); err != nil {
+		// add hash=>key:offset to db
+		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, &newoffsets, setempty, batchQueue); err != nil {
 			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketKeyPutOffsets bucket=%s err='%v'", *char, *bucket, err)
 			return -1, err
 		}
-		logf(DEBUG0, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
+		//logf(DEBUG1, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
 		if his.Cache != nil {
 			his.Cache.Set(*hash, "1", DefaultCacheExpires) // offset of history entry added to key: hash is a duplicate in cached response now
 			his.OffsetCache.Set(strconv.FormatInt(*offset, 10), *hash, DefaultCacheExpires)
@@ -372,7 +423,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 	//}
 	if lo > 0 { // got offsets stored for numhash
 		if lo > 1 {
-			logf(DEBUG0, "INFO HDBZW char=%s GOT key=%s hash='%s' multiple offsets=%d=%#v", *char, *key, *hash, lo, *offsets)
+			//logf(DEBUG0, "INFO HDBZW char=%s GOT key=%s hash='%s' multiple offsets=%d=%#v", *char, *key, *hash, lo, *offsets)
 		}
 		for _, check_offset := range *offsets {
 			// check history for duplicate hash / evades collissions
@@ -414,11 +465,11 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		if err := AppendOffset(offsets, offset); err != nil {
 			return -1, err
 		}
-		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty); err != nil {
+		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty, batchQueue); err != nil {
 			log.Printf("ERROR HDBZW APPEND boltBucketKeyPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
 			return -1, err
 		}
-		logf(DEBUG0,"HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
+		//logf(DEBUG1,"HDBZW char=%s APPENDED key=%s hash=%s offset=0x%08x=%d offsets=%d='%#v'", *char, *key, *hash, *offset, *offset, len(*offsets), *offsets)
 		if his.Cache != nil {
 			his.Cache.Set(*hash, "1", DefaultCacheExpires) // offset of history entry added to key: hash is a duplicate in cached response now
 		}
@@ -505,7 +556,7 @@ func AppendOffset(offsets *[]int64, offset *int64) error {
 	return nil
 } // end func AppendOffset
 
-func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *string, offsets *[]int64, setempty bool) (err error) {
+func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *string, offsets *[]int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
 	if char == nil {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=nil")
 	}
@@ -533,18 +584,98 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 		return err
 	}
 	if his.Cache != nil {
-		his.OffsetsCache.Set(*char+*bucket+*key, gobEncodedOffsets, DefaultOffsetsCacheExpires)
+		his.OffsetsCache.Set(*char+*bucket+*key, *gobEncodedOffsets, DefaultOffsetsCacheExpires)
 	}
-	if err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(*bucket))
-		err := b.Put([]byte(*key), *gobEncodedOffsets)
-		return err
-	}); err != nil {
-		log.Printf("ERROR boltBucketKeyPutOffsets char=%s buk=%s key=%s offsetsN=%d err='%v'", *char, *bucket, *key, len(*offsets), err)
-		return err
+	if batchQueue != nil {
+		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
+		batchQueue <- &BatchOffset{key: key, gobEncodedOffsets: gobEncodedOffsets }
+		return nil
+	}
+	if batchQueue == nil {
+		if err := db.Update(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(*bucket))
+			err := b.Put([]byte(*key), *gobEncodedOffsets)
+			return err
+		}); err != nil {
+			log.Printf("ERROR boltBucketKeyPutOffsets char=%s buk=%s key=%s offsetsN=%d err='%v'", *char, *bucket, *key, len(*offsets), err)
+			return err
+		}
 	}
 	return
 } // end func boltBucketKeyPutOffsets
+
+type BatchOffset struct {
+	key *string
+	gobEncodedOffsets *[]byte
+}
+
+func (his *HISTORY) returnBatchLock(char *string) {
+	<- his.BatchLocks[*char]
+}
+
+func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char *string, bucket *string, batchQueue chan *BatchOffset, forced bool, src string) (err error) {
+	if batchQueue == nil {
+		return nil
+	}
+	his.BatchLocks[*char] <- struct{}{}
+	defer his.returnBatchLock(char)
+	start := utils.UnixTimeMilliSec()
+	var batch []*BatchOffset
+	inQueue := len(batchQueue)
+	if inQueue < BATCHSIZE && !forced {
+		return nil
+	}
+
+	fetchbatch:
+	for {
+		select {
+			case bo, ok := <- batchQueue:
+				if !ok {
+					break fetchbatch
+				}
+				if bo == nil {
+					// received nil pointer
+					close(batchQueue)
+					break fetchbatch
+				}
+				batch = append(batch, bo)
+				if len(batch) >= BATCHSIZE {
+					break fetchbatch
+				}
+			default:
+				break fetchbatch
+		}
+	}
+
+	inserted := 0
+	if len(batch) > 0 {
+		if err := db.Update(func(tx *bolt.Tx) error {
+			var err error
+			b := tx.Bucket([]byte(*bucket))
+			batchinsert:
+			for _, bo := range batch {
+				puterr := b.Put([]byte(*bo.key), *bo.gobEncodedOffsets)
+				if puterr != nil {
+					err = puterr
+					break batchinsert
+				}
+				inserted++
+			}
+			return err
+		}); err != nil {
+			log.Printf("ERROR boltBucketPutBatch char=%s buk=%s err='%v'", *char, *bucket, err)
+			return err
+		}
+	}
+	queued := len(batchQueue)
+	took := utils.UnixTimeMilliSec() - start
+	log.Printf("boltBucketPutBatch char=%s buk=%s inserted=%d Q=%d forced=%t (took %d ms) src=%s", *char, *bucket, inserted, queued, forced, took, src)
+	if forced && queued > 0 {
+		return his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src+"+")
+	}
+	return
+} // end func boltBucketPutBatch
+
 
 func boltBucketGetBytes(db *bolt.DB, char *string, bucket *string, key *string) (retval *[]byte, err error) {
 	if char == nil {
@@ -590,21 +721,22 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=%s key=nil", *char, *bucket)
 	}
 
+
 	if his.Cache != nil {
 		if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
 			gobEncodedOffsets, isByte := cached_data.([]byte) // type assertion
 			if isByte {
-				decodedOffsets, err := gobDecodeOffsets([]byte(gobEncodedOffsets))
+				decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets)
 				if err != nil || decodedOffsets == nil {
 					log.Printf("ERROR boltBucketGetOffsets CACHED gobDecodeOffsets char=%s buk=%s key=%s err='%v'", *char, *bucket, *key, err)
 					return nil, err
 				}
 				offsets = decodedOffsets
-				logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
+				//logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
 			}
 		}
 		if offsets != nil && len(*offsets) > 0 {
-			logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
+			//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
 			return offsets, nil
 		}
 	}
@@ -614,10 +746,10 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		b := tx.Bucket([]byte(*bucket))
 		v := b.Get([]byte(*key))
 		if v == nil {
-			logf(DEBUG1, "NOTFOUND boltBucketGetOffsets char=%s buk=%s key=%s", *char, *bucket, *key)
+			//logf(DEBUG1, "NOTFOUND boltBucketGetOffsets char=%s buk=%s key=%s", *char, *bucket, *key)
 			return nil
 		}
-		logf(DEBUG1, "GOT boltBucketGetOffsets char=%s buk=%s key=%s bytes=%d", *char, *bucket, *key, len(v))
+		//logf(DEBUG1, "GOT boltBucketGetOffsets char=%s buk=%s key=%s bytes=%d", *char, *bucket, *key, len(v))
 		gobEncodedOffsets = v
 		return nil
 	}); err != nil {
@@ -636,9 +768,9 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 			his.OffsetsCache.Set(*char+*bucket+*key, gobEncodedOffsets, DefaultOffsetsCacheExpires)
 		}
 	}
-	if offsets != nil {
-		logf(DEBUG1, "boltBucketGetOffsets returns char=%s buk=%s key=%s err='%v' offsetsN=%d", *char, *bucket, *key, err, len(*offsets))
-	}
+	//if offsets != nil {
+		//logf(DEBUG1, "boltBucketGetOffsets returns char=%s buk=%s key=%s err='%v' offsetsN=%d", *char, *bucket, *key, err, len(*offsets))
+	//}
 	return
 } // end func boltBucketGetOffsets
 
@@ -701,33 +833,6 @@ func boltGetAllKeys(db *bolt.DB, char *string, bucket *string) (retkeys *[]*stri
 	retkeys = &keys
 	return
 } // end func boltGetAllKeys
-
-func isPrime(n int64) bool {
-	// If the number is divisible by 2 or 3, it's not prime.
-	if n%2 == 0 || n%3 == 0 {
-		return false
-	}
-
-	// Check divisibility for numbers from 5 up to the square root of n.
-	for i := int64(5); i*i <= n; i += 6 {
-		if n%i == 0 || n%(i+2) == 0 {
-			return false
-		}
-	}
-	return true
-}
-
-func nextPrime(number int64) int64 {
-	for {
-		if isPrime(number) {
-			log.Printf("%d is a prime.", number)
-			return number
-		} /* else {
-			//log.Printf("%d is not a prime number.\n", number)
-		}*/
-		number++
-	}
-} // end func nextPrime
 
 func FNV32(data *string) (*string, *uint32) {
 	hash := fnv.New32a()
@@ -837,6 +942,9 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char *string) error {
 	if db == nil {
 		return fmt.Errorf("ERROR BoltSync db=nil")
 	}
+	his.BatchLocks[*char] <- struct{}{}
+	defer his.returnBatchLock(char)
+
 	if his.boltSyncChan != nil {
 		his.lockBoltSync()
 		defer his.returnBoltSync()
@@ -848,7 +956,7 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char *string) error {
 		log.Printf("ERROR BoltSync char=%s db.Sync failed err='%v'", *char, err)
 		return err
 	}
-	logf(DEBUG, "BoltDB SYNC char=%s took=%d ms", *char, utils.UnixTimeMilliSec()-start)
+	logf(DEBUG0, "BoltDB SYNC char=%s took=%d ms", *char, utils.UnixTimeMilliSec()-start)
 	return nil
 } // end func BoltSync
 
