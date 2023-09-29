@@ -20,10 +20,10 @@ import (
 
 const (
 	DefexpiresStr string = "-"
-	DefaultCacheExpires = 5*time.Second
-	DefaultOffsetCacheExpires = 5*time.Second
-	DefaultOffsetsCacheExpires = 5*time.Second
-	DefaultCachePurge = 5*time.Second
+	DefaultCacheExpires = 15*time.Second
+	DefaultOffsetCacheExpires = 15*time.Second
+	DefaultOffsetsCacheExpires = 15*time.Second
+	DefaultCachePurge = 15*time.Second
 )
 
 var (
@@ -40,8 +40,9 @@ var (
 type HISTORY struct {
 	RMUX sync.RWMutex
 	mux sync.Mutex
-	cmux sync.Mutex
-	Cache *cache.Cache
+	cmux sync.Mutex // sync counter
+	cache_mux sync.Mutex
+	L1Cache *cache.Cache
 	OffsetCache *cache.Cache
 	OffsetsCache *cache.Cache
 	boltInitChan      chan struct{}
@@ -236,7 +237,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
 	if gocache != nil {
-		his.Cache = gocache
+		his.L1Cache = gocache
 		his.OffsetCache = cache.New(DefaultOffsetCacheExpires, DefaultCachePurge)
 		his.OffsetsCache = cache.New(DefaultOffsetsCacheExpires, DefaultCachePurge)
 	}
@@ -247,7 +248,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.History_DBZinit(boltOpts)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.Cache, his.hashtype, his.keylen)
+	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.L1Cache, his.hashtype, his.keylen)
 	his.WriterChan = make(chan *HistoryObject, writeq)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
@@ -495,7 +496,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		}
 		defer file.Close()
 	}
-	if his.Cache != nil {
+	if his.L1Cache != nil {
 		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
 			hash, isStr := cached_hash.(string) // type assertion
 			hashlen := len(hash)
@@ -533,7 +534,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG1, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
-			if his.Cache != nil {
+			if his.L1Cache != nil {
 				his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
 			}
 			return &hash, nil
