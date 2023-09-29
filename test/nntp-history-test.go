@@ -46,6 +46,9 @@ func main() {
 		case 1:
 			history.DEBUG0 = true
 			history.DEBUG1 = true
+		case 9:
+			history.DEBUG9 = true
+
 	}
 	if BatchSize < 16 {
 		BatchSize = 16
@@ -64,10 +67,10 @@ func main() {
 	// a server with very little messages can go as low as HashLen: 3.
 	// one can use debugs to see if keys got added or appended ort if retrieved key has more than 1 offset stored.
 	// meaningful range for KeyLen is 5-8. much longer is not better but bloats up the hashdb.
-	// KeyLen max 32(-4) with md5
-	// KeyLen max 40(-4) with sha1
-	// KeyLen max 64(-4) with sha256
-	// KeyLen max 128(-4) with sha512
+	// KeyLen max 32(-2) with md5
+	// KeyLen max 40(-2) with sha1
+	// KeyLen max 64(-2) with sha256
+	// KeyLen max 128(-2) with sha512
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
@@ -118,20 +121,20 @@ func main() {
 				responseChan = make(chan int, 1)
 				indexRetChan = make(chan int, 1)
 			}
-			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry, spam uint64
+			var spam, spammer, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry uint64
 			//spam = uint64(todo)/10
-			spam = 250000
+			spammer = 250000
 		fortodo:
 			for i := 1; i <= todo; i++ {
-				if done >= spam {
-					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
-					done = 0
+				spam++
+				if spam >= spammer {
+					log.Printf("RUN test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
+					spam = 0
 				}
-				done++
 				//time.Sleep(time.Nanosecond)
-				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
@@ -228,7 +231,7 @@ func main() {
 				tdone++
 			} // end for i
 			P_donechan <- struct{}{}
-			log.Printf("End test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
+			log.Printf("End test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
 		}(p) // end go func parallel
 
 	} // end for parallel
@@ -251,7 +254,9 @@ func main() {
 	}
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
+	fseeks := history.History.GetCounter("FSEEK")
+	cached_decodedOffsets := history.History.GetCounter("cached_decodedOffsets")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d", key_add, key_app, total)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d", key_add, key_app, total, fseeks, cached_decodedOffsets)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
 } // end func main
