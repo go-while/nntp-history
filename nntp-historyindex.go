@@ -836,10 +836,12 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 			if isByte {
 				decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets)
 				if err != nil || decodedOffsets == nil {
-					log.Printf("ERROR boltBucketGetOffsets CACHED gobDecodeOffsets char=%s buk=%s key=%s err='%v'", *char, *bucket, *key, err)
-					return nil, err
+					log.Printf("WARN boltBucketGetOffsets CACHE FAULT gobDecodeOffsets char=%s buk=%s key=%s err='%v' decodedOffsets='%#v'", *char, *bucket, *key, err, decodedOffsets)
+					//return nil, err
+				} else {
+					go his.Sync_upcounter("cached_decodedOffsets")
+					offsets = decodedOffsets
 				}
-				offsets = decodedOffsets
 				//logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
 			}
 		}
@@ -990,17 +992,6 @@ func FNV64aS(data *string) *string {
 	return &s
 } // end func FNV64aS
 
-func gobEncodeOffsets(offsets *[]int64) (*[]byte, error) {
-	var buf bytes.Buffer
-	encoder := gob.NewEncoder(&buf)
-	err := encoder.Encode(offsets)
-	if err != nil {
-		return nil, err
-	}
-	encodedData := buf.Bytes()
-	return &encodedData, nil
-} // end func gobEncodeOffsets
-
 func gobEncodeHeader(settings *HistorySettings) (*[]byte, error) {
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
@@ -1023,12 +1014,25 @@ func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
 	return settings, nil
 } // end func gobDecodeHeader
 
+func gobEncodeOffsets(offsets *[]int64) (*[]byte, error) {
+	var buf bytes.Buffer
+	encoder := gob.NewEncoder(&buf)
+	err := encoder.Encode(*offsets)
+	if err != nil {
+		log.Printf("ERROR gobEncodeOffsets offsets='%#v' err='%#v'", offsets, err)
+		return nil, err
+	}
+	encodedData := buf.Bytes()
+	return &encodedData, nil
+} // end func gobEncodeOffsets
+
 func gobDecodeOffsets(encodedData []byte) (*[]int64, error) {
 	buf := bytes.NewBuffer(encodedData)
 	decoder := gob.NewDecoder(buf)
 	var decodedOffsets []int64
 	err := decoder.Decode(&decodedOffsets)
 	if err != nil {
+		log.Printf("ERROR gobDecodeOffsets encodedData='%#v'='%s' len=%d err='%#v'", encodedData, encodedData, len(encodedData), err)
 		return nil, err
 	}
 	return &decodedOffsets, nil
