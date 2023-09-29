@@ -498,9 +498,12 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	if his.Cache != nil {
 		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
 			hash, isStr := cached_hash.(string) // type assertion
-			if isStr {
-				//logf(DEBUG, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
+			hashlen := len(hash)
+			if isStr && hashlen >= 32 {
+				logf(DEBUG1, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
 				return &hash, nil
+			} else {
+				log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
 			}
 		}
 	}
@@ -510,6 +513,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
 	}
+	go his.Sync_upcounter("FSEEK")
 	reader := bufio.NewReaderSize(file, 69)
 
 	// Read until the first tab character
