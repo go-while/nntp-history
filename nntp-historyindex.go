@@ -888,7 +888,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 			log.Printf("ERROR boltBucketGetOffsets gobDecodeOffsets char=%s buk=%s key=%s err='%v'", *char, *bucket, *key, err)
 			return nil, err
 		}
-		his.Sync_upcounter("decodedOffsets")
+		his.Sync_upcounter("BoltDB_decodedOffsets")
 		offsets = decodedOffsets
 
 		//if his.L1Cache != nil && offsets != nil {
