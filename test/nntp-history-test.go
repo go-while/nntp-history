@@ -230,6 +230,7 @@ func main() {
 				} // end responseChan
 				tdone++
 			} // end for i
+			time.Sleep(time.Second)
 			P_donechan <- struct{}{}
 			log.Printf("End test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
 		}(p) // end go func parallel
