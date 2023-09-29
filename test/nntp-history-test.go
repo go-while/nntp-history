@@ -45,11 +45,9 @@ func main() {
 			history.DEBUG1 = true
 	}
 	runtime.GOMAXPROCS(numCPU)
-	fmt.Printf("Number of CPU cores: %d/%d\n", numCPU, runtime.NumCPU())
-	fmt.Printf("useHashDB: %t | useGoCache: %t | jobs=%d | todo=%d | keyalgo=%d | keylen=%d\n", useHashDB, useGoCache, parallelTest, todo, KeyAlgo, KeyLen)
+	fmt.Printf("CPU=%d/%d | useHashDB: %t | useGoCache: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d\n", numCPU, runtime.NumCPU(), useHashDB, useGoCache, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen)
 	time.Sleep(3*time.Second)
-	storageToken := "F"                                       // storagetoken flatfile
-	expireCache, purgeCache := history.DefaultCacheExpires, history.DefaultCachePurge // cache
+	storageToken := "F" // storagetoken flatfile
 	readq, writeq := parallelTest, parallelTest
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
@@ -68,16 +66,20 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		history.Bolt_SYNC_EVERYs = 60
-		history.Bolt_SYNC_EVERYn = 50000
+		history.Bolt_SYNC_EVERYn = 250000
 		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
 		history.BoltSYNCParallel = 1 // ( can be 1-16 ) default: `history.BoltDBs`
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024,
-			PageSize:        4 * 1024,
+			PageSize:        64 * 1024,
 			NoSync:          true,
-			NoFreelistSync: true,
+			//NoFreelistSync: true,
+			//FreelistType: "hashmap",
+			//FreelistType: "array",
+			//MaxBatchSize: 0,
+			//AllocSize: 64*1024*1024,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
 			MmapFlags: syscall.MAP_POPULATE,
@@ -85,7 +87,7 @@ func main() {
 		boltOpts = &bO
 	}
 	if useGoCache {
-		gocache = cache.New(expireCache, purgeCache)
+		gocache = cache.New(history.DefaultCacheExpires, history.DefaultCachePurge)
 	}
 	start := utils.UnixTimeSec()
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, KeyAlgo, KeyLen, gocache)
@@ -108,10 +110,11 @@ func main() {
 				responseChan = make(chan int, 1)
 				indexRetChan = make(chan int, 1)
 			}
-			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry uint64
+			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry, spam uint64
+			spam = uint64(todo)/10
 		fortodo:
 			for i := 1; i <= todo; i++ {
-				if done >= 250000 {
+				if done >= spam {
 					log.Printf("RUN test p=%d nntp-history done=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
 					done = 0
 				}
@@ -122,11 +125,10 @@ func main() {
 				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
+				//log.Printf("hash=%s", hash)
 
 				if gocache != nil { // check go-cache for hash
-					//history.History.RMUX.RLock()
 					if val, found := gocache.Get(hash); found {
-						//history.History.RMUX.RUnlock()
 						switch val {
 						case "-1":
 							// cache hits, already in processing
@@ -136,30 +138,16 @@ func main() {
 						case "2":
 							cacheretry++
 						}
-						continue
+						continue fortodo
 					}
-					//history.History.RMUX.RUnlock()
-					//history.History.RMUX.Lock()
-					gocache.Set(hash, "-1", expireCache) // adds hash to temporary go-cache with value "-1"
-					//history.History.RMUX.Unlock()
+					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
 				}
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
-				//log.Printf("hash=%s", hash)
-
-				// creates a single history object for a usenet article
-				hobj := &history.HistoryObject{
-					MessageIDHash: &hash,
-					StorageToken:  &storageToken,
-					Arrival:       now,
-					Expires:       expires,
-					Date:          now - 86400*7,
-					ResponseChan:  responseChan,
-				}
 
 				// check only if hash is in hashdb: uses offset: -1 !!!
 				if useHashDB && history.History.IndexChan != nil {
-					history.History.IndexChan <- &history.HistoryIndex{Hash: hobj.MessageIDHash, Offset: -1, IndexRetChan: indexRetChan}
+					history.History.IndexChan <- &history.HistoryIndex{Hash: &hash, Offset: -1, IndexRetChan: indexRetChan}
 					select {
 					case isDup, ok := <-indexRetChan:
 						if !ok {
@@ -183,6 +171,15 @@ func main() {
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
+				// creates a single history object for a usenet article
+				hobj := &history.HistoryObject{
+					MessageIDHash: &hash,
+					StorageToken:  &storageToken,
+					Arrival:       now,
+					Expires:       expires,
+					Date:          now - 86400*7,
+					ResponseChan:  responseChan,
+				}
 				history.History.WriterChan <- hobj
 				if useHashDB && responseChan != nil {
 					select {
