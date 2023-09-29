@@ -30,6 +30,7 @@ var (
 	DEBUG                bool = true
 	DEBUG0               bool = false
 	DEBUG1               bool = false
+	DEBUG9               bool = false
 	History              HISTORY
 	HISTORY_WRITER_LOCK  = make(chan struct{}, 1)
 	HEXCHARS             = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
