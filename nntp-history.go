@@ -12,23 +12,19 @@ import (
 	"os"
 	"strings"
 	bolt "go.etcd.io/bbolt"
+	//"github.com/dgraph-io/badger"
 	"strconv"
 	"sync"
 	"time"
 )
 
 const (
-	HashShort      int = 11
-	HashFNV32      int = 22
-	HashFNV32a     int = 33
-	HashFNV64      int = 44
-	HashFNV64a     int = 55
-	DefaultKeyLen int = 3
+	BATCHSIZE int = 10000
 	DefexpiresStr string = "-"
-	DefaultCacheExpires = 60*time.Second
+	DefaultCacheExpires = 15*time.Second
 	DefaultOffsetCacheExpires = 15*time.Second
-	DefaultOffsetsCacheExpires = 5*time.Second
-	DefaultCachePurge = 5*time.Second
+	DefaultOffsetsCacheExpires = 15*time.Second
+	DefaultCachePurge = 15*time.Second
 )
 
 var (
@@ -50,13 +46,13 @@ type HISTORY struct {
 	OffsetsCache *cache.Cache
 	boltInitChan      chan struct{}
 	boltSyncChan      chan struct{}
-	//rmux   sync.RWMutex
 	Offset int64
 	HF     string // = "history/history.dat"
 	HF_hash    string // = "history/history.Hash"
 	WriterChan chan *HistoryObject
 	IndexChan  chan *HistoryIndex
 	IndexChans [16]chan *HistoryIndex
+	BatchLocks map[string]chan struct{}
 	charsMap   map[string]int
 	useHashDB  bool
 	hashtype   int
@@ -195,7 +191,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot os.OpenFile err='%v'", err)
 		os.Exit(1)
 	}
-	dw := bufio.NewWriterSize(fh, 32*1024)
+	dw := bufio.NewWriterSize(fh, 4*1024)
 	if new {
 		// create history.dat
 		data, err := gobEncodeHeader(history_settings)
@@ -259,7 +255,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 func LOCKfunc(achan chan struct{}, src string) bool {
 	select {
 	case achan <- struct{}{}:
-		logf(DEBUG1, "LOCKfunc src='%s' OK", src)
 		return true
 	default:
 		log.Printf("ERROR LOCKfunc src='%s' already running=%d", src, len(achan))
@@ -268,9 +263,7 @@ func LOCKfunc(achan chan struct{}, src string) bool {
 } // end LOCKfunc
 
 func UNLOCKfunc(achan chan struct{}, src string) {
-	logf(DEBUG1, "UNLOCKfunc src='%s' unlocking", src)
 	<-achan
-	logf(DEBUG1, "UNLOCKfunc src='%s' unlocked", src)
 } // end func UNLOCKfunc
 
 func (his *HISTORY) wait4HashDB() {
@@ -371,7 +364,7 @@ forever:
 							}
 						}
 						// DUPLICATE entry
-						logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
+						//logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
 						continue forever
 					}
 				} // end select
@@ -506,7 +499,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
 			hash, isStr := cached_hash.(string) // type assertion
 			if isStr {
-				logf(DEBUG1, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
+				//logf(DEBUG, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
 				return &hash, nil
 			}
 		}
@@ -517,7 +510,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
 	}
-	reader := bufio.NewReader(file)
+	reader := bufio.NewReaderSize(file, 69)
 
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
@@ -535,7 +528,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
-			logf(DEBUG1, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
+			//logf(DEBUG1, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
 			if his.Cache != nil {
 				his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
 			}
