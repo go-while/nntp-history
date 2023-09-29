@@ -246,9 +246,11 @@ The remaining hash can be customized based on the "KeyLen" setting.
 
 ## Example
 
-Suppose you have a Message-ID hash of "1a2b3c4d5e6f7g8h9i0j". Using the described approach:
+Suppose you have a Message-ID hash of "1a2b3c4d5e6f0..."
+
+Using the described approach:
 
 - The first character "1" selects the database "1".
 - The next character "a" select the bucket "a" within the "1" database.
-- The remaining hash "2b3c4d5e6f7g8h9i0j" can be used for further data organization within the "a" bucket based on the "KeyLen" setting.
+- The remaining hash "2b3c4d5e6f0..." can be used for further data organization within the "a" bucket based on the "KeyLen" setting.
 
