@@ -84,7 +84,7 @@ func main() {
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024,
-			PageSize:        64 * 1024,
+			PageSize:        4 * 1024,
 			//NoSync:          true,
 			//NoFreelistSync: true,
 			//FreelistType: "hashmap",
@@ -121,16 +121,17 @@ func main() {
 				responseChan = make(chan int, 1)
 				IndexRetChan = make(chan int, 1)
 			}
-			var spam, spammer, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1 , cacheretry2 uint64
+			var spam, spammer, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1 , cacheretry2 uint64
 			//spam = uint64(todo)/10
 			spammer = 250000
 		fortodo:
 			for i := 1; i <= todo; i++ {
-				spam++
 				if spam >= spammer {
-					log.Printf("RUN test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2)
+					sum := added+dupes+cachehits+retry+adddupes+cachedupes+cacheretry1+cacheretry2
+					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d %d/%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2, sum, todo)
 					spam = 0
 				}
+				spam++
 				//time.Sleep(time.Nanosecond)
 				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
@@ -248,11 +249,12 @@ func main() {
 						}
 					} // end select
 				} // end responseChan
-				tdone++
+				//tdone++
 			} // end for i
 			time.Sleep(time.Second)
 			P_donechan <- struct{}{}
-			log.Printf("End test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2)
+			sum := added+dupes+cachehits+retry+adddupes+cachedupes+cacheretry1+cacheretry2
+			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d sum=%d/%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2, sum, todo)
 		}(p) // end go func parallel
 
 	} // end for parallel
@@ -277,10 +279,10 @@ func main() {
 	key_app := history.History.GetCounter("key_app")
 	fseeks := history.History.GetCounter("FSEEK")
 	cached_decodedOffsets := history.History.GetCounter("cached_decodedOffsets")
-	decodedOffsets := history.History.GetCounter("decodedOffsets")
+	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
 	multioffsets := history.History.GetCounter("multioffsets")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d decodedOffsets=%d multioffsets=%d", key_add, key_app, total, fseeks, cached_decodedOffsets, decodedOffsets, multioffsets)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d BoltDB_decodedOffsets=%d multioffsets=%d sum=%d", key_add, key_app, total, fseeks, cached_decodedOffsets, BoltDB_decodedOffsets, multioffsets)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
 	time.Sleep(3*time.Second)
 } // end func main
