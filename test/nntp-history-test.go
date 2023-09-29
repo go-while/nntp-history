@@ -139,7 +139,7 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 
-				retval := history.History.CheckL1Cache(&hash)
+				retval := history.History.LockL1Cache(&hash, "-1") // checks and locks hash for processing
 				switch retval {
 				case 0:
 					// pass
@@ -161,35 +161,9 @@ func main() {
 					break fortodo
 				}
 				/*
-				if gocache != nil { // check go-cache for hash
-					history.History.RMUX.Lock()
-					if val, found := gocache.Get(hash); found {
-						switch val {
-						case "-1":
-							// cache hits, already in processing
-							cachehits++
-						case "1":
-							cachedupes++
-						case "2":
-							cacheretry++
-						case "-2":
-							cacheretry++
-						}
-						history.History.RMUX.Unlock()
-						continue fortodo
-					}
-					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
-					history.History.RMUX.Unlock()
-				}
-				*/
-				/*
 				if !overview.Known_msgids.SetKnown(hash) {
 					cachehits++
 					continue
-				}
-
-				if gocache != nil {
-					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
 				}
 				*/
 				now := utils.UnixTimeSec()
@@ -287,7 +261,7 @@ func main() {
 		if len(P_donechan) == parallelTest {
 			break
 		}
-		time.Sleep(time.Second/100)
+		time.Sleep(time.Second/10)
 	}
 	history.History.WriterChan <- nil // closes workers
 	for {
@@ -297,14 +271,16 @@ func main() {
 			history.History.GetBoltHashOpen() == 0 {
 			break
 		}
-		time.Sleep(time.Second/100)
+		time.Sleep(time.Second/10)
 	}
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
 	fseeks := history.History.GetCounter("FSEEK")
 	cached_decodedOffsets := history.History.GetCounter("cached_decodedOffsets")
 	decodedOffsets := history.History.GetCounter("decodedOffsets")
+	multioffsets := history.History.GetCounter("multioffsets")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d decodedOffsets=%d", key_add, key_app, total, fseeks, cached_decodedOffsets, decodedOffsets)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d decodedOffsets=%d multioffsets=%d", key_add, key_app, total, fseeks, cached_decodedOffsets, decodedOffsets, multioffsets)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
+	time.Sleep(3*time.Second)
 } // end func main
