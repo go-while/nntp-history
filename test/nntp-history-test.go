@@ -116,31 +116,53 @@ func main() {
 
 		go func(p int) {
 			var responseChan chan int
-			var indexRetChan chan int
+			var IndexRetChan chan int
 			if useHashDB {
 				responseChan = make(chan int, 1)
-				indexRetChan = make(chan int, 1)
+				IndexRetChan = make(chan int, 1)
 			}
-			var spam, spammer, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry uint64
+			var spam, spammer, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1 , cacheretry2 uint64
 			//spam = uint64(todo)/10
 			spammer = 250000
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				spam++
 				if spam >= spammer {
-					log.Printf("RUN test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
+					log.Printf("RUN test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2)
 					spam = 0
 				}
 				//time.Sleep(time.Nanosecond)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 
-
+				retval := history.History.CheckL1Cache(&hash)
+				switch retval {
+				case 0:
+					// pass
+				case -1:
+					// cache hits, already in processing
+					cachehits++
+					continue fortodo
+				case 1:
+					cachedupes++
+					continue fortodo
+				case 2:
+					cacheretry1++
+					continue fortodo
+				case -2:
+					cacheretry2++
+					continue fortodo
+				default:
+					log.Printf("main: ERROR unknown switch CheckL1Cache retval=%d", retval)
+					break fortodo
+				}
+				/*
 				if gocache != nil { // check go-cache for hash
+					history.History.RMUX.Lock()
 					if val, found := gocache.Get(hash); found {
 						switch val {
 						case "-1":
@@ -153,11 +175,13 @@ func main() {
 						case "-2":
 							cacheretry++
 						}
+						history.History.RMUX.Unlock()
 						continue fortodo
 					}
 					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
+					history.History.RMUX.Unlock()
 				}
-
+				*/
 				/*
 				if !overview.Known_msgids.SetKnown(hash) {
 					cachehits++
@@ -171,6 +195,7 @@ func main() {
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 
+				/*
 				// check only if hash is in hashdb: uses offset: -1 !!!
 				if useHashDB && history.History.IndexChan != nil {
 					history.History.IndexChan <- &history.HistoryIndex{Hash: &hash, Offset: -1, IndexRetChan: indexRetChan}
@@ -193,6 +218,27 @@ func main() {
 							continue fortodo
 						}
 					} // end select
+				}
+				*/
+
+				isDup, err := history.History.IndexQuery(&hash, IndexRetChan)
+				if err != nil {
+					log.Printf("FALSE IndexQuery hash=%s", hash)
+					break fortodo
+				}
+				switch isDup {
+				case 0:
+					// pass
+				case 1:
+					dupes++
+					// DUPLICATE entry
+					//log.Printf("main: DUP hash='%s'", hash)
+					continue fortodo
+				case 2:
+					retry++
+					continue fortodo
+				default:
+					log.Printf("ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
 				}
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
@@ -232,7 +278,7 @@ func main() {
 			} // end for i
 			time.Sleep(time.Second)
 			P_donechan <- struct{}{}
-			log.Printf("End test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry)
+			log.Printf("End test p=%d nntp-history tdone=%d/%d added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d", p, tdone, todo, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2)
 		}(p) // end go func parallel
 
 	} // end for parallel
@@ -241,7 +287,7 @@ func main() {
 		if len(P_donechan) == parallelTest {
 			break
 		}
-		time.Sleep(time.Second/10)
+		time.Sleep(time.Second/100)
 	}
 	history.History.WriterChan <- nil // closes workers
 	for {
@@ -251,13 +297,14 @@ func main() {
 			history.History.GetBoltHashOpen() == 0 {
 			break
 		}
-		time.Sleep(time.Second/10)
+		time.Sleep(time.Second/100)
 	}
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
 	fseeks := history.History.GetCounter("FSEEK")
 	cached_decodedOffsets := history.History.GetCounter("cached_decodedOffsets")
+	decodedOffsets := history.History.GetCounter("decodedOffsets")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d", key_add, key_app, total, fseeks, cached_decodedOffsets)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d cached_decodedOffsets=%d decodedOffsets=%d", key_add, key_app, total, fseeks, cached_decodedOffsets, decodedOffsets)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
 } // end func main
