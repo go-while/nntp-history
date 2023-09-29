@@ -483,7 +483,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			his.Sync_upcounter("multioffsets")
 		}
 		for _, check_offset := range *offsets {
-			his.OffsetCache.Set(strconv.FormatInt(check_offset, 10), *hash, DefaultCacheExpires)
+
 			// check history for duplicate hash / evades collissions
 			//logf(DEBUG2, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
 			historyHash, err := his.FseekHistoryMessageHash(file, &check_offset)
@@ -496,6 +496,8 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 				return -1, err
 			}
 			if historyHash != nil {
+
+				his.OffsetCache.Set(strconv.FormatInt(check_offset, 10), *historyHash, DefaultCacheExpires)
 
 				if len(*historyHash) == 3 && *historyHash == eofhash {
 					log.Printf("EOF history.dat offset=%d", check_offset)
