@@ -28,6 +28,8 @@ func main() {
 	var KeyAlgo int
 	var KeyLen int
 	var debugs int
+	var BatchSize int
+	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
@@ -36,7 +38,7 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 3-32|sha256: 3-64|sha512: 3-128")
 	flag.BoolVar(&useGoCache, "useGoCache", true, "true|false")
-	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
+	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	switch debugs {
 		case 0:
@@ -45,9 +47,12 @@ func main() {
 			history.DEBUG0 = true
 			history.DEBUG1 = true
 	}
+	if BatchSize < 16 {
+		BatchSize = 16
+	}
 	runtime.GOMAXPROCS(numCPU)
-	fmt.Printf("CPU=%d/%d | useHashDB: %t | useGoCache: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d\n", numCPU, runtime.NumCPU(), useHashDB, useGoCache, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen)
-	time.Sleep(3*time.Second)
+	fmt.Printf("CPU=%d/%d | useHashDB: %t | useGoCache: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, useGoCache, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
+	//time.Sleep(3*time.Second)
 	storageToken := "F" // storagetoken flatfile
 	readq, writeq := parallelTest, parallelTest
 	HistoryDir := "history"
@@ -66,7 +71,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BATCHSIZE = 1024 // 1024/history.BoltDBs // = 64 per char/bucket
+		history.BATCHSIZE = BatchSize/history.BoltDBs // 1024/history.BoltDBs // = 64 per char/bucket
 		history.Bolt_SYNC_EVERYs = 60
 		history.Bolt_SYNC_EVERYn = 50000
 		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
@@ -114,7 +119,8 @@ func main() {
 				indexRetChan = make(chan int, 1)
 			}
 			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry, spam uint64
-			spam = uint64(todo)/10
+			//spam = uint64(todo)/10
+			spam = 250000
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if done >= spam {
@@ -231,7 +237,7 @@ func main() {
 		if len(P_donechan) == parallelTest {
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second/10)
 	}
 	history.History.WriterChan <- nil // closes workers
 	for {
@@ -241,7 +247,7 @@ func main() {
 			history.History.GetBoltHashOpen() == 0 {
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(time.Second/10)
 	}
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
