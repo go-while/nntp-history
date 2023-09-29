@@ -51,7 +51,7 @@ type HISTORY struct {
 	WriterChan chan *HistoryObject
 	IndexChan  chan *HistoryIndex
 	IndexChans [16]chan *HistoryIndex
-	BatchLocks map[string]chan struct{}
+	BatchLocks map[string]map[string]chan struct{}
 	charsMap   map[string]int
 	useHashDB  bool
 	hashtype   int
