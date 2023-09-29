@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"github.com/go-while/go-utils"
 	"github.com/go-while/nntp-history"
+	//"github.com/go-while/nntp-overview"
 	"github.com/patrickmn/go-cache"
 	bolt "go.etcd.io/bbolt"
 	"log"
 	//"strings"
 	"flag"
 	"os"
-	"syscall"
+	_"syscall"
 	"runtime"
 	"time"
 )
@@ -65,16 +66,18 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
+		history.BATCHSIZE = 4096 // 1024/history.BoltDBs // = 64 per char/bucket
 		history.Bolt_SYNC_EVERYs = 60
-		history.Bolt_SYNC_EVERYn = 250000
+		history.Bolt_SYNC_EVERYn = 50000
 		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
 		history.BoltSYNCParallel = 1 // ( can be 1-16 ) default: `history.BoltDBs`
+		// not safe to change any values later while running!
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024,
 			PageSize:        64 * 1024,
-			NoSync:          true,
+			//NoSync:          true,
 			//NoFreelistSync: true,
 			//FreelistType: "hashmap",
 			//FreelistType: "array",
@@ -82,7 +85,7 @@ func main() {
 			//AllocSize: 64*1024*1024,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
-			MmapFlags: syscall.MAP_POPULATE,
+			//MmapFlags: syscall.MAP_POPULATE,
 		}
 		boltOpts = &bO
 	}
@@ -105,10 +108,10 @@ func main() {
 
 		go func(p int) {
 			var responseChan chan int
-			var indexRetChan chan int
+			//var indexRetChan chan int
 			if useHashDB {
 				responseChan = make(chan int, 1)
-				indexRetChan = make(chan int, 1)
+				//indexRetChan = make(chan int, 1)
 			}
 			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry, spam uint64
 			spam = uint64(todo)/10
@@ -127,6 +130,7 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 
+				/*
 				if gocache != nil { // check go-cache for hash
 					if val, found := gocache.Get(hash); found {
 						switch val {
@@ -142,9 +146,20 @@ func main() {
 					}
 					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
 				}
+				*/
+				/*
+				if !overview.Known_msgids.SetKnown(hash) {
+					cachehits++
+					continue
+				}
+				*/
+				if gocache != nil {
+					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
+				}
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 
+				/*
 				// check only if hash is in hashdb: uses offset: -1 !!!
 				if useHashDB && history.History.IndexChan != nil {
 					history.History.IndexChan <- &history.HistoryIndex{Hash: &hash, Offset: -1, IndexRetChan: indexRetChan}
@@ -171,6 +186,8 @@ func main() {
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
+				*/
+
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
 					MessageIDHash: &hash,
