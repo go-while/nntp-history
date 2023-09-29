@@ -66,7 +66,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BATCHSIZE = 4096 // 1024/history.BoltDBs // = 64 per char/bucket
+		history.BATCHSIZE = 1024 // 1024/history.BoltDBs // = 64 per char/bucket
 		history.Bolt_SYNC_EVERYs = 60
 		history.Bolt_SYNC_EVERYn = 50000
 		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
@@ -108,10 +108,10 @@ func main() {
 
 		go func(p int) {
 			var responseChan chan int
-			//var indexRetChan chan int
+			var indexRetChan chan int
 			if useHashDB {
 				responseChan = make(chan int, 1)
-				//indexRetChan = make(chan int, 1)
+				indexRetChan = make(chan int, 1)
 			}
 			var done, tdone, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry, spam uint64
 			spam = uint64(todo)/10
@@ -123,14 +123,14 @@ func main() {
 				}
 				done++
 				//time.Sleep(time.Nanosecond)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 
-				/*
+
 				if gocache != nil { // check go-cache for hash
 					if val, found := gocache.Get(hash); found {
 						switch val {
@@ -141,25 +141,27 @@ func main() {
 							cachedupes++
 						case "2":
 							cacheretry++
+						case "-2":
+							cacheretry++
 						}
 						continue fortodo
 					}
 					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
 				}
-				*/
+
 				/*
 				if !overview.Known_msgids.SetKnown(hash) {
 					cachehits++
 					continue
 				}
-				*/
+
 				if gocache != nil {
 					gocache.Set(hash, "-1", history.DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
 				}
+				*/
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 
-				/*
 				// check only if hash is in hashdb: uses offset: -1 !!!
 				if useHashDB && history.History.IndexChan != nil {
 					history.History.IndexChan <- &history.HistoryIndex{Hash: &hash, Offset: -1, IndexRetChan: indexRetChan}
@@ -186,7 +188,7 @@ func main() {
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
-				*/
+
 
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
