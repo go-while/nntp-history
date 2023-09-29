@@ -30,6 +30,7 @@ var (
 	DEBUG                bool = true
 	DEBUG0               bool = false
 	DEBUG1               bool = false
+	DEBUG2               bool = false
 	DEBUG9               bool = false
 	History              HISTORY
 	HISTORY_WRITER_LOCK  = make(chan struct{}, 1)
@@ -501,7 +502,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 			hash, isStr := cached_hash.(string) // type assertion
 			hashlen := len(hash)
 			if isStr && hashlen >= 32 {
-				logf(DEBUG1, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
+				logf(DEBUG2, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
 				return &hash, nil
 			} else {
 				log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
@@ -514,7 +515,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
 	}
-	go his.Sync_upcounter("FSEEK")
+	his.Sync_upcounter("FSEEK")
 	reader := bufio.NewReaderSize(file, 69)
 
 	// Read until the first tab character
@@ -533,7 +534,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
-			//logf(DEBUG1, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
+			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
 			if his.L1Cache != nil {
 				his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
 			}
