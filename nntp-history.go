@@ -19,7 +19,6 @@ import (
 )
 
 const (
-	BATCHSIZE int = 10000
 	DefexpiresStr string = "-"
 	DefaultCacheExpires = 15*time.Second
 	DefaultOffsetCacheExpires = 15*time.Second
@@ -362,6 +361,7 @@ forever:
 								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
 								break forever
 							}
+							//log.Printf("EOF forced flush OK")
 						}
 						// DUPLICATE entry
 						//logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
@@ -373,7 +373,6 @@ forever:
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
 			//whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
-			//if err := writeHistoryLine(dw, &whs, &his.Offset, flush, &wbt); err != nil {
 			if err := his.writeHistoryLine(dw, hobj, flush, &wbt); err != nil {
 				log.Printf("ERROR History_Writer writeHistoryLine err='%v'", err)
 				break forever
