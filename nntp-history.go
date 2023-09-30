@@ -44,9 +44,9 @@ type HISTORY struct {
 	RMUX sync.RWMutex
 	mux sync.Mutex
 	cmux sync.Mutex // sync counter
-	cache_mux sync.Mutex
-	cache_mux2 sync.Mutex
-	cache_mux3 sync.Mutex
+	cache_mux sync.RWMutex
+	cache_mux2 sync.RWMutex
+	cache_mux3 sync.RWMutex
 	L1Cache *cache.Cache
 	OffsetCache *cache.Cache
 	OffsetsCache *cache.Cache
@@ -504,9 +504,9 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		defer file.Close()
 	}
 	if his.L1Cache != nil {
-		his.cache_mux2.Lock()
+		his.cache_mux2.RLock()
 		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
-			his.cache_mux2.Unlock()
+			his.cache_mux2.RUnlock()
 			hash, isStr := cached_hash.(string) // type assertion
 			hashlen := len(hash)
 			if isStr && hashlen >= 32 {
@@ -516,7 +516,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 				log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
 			}
 		}
-		his.cache_mux2.Unlock()
+		his.cache_mux2.RUnlock()
 	}
 	// Seek to the specified offset
 	_, seekErr := file.Seek(*offset, 0)
