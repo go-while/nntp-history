@@ -19,6 +19,8 @@ import (
 )
 
 const (
+	TESTHASH1 string = "x76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
+	TESTHASH2 string = "x76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	DefexpiresStr string = "-"
 	DefaultCacheExpires = 15*time.Second
 	DefaultOffsetCacheExpires = 15*time.Second
@@ -43,6 +45,7 @@ type HISTORY struct {
 	mux sync.Mutex
 	cmux sync.Mutex // sync counter
 	cache_mux sync.Mutex
+	cache_mux2 sync.Mutex
 	L1Cache *cache.Cache
 	OffsetCache *cache.Cache
 	OffsetsCache *cache.Cache
@@ -176,8 +179,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		return
 	}
 	his.keylen = keylen
-	if his.keylen < DefaultKeyLen {
-		log.Printf("ERROR History_Boot keylen=%d < DefaultKeyLen=%d", DefaultKeyLen)
+	if his.keylen < MinKeyLen {
+		log.Printf("ERROR History_Boot keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
 	// default history settings
@@ -498,16 +501,19 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		defer file.Close()
 	}
 	if his.L1Cache != nil {
+		his.cache_mux2.Lock()
 		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
 			hash, isStr := cached_hash.(string) // type assertion
 			hashlen := len(hash)
 			if isStr && hashlen >= 32 {
+				his.cache_mux2.Unlock()
 				logf(DEBUG2, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
 				return &hash, nil
 			} else {
 				log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
 			}
 		}
+		his.cache_mux2.Unlock()
 	}
 	// Seek to the specified offset
 	_, seekErr := file.Seek(*offset, 0)
@@ -515,17 +521,19 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
 		return nil, seekErr
 	}
-	his.Sync_upcounter("FSEEK")
+
 	reader := bufio.NewReaderSize(file, 69)
 
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
 	if err != nil {
 		if err == io.EOF {
+			his.Sync_upcounter("FSEEK_EOF")
 			return &eofhash, nil
 		}
 		return nil, err
 	}
+	his.Sync_upcounter("FSEEK")
 	//result := strings.Split(line, "\t")[0]
 	result = strings.TrimSuffix(result, "\t")
 	if len(result) > 0 {
@@ -536,7 +544,9 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
 			if his.L1Cache != nil {
+				his.cache_mux2.Lock()
 				his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
+				his.cache_mux2.Unlock()
 			}
 			return &hash, nil
 		}
