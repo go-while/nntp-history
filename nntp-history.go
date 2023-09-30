@@ -46,6 +46,7 @@ type HISTORY struct {
 	cmux sync.Mutex // sync counter
 	cache_mux sync.Mutex
 	cache_mux2 sync.Mutex
+	cache_mux3 sync.Mutex
 	L1Cache *cache.Cache
 	OffsetCache *cache.Cache
 	OffsetsCache *cache.Cache
@@ -522,7 +523,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		return nil, seekErr
 	}
 
-	reader := bufio.NewReaderSize(file, 69)
+	reader := bufio.NewReaderSize(file, 67)
 
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
@@ -534,6 +535,8 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		return nil, err
 	}
 	his.Sync_upcounter("FSEEK")
+	//log.Printf("FseekHistoryMessageHash offset=%d", *offset)
+
 	//result := strings.Split(line, "\t")[0]
 	result = strings.TrimSuffix(result, "\t")
 	if len(result) > 0 {
