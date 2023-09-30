@@ -879,9 +879,9 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 	}
 
 	if his.L1Cache != nil {
-		his.cache_mux3.Lock()
+		his.cache_mux3.RLock()
 		if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
-			his.cache_mux3.Unlock()
+			his.cache_mux3.RUnlock()
 			stroffsets, isStr := cached_data.(string) // type assertion
 			if isStr {
 				cached_offsets := String2Offsets(stroffsets)
@@ -894,7 +894,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 				}
 			}
 		} else {
-			his.cache_mux3.Unlock()
+			his.cache_mux3.RUnlock()
 		}
 
 		if offsets != nil && len(*offsets) > 0 {
