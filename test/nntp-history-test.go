@@ -36,7 +36,7 @@ func main() {
 	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
-	flag.IntVar(&KeyLen, "keylen", 6, "md5: 3-32|sha256: 3-64|sha512: 3-128")
+	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.BoolVar(&useGoCache, "useGoCache", true, "true|false")
 	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
@@ -220,7 +220,6 @@ func main() {
 							//	added++
 							case 0:
 								added++
-								//errors++
 							case 1:
 								adddupes++
 							case 2:
