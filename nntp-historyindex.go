@@ -680,7 +680,9 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 		return err
 	}
 	if his.L1Cache != nil {
+		his.cache_mux3.Lock()
 		his.OffsetsCache.Set(*char+*bucket+*key, Offsets2String(offsets), DefaultOffsetsCacheExpires)
+		his.cache_mux3.Unlock()
 	}
 	if batchQueue != nil {
 		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
@@ -876,32 +878,10 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=%s key=nil", *char, *bucket)
 	}
 
-	/*
 	if his.L1Cache != nil {
+		his.cache_mux3.Lock()
 		if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
-			gobEncodedOffsets, isByte := cached_data.([]byte) // type assertion
-			if isByte {
-				decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets, "boltBucketGetOffsets:CACHE")
-				if err != nil || decodedOffsets == nil {
-					log.Printf("WARN boltBucketGetOffsets CACHE FAULT gobDecodeOffsets char=%s buk=%s key=%s err='%v' decodedOffsets='%#v'", *char, *bucket, *key, err, decodedOffsets)
-					//return nil, err
-				} else {
-					go his.Sync_upcounter("cached_decodedOffsets")
-					offsets = decodedOffsets
-				}
-				//logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
-			}
-		}
-		if offsets != nil && len(*offsets) > 0 {
-			//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
-			return offsets, nil
-		}
-	}
-	*/
-
-
-	if his.L1Cache != nil {
-		if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
+			his.cache_mux3.Unlock()
 			stroffsets, isStr := cached_data.(string) // type assertion
 			if isStr {
 				cached_offsets := String2Offsets(stroffsets)
@@ -913,20 +893,10 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 					log.Printf("WARN boltBucketGetOffsets OffsetsCache CACHE FAULT char=%s buk=%s key=%s stroffsets='%#v'", *char, *bucket, *key, stroffsets)
 				}
 			}
-			/*
-			gobEncodedOffsets, isByte := cached_data.([]byte) // type assertion
-			if isByte {
-				decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets, "boltBucketGetOffsets:CACHE")
-				if err != nil || decodedOffsets == nil {
-					//return nil, err
-				} else {
-					go his.Sync_upcounter("cached_decodedOffsets")
-					offsets = decodedOffsets
-				}
-				//logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
-			}
-			*/
+		} else {
+			his.cache_mux3.Unlock()
 		}
+
 		if offsets != nil && len(*offsets) > 0 {
 			//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
 			return offsets, nil
@@ -959,7 +929,9 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		offsets = decodedOffsets
 
 		if his.L1Cache != nil && offsets != nil {
+			his.cache_mux3.Lock()
 			his.OffsetsCache.Set(*char+*bucket+*key, Offsets2String(*offsets), DefaultOffsetsCacheExpires)
+			his.cache_mux3.Unlock()
 		}
 	}
 	//if offsets != nil {
