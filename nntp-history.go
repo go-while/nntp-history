@@ -455,6 +455,7 @@ type FSEEK struct {
 	retchan chan *string
 }
 
+/*
 func (his *HISTORY) Fseeker() {
 	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
 	if err != nil {
@@ -474,16 +475,17 @@ forever:
 				if fs.retchan != nil {
 					fs.retchan <- hash
 				}
-				/*
+				/,*
 				_, seekErr := file.Seek(*fs.offset, 0)
 				if seekErr != nil {
 					log.Printf("ERROR FseekWorker seekErr='%v' fp='%s'", seekErr, his.HF)
 					continue forever
 				}
-				*/
+				*,/
 		}
 	}
 } // end func Fseeker
+*/
 
 // FseekHistoryMessageHash seeks to a specified offset in the history file and extracts a message-ID hash.
 // It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
@@ -504,10 +506,10 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	if his.L1Cache != nil {
 		his.cache_mux2.Lock()
 		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
+			his.cache_mux2.Unlock()
 			hash, isStr := cached_hash.(string) // type assertion
 			hashlen := len(hash)
 			if isStr && hashlen >= 32 {
-				his.cache_mux2.Unlock()
 				logf(DEBUG2, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
 				return &hash, nil
 			} else {
