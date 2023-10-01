@@ -5,7 +5,7 @@ import (
 	"github.com/go-while/go-utils"
 	"github.com/go-while/nntp-history"
 	//"github.com/go-while/nntp-overview"
-	"github.com/patrickmn/go-cache"
+	//"github.com/patrickmn/go-cache"
 	bolt "go.etcd.io/bbolt"
 	"log"
 	//"strings"
@@ -22,8 +22,6 @@ func main() {
 	var todo int // todo x parallelTest
 	var parallelTest int
 	var useHashDB bool
-	var useGoCache bool
-	var gocache *cache.Cache
 	var boltOpts *bolt.Options
 	var KeyAlgo int
 	var KeyLen int
@@ -37,7 +35,6 @@ func main() {
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.BoolVar(&useGoCache, "useGoCache", true, "true|false")
 	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	switch debugs {
@@ -54,7 +51,7 @@ func main() {
 		BatchSize = 16
 	}
 	runtime.GOMAXPROCS(numCPU)
-	fmt.Printf("CPU=%d/%d | useHashDB: %t | useGoCache: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, useGoCache, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
+	fmt.Printf("CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	//time.Sleep(3*time.Second)
 	storageToken := "F" // storagetoken flatfile
 	readq, writeq := parallelTest, parallelTest
@@ -84,7 +81,7 @@ func main() {
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024,
-			PageSize:        4 * 1024,
+			PageSize:        64 * 1024,
 			//NoSync:          true,
 			//NoFreelistSync: true,
 			//FreelistType: "hashmap",
@@ -97,11 +94,11 @@ func main() {
 		}
 		boltOpts = &bO
 	}
-	if useGoCache {
-		gocache = cache.New(history.DefaultCacheExpires, history.DefaultCachePurge)
-	}
+	//if useGoCache {
+	//	gocache = cache.New(history.DefaultCacheExpires, history.DefaultCachePurge)
+	//}
 	start := utils.UnixTimeSec()
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, KeyAlgo, KeyLen, gocache)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, KeyAlgo, KeyLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
@@ -148,7 +145,7 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 
-				retval := history.History.LockL1Cache(hash, "-1") // checks and locks hash for processing
+				retval := history.History.L1CACHE.LockL1Cache(&hash, string(hash[0]), -1) // checks and locks hash for processing
 				switch retval {
 				case 0:
 					// pass
@@ -271,5 +268,8 @@ func main() {
 	total := key_add + key_app
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d cached_decodedOffsets=%d BoltDB_decodedOffsets=%d multioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, cached_decodedOffsets, BoltDB_decodedOffsets, multioffsets, searches, inserted1, inserted2)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
-	time.Sleep(3*time.Second)
+	runtime.GC()
+	time.Sleep(30*time.Second)
+	runtime.GC()
+	time.Sleep(30*time.Second)
 } // end func main
