@@ -5,13 +5,11 @@ import (
 	"fmt"
 	//"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
-	"github.com/patrickmn/go-cache"
+	bolt "go.etcd.io/bbolt"
 	"io"
-	//"hash/fnv"
 	"log"
 	"os"
 	"strings"
-	bolt "go.etcd.io/bbolt"
 	//"github.com/dgraph-io/badger"
 	"strconv"
 	"sync"
@@ -19,59 +17,49 @@ import (
 )
 
 const (
-	TESTHASH1 string = "x76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
-	TESTHASH2 string = "x76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
-	DefexpiresStr string = "-"
-	DefaultCacheExpires = 15*time.Second
-	DefaultL1CacheExpires int64 = 15
-	DefaultOffsetCacheExpires = 15*time.Second
-	DefaultOffsetsCacheExpires = 15*time.Second
-	DefaultCachePurge = 15*time.Second
+	TESTHASH1           string = "x76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
+	TESTHASH2           string = "x76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
+	DefexpiresStr       string = "-"
+	DefaultCacheExpires int64  = 9 // seconds
+	DefaultCachePurge   int64  = 3 // seconds
 )
 
 var (
-	DEBUG                bool = true
-	DEBUG0               bool = false
-	DEBUG1               bool = false
-	DEBUG2               bool = false
-	DEBUG9               bool = false
-	History              HISTORY
-	HISTORY_WRITER_LOCK  = make(chan struct{}, 1)
-	HEXCHARS             = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash       string = "EOF"
-	syncgrowmap          = make(map[string]chan struct{}, 16)
+	DEBUG               bool = true
+	DEBUG0              bool = false
+	DEBUG1              bool = false
+	DEBUG2              bool = false
+	DEBUG9              bool = false
+	History             HISTORY
+	HISTORY_WRITER_LOCK        = make(chan struct{}, 1)
+	HEXCHARS                   = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash             string = "EOF"
 )
 
-
 type HISTORY struct {
-	RMUX sync.RWMutex
-	mux sync.Mutex
+	mux  sync.Mutex
 	cmux sync.Mutex // sync counter
-	cache_mux sync.RWMutex
-	cache_mux2 sync.RWMutex
-	cache_mux3 sync.RWMutex
 	L1CACHE L1CACHE
-	L1Cache *cache.Cache
-	OffsetCache *cache.Cache
-	OffsetsCache *cache.Cache
-	boltInitChan      chan struct{}
-	boltSyncChan      chan struct{}
-	Offset int64
-	HF     string // = "history/history.dat"
-	HF_hash    string // = "history/history.Hash"
-	WriterChan chan *HistoryObject
-	IndexChan  chan *HistoryIndex
-	IndexChans [16]chan *HistoryIndex
-	BatchLocks map[string]map[string]chan struct{}
-	charsMap   map[string]int
-	useHashDB  bool
-	hashtype   int
-	//shorthash  bool
-	keylen    int
-	win bool
+	L2CACHE L2CACHE
+	L3CACHE L3CACHE
+	//L1Cache *cache.Cache
+	//OffsetCache *cache.Cache
+	//OffsetsCache *cache.Cache
+	boltInitChan chan struct{}
+	boltSyncChan chan struct{}
+	Offset       int64
+	HF           string // = "history/history.dat"
+	HF_hash      string // = "history/history.Hash"
+	WriterChan   chan *HistoryObject
+	IndexChan    chan *HistoryIndex
+	IndexChans   [16]chan *HistoryIndex
+	BatchLocks   map[string]map[string]chan struct{}
+	charsMap     map[string]int
+	useHashDB    bool
+	hashtype     int
+	keylen  int
+	win     bool
 	Counter map[string]uint64
-	//count_key_added uint64
-	//count_key_append uint64
 }
 
 type HistoryObject struct {
@@ -87,7 +75,7 @@ type HistoryObject struct {
 /* builds the history.dat header */
 type HistorySettings struct {
 	HashType int
-	KeyLen int
+	KeyLen   int
 }
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -129,8 +117,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		delslash := false // detect windows if history_dir ends with a winSlash
 		if history_dir[len(history_dir)-1] == winSlashB {
 			his.win, delslash, useSlash = true, true, winSlashS
-		} else
-		if history_dir[len(history_dir)-1] == linSlashB {
+		} else if history_dir[len(history_dir)-1] == linSlashB {
 			delslash = true
 		}
 		if delslash {
@@ -145,8 +132,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		delslash := false // detect windows if hashdb_dir ends with a winSlash
 		if hashdb_dir[len(hashdb_dir)-1] == winSlashB {
 			his.win, delslash, useSlash = true, true, winSlashS
-		} else
-		if hashdb_dir[len(hashdb_dir)-1] == linSlashB {
+		} else if hashdb_dir[len(hashdb_dir)-1] == linSlashB {
 			delslash = true
 		}
 		if delslash {
@@ -189,7 +175,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		os.Exit(1)
 	}
 	// default history settings
-	history_settings := &HistorySettings{ HashType: his.hashtype, KeyLen: his.keylen }
+	history_settings := &HistorySettings{HashType: his.hashtype, KeyLen: his.keylen}
 	// opens history.dat
 	var fh *os.File
 	new := false
@@ -246,11 +232,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
 
-	his.L1Cache = cache.New(DefaultOffsetCacheExpires, DefaultCachePurge)
-	his.OffsetCache = cache.New(DefaultOffsetCacheExpires, DefaultCachePurge)
-	his.OffsetsCache = cache.New(DefaultOffsetsCacheExpires, DefaultCachePurge)
-
-	his.L1CACHE.L1CACHESetup()
+	his.L1CACHE.L1CACHE_Boot()
+	his.L2CACHE.L2CACHE_Boot()
+	his.L3CACHE.L3CACHE_Boot()
 
 	if useHashDB {
 		his.IndexChan = make(chan *HistoryIndex, readq)
@@ -259,7 +243,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.History_DBZinit(boltOpts)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s' C='%v' HT=%d HL=%d", his.HF, his.HF_hash, his.L1Cache, his.hashtype, his.keylen)
+	log.Printf("History: HF='%s' DB='%s' KeyAlgo=%d KeyLen=%d", his.HF, his.HF_hash, his.hashtype, his.keylen)
 	his.WriterChan = make(chan *HistoryObject, writeq)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
@@ -457,7 +441,7 @@ func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush boo
 } // end func writeHistoryHeader
 
 type FSEEK struct {
-	offset *int64
+	offset  *int64
 	retchan chan *string
 }
 
@@ -510,19 +494,9 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		defer file.Close()
 	}
 
-	his.cache_mux2.RLock()
-	if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
-		his.cache_mux2.RUnlock()
-		hash, isStr := cached_hash.(string) // type assertion
-		hashlen := len(hash)
-		if isStr && hashlen >= 32 {
-			logf(DEBUG2, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
-			return &hash, nil
-		} else {
-			log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
-		}
+	if hash := his.L2CACHE.L2CACHE_GetHashFromOffset(offset); hash != nil {
+		return hash, nil
 	}
-	his.cache_mux2.RUnlock()
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(*offset, 0)
@@ -554,10 +528,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
-
-			his.cache_mux2.Lock()
-			his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
-			his.cache_mux2.Unlock()
+			his.L2CACHE.L2CACHE_SetOffsetHash(offset, &hash)
 			return &hash, nil
 		}
 	}
