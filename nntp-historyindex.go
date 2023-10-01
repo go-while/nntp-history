@@ -269,7 +269,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	batchQueues := make(map[string]chan *BatchOffset)
 	//bucket := "000"
 	for _, bucket := range HEXCHARS {
-		batchQueue := make(chan *BatchOffset, 100000)
+		batchQueue := make(chan *BatchOffset, 10000)
 		batchQueues[bucket] = batchQueue
 
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
@@ -418,32 +418,56 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		return -999, fmt.Errorf("ERROR DupeCheck char=%s bucket=%s key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
 	}
 
-	if his.L1Cache != nil { // check go-cache for hash
-		his.cache_mux.Lock()
-		if val, found := his.L1Cache.Get(*hash); found {
-			// cache hits
-			switch val {
-				case "-1":
-					if *offset > 0 {
-						his.L1Cache.Set(*hash, "-2", DefaultCacheExpires)
-					}
-					// pass
-				case "1":
-					his.cache_mux.Unlock()
-					return 1, nil
-				case "2":
-					his.cache_mux.Unlock()
-					return 2, nil
-				case "-2":
-					his.cache_mux.Unlock()
-					return -2, nil
-				default:
-					his.cache_mux.Unlock()
-					return -999, fmt.Errorf("ERROR DupeCheck uncaptured cache val=%s", val)
-			}
+	if val := his.L1CACHE.L1CACHEGet(hash, *char); val != nil {
+		switch *val {
+			case -1:
+				if *offset > 0 {
+					his.L1CACHE.L1CACHESet(hash, *char, -2)
+				}
+				// pass
+			case 1:
+				//his.cache_mux.Unlock()
+				return 1, nil
+			case 2:
+				//his.cache_mux.Unlock()
+				return 2, nil
+			case -2:
+				//his.cache_mux.Unlock()
+				return -2, nil
+			default:
+				//his.cache_mux.Unlock()
+				return -999, fmt.Errorf("ERROR DupeCheck uncaptured cache val=%s", val)
 		}
-		his.cache_mux.Unlock()
 	}
+
+	// check go-cache for hash
+	/*
+	his.cache_mux.Lock()
+
+	if val, found := his.L1Cache.Get(*hash); found {
+		// cache hits
+		switch val {
+			case "-1":
+				if *offset > 0 {
+					his.L1Cache.Set(*hash, "-2", DefaultCacheExpires)
+				}
+				// pass
+			case "1":
+				his.cache_mux.Unlock()
+				return 1, nil
+			case "2":
+				his.cache_mux.Unlock()
+				return 2, nil
+			case "-2":
+				his.cache_mux.Unlock()
+				return -2, nil
+			default:
+				his.cache_mux.Unlock()
+				return -999, fmt.Errorf("ERROR DupeCheck uncaptured cache val=%s", val)
+		}
+	}
+	his.cache_mux.Unlock()
+	*/
 
 	offsets, err := his.boltBucketGetOffsets(db, char, bucket, key)
 	if err != nil {
@@ -475,13 +499,13 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -999, err
 		}
 		//logf(DEBUG2, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
-		if his.L1Cache != nil {
-			//his.L1Cache.Set(*hash, "1", DefaultCacheExpires) // offset of history entry added to key: hash is a duplicate in cached response now
-			his.L1CacheSet(hash, "1") // offset of history entry added to key: hash is a duplicate in cached response now
-			his.cache_mux2.Lock()
-			his.OffsetCache.Set(strconv.FormatInt(*offset, 10), *hash, DefaultCacheExpires)
-			his.cache_mux2.Unlock()
-		}
+
+		//his.L1Cache.Set(*hash, "1", DefaultCacheExpires) // offset of history entry added to key: hash is a duplicate in cached response now
+		his.L1CACHE.L1CACHESet(hash, *char, 1) // offset of history entry added to key: hash is a duplicate in cached response now
+		his.cache_mux2.Lock()
+		his.OffsetCache.Set(strconv.FormatInt(*offset, 10), *hash, DefaultCacheExpires)
+		his.cache_mux2.Unlock()
+
 		his.Sync_upcounter("key_add")
 		//return 17, nil
 		return 0, nil
@@ -526,7 +550,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			if len(*historyHash) == 3 && *historyHash == eofhash {
 				log.Printf("EOF history.dat offset=%d", check_offset)
 				// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
-				his.L1CacheSet(hash, "2")
+				his.L1CACHE.L1CACHESet(hash, *char, 2)
 				return 2, nil
 
 			} else if string(*historyHash) == string(*hash) {
@@ -542,7 +566,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 				} else { // is a search
 					logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d", *historyHash, check_offset)
 				}
-				his.L1CacheSet(hash, "1")
+				his.L1CACHE.L1CACHESet(hash, *char, 1)
 				return 1, nil
 			}
 		} else {
@@ -560,7 +584,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -999, err
 		}
 		logf(DEBUG1,"HDBZW char=%s bucket=%s APPENDED key=%s hash=%s offset=%d offsets=%d='%#v'", *char, *bucket, *key, *hash, *offset, len(*offsets), *offsets)
-		his.L1CacheSet(hash, "1") // offset of history entry added to key: hash is a duplicate in cached response now
+		his.L1CACHE.L1CACHESet(hash, *char, 1) // offset of history entry added to key: hash is a duplicate in cached response now
 		his.Sync_upcounter("key_app")
 		//return 17, nil
 		return 0, nil
@@ -679,11 +703,9 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 		log.Printf("ERROR boltBucketKeyPutOffsets gobEncodedOffsets err='%v'", err)
 		return err
 	}
-	if his.L1Cache != nil {
-		his.cache_mux3.Lock()
-		his.OffsetsCache.Set(*char+*bucket+*key, Offsets2String(offsets), DefaultOffsetsCacheExpires)
-		his.cache_mux3.Unlock()
-	}
+
+	his.OffsetsCacheSet(char, bucket, key, &offsets)
+
 	if batchQueue != nil {
 		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
 		batchQueue <- &BatchOffset{bucket: *bucket, key: *key, gobEncodedOffsets: gobEncodedOffsets }
@@ -878,31 +900,28 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=%s key=nil", *char, *bucket)
 	}
 
-	if his.L1Cache != nil {
-		his.cache_mux3.RLock()
-		if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
-			his.cache_mux3.RUnlock()
-			stroffsets, isStr := cached_data.(string) // type assertion
-			if isStr {
-				cached_offsets := String2Offsets(stroffsets)
-				if len(cached_offsets) > 0 {
-					offsets = &cached_offsets
-					his.Sync_upcounter("cached_decodedOffsets")
-					//logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
-				} else {
-					log.Printf("WARN boltBucketGetOffsets OffsetsCache CACHE FAULT char=%s buk=%s key=%s stroffsets='%#v'", *char, *bucket, *key, stroffsets)
-				}
+	his.cache_mux3.RLock()
+	if cached_data, found := his.OffsetsCache.Get(*char+*bucket+*key); found {
+		his.cache_mux3.RUnlock()
+		stroffsets, isStr := cached_data.(string) // type assertion
+		if isStr {
+			cached_offsets := String2Offsets(stroffsets)
+			if len(cached_offsets) > 0 {
+				offsets = &cached_offsets
+				his.Sync_upcounter("cached_decodedOffsets")
+				//logf(DEBUG1,"boltBucketGetOffsets char=%s buk=%s key=%s CACHED offsets='%#v'", *char, *bucket, *key, *offsets)
+			} else {
+				log.Printf("WARN boltBucketGetOffsets OffsetsCache CACHE FAULT char=%s buk=%s key=%s stroffsets='%#v'", *char, *bucket, *key, stroffsets)
 			}
-		} else {
-			his.cache_mux3.RUnlock()
 		}
-
-		if offsets != nil && len(*offsets) > 0 {
-			//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
-			return offsets, nil
-		}
+	} else {
+		his.cache_mux3.RUnlock()
 	}
 
+	if offsets != nil && len(*offsets) > 0 {
+		//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
+		return offsets, nil
+	}
 
 	var gobEncodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
@@ -928,10 +947,8 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		his.Sync_upcounter("BoltDB_decodedOffsets")
 		offsets = decodedOffsets
 
-		if his.L1Cache != nil && offsets != nil {
-			his.cache_mux3.Lock()
-			his.OffsetsCache.Set(*char+*bucket+*key, Offsets2String(*offsets), DefaultOffsetsCacheExpires)
-			his.cache_mux3.Unlock()
+		if offsets != nil {
+			his.OffsetsCacheSet(char, bucket, key, offsets)
 		}
 	}
 	//if offsets != nil {
@@ -1217,49 +1234,51 @@ func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int) (int, error)
 	}
 	return -999, fmt.Errorf("ERROR IndexQuery")
 } // end func IndexQuery
-
+/*
 func (his *HISTORY) L1CacheSet(hash *string, value string) {
-	if his.L1Cache != nil {
-		//logf(DEBUG2, "L1CacheSet hash=%s value=%s", *hash, value)
-		his.cache_mux.Lock()
-		his.L1Cache.Set(*hash, value, DefaultCacheExpires)
-		his.cache_mux.Unlock()
-	}
+	//logf(DEBUG2, "L1CacheSet hash=%s value=%s", *hash, value)
+	his.cache_mux.Lock()
+	his.L1Cache.Set(*hash, value, DefaultCacheExpires)
+	his.cache_mux.Unlock()
 } // end func L1CacheSet
-
-func (his *HISTORY) LockL1Cache(hash string, setval string) (int) {
-	if his.L1Cache != nil { // check go-cache for hash
-		his.cache_mux.Lock()
-		if cval, found := his.L1Cache.Get(hash); found {
-			switch cval {
-			case "-1":
-				his.cache_mux.Unlock()
-				return -1 //cachehits++ // already in processing
-			case "1":
-				his.cache_mux.Unlock()
-				return 1 //cachedupes++
-			case "2":
-				his.cache_mux.Unlock()
-				return 2 //cacheretry1++
-			case "-2":
-				his.cache_mux.Unlock()
-				return -2 //cacheretry2++
-			default:
-				log.Printf("ERROR CheckL1Cache unknown switch cval=%d", cval)
-				his.cache_mux.Unlock()
-				return -999
-			}
-		} else {
-			// hash is not cached
-			if setval != "" {
-				his.L1Cache.Set(hash, setval, DefaultCacheExpires) // adds hash to temporary go-cache with value "-1"
-			}
+*/
+func (his *HISTORY) OffsetsCacheSet(char *string, bucket *string, key *string, offsets *[]int64) {
+	his.cache_mux3.Lock()
+	his.OffsetsCache.Set(*char+*bucket+*key, Offsets2String(*offsets), DefaultOffsetsCacheExpires)
+	his.cache_mux3.Unlock()
+} // end func OffsetsCacheSet
+/*
+func (his *HISTORY) LockL1Cache(hash *string, setval int) (int) {
+	// check cache for hash
+	his.cache_mux.Lock()
+	if cval := his.L1CACHE.L1CACHEGet(hash, ""); cval != nil {
+		switch *cval {
+		case -1:
 			his.cache_mux.Unlock()
-			return 0
+			return -1 //cachehits++ // already in processing
+		case 1:
+			his.cache_mux.Unlock()
+			return 1 //cachedupes++
+		case 2:
+			his.cache_mux.Unlock()
+			return 2 //cacheretry1++
+		case -2:
+			his.cache_mux.Unlock()
+			return -2 //cacheretry2++
+		default:
+			log.Printf("ERROR LockL1Cache unknown switch cval=%d", cval)
+			his.cache_mux.Unlock()
+			return -999
 		}
-		his.cache_mux.Unlock()
 	} else {
-		log.Printf("ERROR CheckL1Cache his.L1Cache=nil")
+		// hash is not cached
+		his.L1CACHE.L1CACHESet(hash, "", setval) // adds hash to temporary go-cache with value "-1"
+		his.cache_mux.Unlock()
+		return 0
 	}
+	his.cache_mux.Unlock()
 	return -999
-} // end func CheckL1Cache
+} // end func LockL1Cache
+*/
+
+
