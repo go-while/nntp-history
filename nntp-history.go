@@ -23,6 +23,7 @@ const (
 	TESTHASH2 string = "x76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	DefexpiresStr string = "-"
 	DefaultCacheExpires = 15*time.Second
+	DefaultL1CacheExpires int64 = 15
 	DefaultOffsetCacheExpires = 15*time.Second
 	DefaultOffsetsCacheExpires = 15*time.Second
 	DefaultCachePurge = 15*time.Second
@@ -38,7 +39,9 @@ var (
 	HISTORY_WRITER_LOCK  = make(chan struct{}, 1)
 	HEXCHARS             = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash       string = "EOF"
+	syncgrowmap          = make(map[string]chan struct{}, 16)
 )
+
 
 type HISTORY struct {
 	RMUX sync.RWMutex
@@ -47,6 +50,7 @@ type HISTORY struct {
 	cache_mux sync.RWMutex
 	cache_mux2 sync.RWMutex
 	cache_mux3 sync.RWMutex
+	L1CACHE L1CACHE
 	L1Cache *cache.Cache
 	OffsetCache *cache.Cache
 	OffsetsCache *cache.Cache
@@ -99,10 +103,10 @@ type HistorySettings struct {
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
-//   - cache: An optional cache component to use for caching.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, keyalgo int, keylen int, gocache *cache.Cache) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
+
 	if his.WriterChan != nil {
 		log.Printf("ERROR History WriterChan already booted")
 		return
@@ -241,11 +245,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.keylen = history_settings.KeyLen
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
-	if gocache != nil {
-		his.L1Cache = gocache
-		his.OffsetCache = cache.New(DefaultOffsetCacheExpires, DefaultCachePurge)
-		his.OffsetsCache = cache.New(DefaultOffsetsCacheExpires, DefaultCachePurge)
-	}
+
+	his.L1Cache = cache.New(DefaultOffsetCacheExpires, DefaultCachePurge)
+	his.OffsetCache = cache.New(DefaultOffsetCacheExpires, DefaultCachePurge)
+	his.OffsetsCache = cache.New(DefaultOffsetsCacheExpires, DefaultCachePurge)
+
+	his.L1CACHE.L1CACHESetup()
+
 	if useHashDB {
 		his.IndexChan = make(chan *HistoryIndex, readq)
 		his.useHashDB = true
@@ -503,21 +509,21 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		}
 		defer file.Close()
 	}
-	if his.L1Cache != nil {
-		his.cache_mux2.RLock()
-		if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
-			his.cache_mux2.RUnlock()
-			hash, isStr := cached_hash.(string) // type assertion
-			hashlen := len(hash)
-			if isStr && hashlen >= 32 {
-				logf(DEBUG2, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
-				return &hash, nil
-			} else {
-				log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
-			}
-		}
+
+	his.cache_mux2.RLock()
+	if cached_hash, found := his.OffsetCache.Get(strconv.FormatInt(*offset, 10)); found {
 		his.cache_mux2.RUnlock()
+		hash, isStr := cached_hash.(string) // type assertion
+		hashlen := len(hash)
+		if isStr && hashlen >= 32 {
+			logf(DEBUG2, "FseekHistoryMessageHash CACHED @offset=%d => hash='%s'", *offset, hash)
+			return &hash, nil
+		} else {
+			log.Printf("WARN FseekHistoryMessageHash CACHE FAULT OffsetCache offset=%d isStr=%t hashlen=%d", *offset, hashlen)
+		}
 	}
+	his.cache_mux2.RUnlock()
+
 	// Seek to the specified offset
 	_, seekErr := file.Seek(*offset, 0)
 	if seekErr != nil {
@@ -548,11 +554,10 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
-			if his.L1Cache != nil {
-				his.cache_mux2.Lock()
-				his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
-				his.cache_mux2.Unlock()
-			}
+
+			his.cache_mux2.Lock()
+			his.OffsetCache.Set(strconv.FormatInt(*offset, 10), hash, DefaultCacheExpires)
+			his.cache_mux2.Unlock()
 			return &hash, nil
 		}
 	}
