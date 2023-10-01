@@ -11,8 +11,8 @@ import (
 	//"strings"
 	"flag"
 	"os"
-	_"syscall"
 	"runtime"
+	_ "syscall"
 	"time"
 )
 
@@ -38,13 +38,13 @@ func main() {
 	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	switch debugs {
-		case 0:
-			history.DEBUG0 = true
-		case 1:
-			history.DEBUG0 = true
-			history.DEBUG1 = true
-		case 9:
-			history.DEBUG9 = true
+	case 0:
+		history.DEBUG0 = true
+	case 1:
+		history.DEBUG0 = true
+		history.DEBUG1 = true
+	case 9:
+		history.DEBUG9 = true
 
 	}
 	if BatchSize < 16 {
@@ -71,7 +71,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BATCHSIZE = BatchSize/history.BoltDBs // 1024/history.BoltDBs // = 64 per char/bucket
+		history.BATCHSIZE = BatchSize
 		history.Bolt_SYNC_EVERYs = 60
 		history.Bolt_SYNC_EVERYn = 50000
 		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
@@ -118,14 +118,14 @@ func main() {
 				responseChan = make(chan int, 1)
 				IndexRetChan = make(chan int, 1)
 			}
-			var spam, spammer, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1 , cacheretry2, errors uint64
+			var spam, spammer, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1, errors uint64
 			//spam = uint64(todo)/10
 			spammer = 500000
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if spam >= spammer {
-					sum := added+dupes+cachehits+retry+adddupes+cachedupes+cacheretry1+cacheretry2
-					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d %d/%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2, sum, todo)
+					sum := added + dupes + cachehits + retry + adddupes + cachedupes + cacheretry1
+					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d %d/%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, sum, todo)
 					spam = 0
 				}
 				spam++
@@ -134,8 +134,7 @@ func main() {
 
 				if hash == history.TESTHASH1 {
 					log.Printf("TESTHASH1 i=%d", i)
-				} else
-				if hash == history.TESTHASH2 {
+				} else if hash == history.TESTHASH2 {
 					log.Printf("TESTHASH2 i=%d", i)
 				}
 
@@ -159,14 +158,10 @@ func main() {
 				case 2:
 					cacheretry1++
 					continue fortodo
-				case -2:
-					cacheretry2++
-					continue fortodo
 				default:
 					log.Printf("main: ERROR unknown switch CheckL1Cache retval=%d", retval)
 					break fortodo
 				}
-
 
 				isDup, err := history.History.IndexQuery(&hash, IndexRetChan)
 				if err != nil {
@@ -184,6 +179,9 @@ func main() {
 				case 2:
 					retry++
 					continue fortodo
+				//case -2:
+				//	cacheretry3++
+				//	continue fortodo
 				default:
 					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
 					break fortodo
@@ -233,8 +231,8 @@ func main() {
 			} // end for i
 			time.Sleep(time.Second)
 			P_donechan <- struct{}{}
-			sum := added+dupes+cachehits+retry+adddupes+cachedupes+cacheretry1+cacheretry2
-			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d cacheretry2=%d sum=%d/%d errors=%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, cacheretry2, sum, todo, errors)
+			sum := added + dupes + cachehits + retry + adddupes + cachedupes + cacheretry1
+			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors)
 		}(p) // end go func parallel
 
 	} // end for parallel
@@ -243,7 +241,7 @@ func main() {
 		if len(P_donechan) == parallelTest {
 			break
 		}
-		time.Sleep(time.Second/10)
+		time.Sleep(time.Second / 10)
 	}
 	history.History.WriterChan <- nil // closes workers
 	for {
@@ -253,7 +251,7 @@ func main() {
 			history.History.GetBoltHashOpen() == 0 {
 			break
 		}
-		time.Sleep(time.Second/10)
+		time.Sleep(time.Second / 10)
 	}
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
@@ -267,9 +265,9 @@ func main() {
 	inserted2 := history.History.GetCounter("inserted2")
 	total := key_add + key_app
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d cached_decodedOffsets=%d BoltDB_decodedOffsets=%d multioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, cached_decodedOffsets, BoltDB_decodedOffsets, multioffsets, searches, inserted1, inserted2)
-	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec() - start)
+	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec()-start)
 	runtime.GC()
-	time.Sleep(30*time.Second)
+	time.Sleep(30 * time.Second)
 	runtime.GC()
-	time.Sleep(30*time.Second)
+	time.Sleep(30 * time.Second)
 } // end func main
