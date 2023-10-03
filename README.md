@@ -236,7 +236,15 @@ CPU=4/12 | useHashDB: true | useGoCache: false | jobs=4 | todo=1000000 | total=4
 2023/09/29 15:48:59 done=4000000 took 51 seconds
 ```
 
-
+## Inserting 400.000.000 to history and hashdb
+```sh
+./nntp-history-test -todo 100000000
+CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+2023/10/03 02:50:30 his.History_DBZinit() boltInitChan=4 boltSyncChan=1
+2023/10/03 02:50:30 History: HF='history/history.dat' DB='hashdb/history.dat.hash' KeyAlgo=11 KeyLen=6
+...
+2023/10/03 05:32:22 done=400000000 took 9712 seconds
+```
 
 ## Message-ID Hash Splitting with BoltDB
 
