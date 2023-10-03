@@ -24,6 +24,7 @@ type L2ITEM struct {
 	expires int64
 }
 
+// The L2CACHE_Boot method initializes the L2 cache. It creates a cache map with an initial size and starts a goroutine to periodically clean up expired entries.
 func (l2 *L2CACHE) L2CACHE_Boot() {
 	initsize := 128
 	l2.mux.Lock()
@@ -37,6 +38,7 @@ func (l2 *L2CACHE) L2CACHE_Boot() {
 	go l2.L2Cache_Thread()
 } // end func L2CACHE_Boot
 
+// The L2Cache_Thread function runs as a goroutine to periodically clean up expired cache items, similar to the L1 cache's thread.
 func (l2 *L2CACHE) L2Cache_Thread() {
 	logf(DEBUG2, "Boot L2Cache_Thread")
 	//forever
@@ -84,6 +86,8 @@ func (l2 *L2CACHE) L2Cache_Thread() {
 	} // end for
 } //end func L2Cache_Thread
 
+// The L2CACHE_SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
+// It also dynamically grows the cache when necessary.
 func (l2 *L2CACHE) L2CACHE_SetOffsetHash(offset *int64, hash *string) {
 	if hash == nil || len(*hash) < 32 || offset == nil { // at least md5
 		log.Printf("ERROR L2CACHESet nil pointer")
@@ -107,6 +111,7 @@ func (l2 *L2CACHE) L2CACHE_SetOffsetHash(offset *int64, hash *string) {
 	l2.mux.Unlock()
 } // end func L2CACHE_SetOffsetHash
 
+// The L2CACHE_GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
 func (l2 *L2CACHE) L2CACHE_GetHashFromOffset(offset *int64) (hash *string) {
 	if offset == nil || *offset <= 0 {
 		log.Printf("ERROR L2CACHEGetHashToOffset offset=nil")
@@ -121,6 +126,7 @@ func (l2 *L2CACHE) L2CACHE_GetHashFromOffset(offset *int64) (hash *string) {
 	return
 } // end func L2CACHE_GetHashFromOffset
 
+// The L2CACHE_Del method deletes a cache item from the L2 cache using an offset as the key.
 func (l2 *L2CACHE) L2CACHE_Del(offset *int64) {
 	if offset == nil || *offset <= 0 {
 		log.Printf("ERROR L2CACHEDel offset=nil")
