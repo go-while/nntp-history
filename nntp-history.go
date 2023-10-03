@@ -231,7 +231,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		case HashFNV64a:
 			// pass
 		default:
-			log.Printf("ERROR History_Boot gobDecodeHeader Unknown KeyAlgo=%d'", his.keyalgo)
+			log.Printf("ERROR History_Boot gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.KeyAlgo)
 			os.Exit(1)
 		}
 		his.keyalgo = history_settings.KeyAlgo
@@ -244,6 +244,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	his.L3CACHE.L3CACHE_Boot()
 
 	if useHashDB {
+		his.useHashDB = true
 		his.BatchQueues = &BQ{}
 		his.BatchQueues.Booted = make(chan struct{}, 16*16)                           // char [0-9a-f] * bucket [0-9a-f]
 		his.BatchQueues.Maps = make(map[string]map[string]chan *BatchOffset, BoltDBs) // maps char : bucket => chan
@@ -251,7 +252,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset, BoltDBs) // maps bucket => chan
 		}
 		his.IndexChan = make(chan *HistoryIndex, readq)
-		his.useHashDB = true
 		his.charsMap = make(map[string]int, BoltDBs)
 		his.History_DBZinit(boltOpts)
 	}
