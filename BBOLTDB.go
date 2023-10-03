@@ -394,7 +394,7 @@ forever:
 		} // end select
 	} // end for
 	for _, bucket := range HEXCHARS {
-		logf(DEBUG, "FINAL-BATCH HDBZW char=%s bucket=%s", char, bucket)
+		logf(DEBUG2, "FINAL-BATCH HDBZW char=%s bucket=%s", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, batchQueues[bucket], true, fmt.Sprintf("defer:%s%s", char, bucket), false)
 	}
 	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
@@ -718,10 +718,10 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 		log.Printf("ERROR boltBucketPutBatch batchQueue=nil")
 		return
 	}
-	logf(forced, "LOCKING boltBucketPutBatch char=%s bucket=%s", char, bucket)
+	logf(DEBUG9, "LOCKING boltBucketPutBatch char=%s bucket=%s", char, bucket)
 	his.BatchLocks[char][bucket] <- struct{}{}
 	defer his.returnBatchLock(char, bucket)
-	logf(forced, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
+	logf(DEBUG9, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
 
 	if len(batchQueue) < BATCHSIZE && !forced {
 		return
@@ -736,7 +736,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 			select {
 			case bo, ok := <-batchQueue:
 				if !ok || bo == nil {
-					//closed = true // received nil pointer
+					logf(DEBUG2,"boltBucketPutBatch received nil pointer char=%s bucket=%s", char, bucket)
 					break fetchbatch
 				}
 				if bo.bucket != "" {
@@ -824,7 +824,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	}
 	his.Sync_upcounterN("inserted1", inserted1)
 	his.Sync_upcounterN("inserted2", inserted2)
-	logf(forced, "BATCHED boltBucketPutBatch char=%s buk=%s i1=%d i2=%d Q=%d forced=%t (took %d ms) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMilliSec()-start, src)
+	logf(DEBUG9, "BATCHED boltBucketPutBatch char=%s buk=%s i1=%d i2=%d Q=%d forced=%t (took %d ms) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMilliSec()-start, src)
 	return
 } // end func boltBucketPutBatch
 
