@@ -266,8 +266,10 @@ func main() {
 	total := key_add + key_app
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d cached_decodedOffsets=%d BoltDB_decodedOffsets=%d multioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, cached_decodedOffsets, BoltDB_decodedOffsets, multioffsets, searches, inserted1, inserted2)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec()-start)
+	/*
 	runtime.GC()
 	time.Sleep(30 * time.Second)
 	runtime.GC()
 	time.Sleep(30 * time.Second)
+	*/
 } // end func main
