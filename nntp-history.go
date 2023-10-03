@@ -39,12 +39,9 @@ var (
 type HISTORY struct {
 	mux     sync.Mutex
 	cmux    sync.Mutex // sync counter
-	L1CACHE L1CACHE
+	L1Cache L1CACHE
 	L2CACHE L2CACHE
 	L3CACHE L3CACHE
-	//L1Cache *cache.Cache
-	//OffsetCache *cache.Cache
-	//OffsetsCache *cache.Cache
 	boltInitChan chan struct{}
 	boltSyncChan chan struct{}
 	Offset       int64
@@ -101,16 +98,10 @@ type HistorySettings struct {
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
-
 	if his.WriterChan != nil {
-		log.Printf("ERROR History WriterChan already booted")
+		log.Printf("ERROR History already booted")
 		return
 	}
-	if useHashDB && his.IndexChan != nil {
-		log.Printf("ERROR History IndexChan already booted!")
-		return
-	}
-
 	linSlashS := "/"
 	winSlashS := "\\" // escaped
 	linSlashB := byte('/')
@@ -239,7 +230,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
 
-	his.L1CACHE.L1CACHE_Boot()
+	his.L1Cache.L1CACHE_Boot()
 	his.L2CACHE.L2CACHE_Boot()
 	his.L3CACHE.L3CACHE_Boot()
 
@@ -508,6 +499,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	}
 
 	if hash := his.L2CACHE.L2CACHE_GetHashFromOffset(offset); hash != nil {
+		his.Sync_upcounter("L2CACHE_Get")
 		return hash, nil
 	}
 
