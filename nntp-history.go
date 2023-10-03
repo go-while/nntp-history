@@ -37,8 +37,8 @@ var (
 )
 
 type HISTORY struct {
-	mux  sync.Mutex
-	cmux sync.Mutex // sync counter
+	mux     sync.Mutex
+	cmux    sync.Mutex // sync counter
 	L1CACHE L1CACHE
 	L2CACHE L2CACHE
 	L3CACHE L3CACHE
@@ -56,10 +56,17 @@ type HISTORY struct {
 	BatchLocks   map[string]map[string]chan struct{}
 	charsMap     map[string]int
 	useHashDB    bool
-	hashtype     int
-	keylen  int
-	win     bool
-	Counter map[string]uint64
+	keyalgo      int
+	keylen       int
+	win          bool
+	Counter      map[string]uint64
+	BatchQueues  *BQ
+}
+
+type BQ struct {
+	mux    sync.Mutex
+	Maps   map[string]map[string]chan *BatchOffset
+	Booted chan struct{}
 }
 
 type HistoryObject struct {
@@ -74,8 +81,8 @@ type HistoryObject struct {
 
 /* builds the history.dat header */
 type HistorySettings struct {
-	HashType int
-	KeyLen   int
+	KeyAlgo int
+	KeyLen  int
 }
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -156,15 +163,15 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	switch keyalgo {
 	case HashShort:
-		his.hashtype = HashShort
+		his.keyalgo = HashShort
 	case HashFNV32:
-		his.hashtype = HashFNV32
+		his.keyalgo = HashFNV32
 	case HashFNV32a:
-		his.hashtype = HashFNV32a
+		his.keyalgo = HashFNV32a
 	case HashFNV64:
-		his.hashtype = HashFNV64
+		his.keyalgo = HashFNV64
 	case HashFNV64a:
-		his.hashtype = HashFNV64a
+		his.keyalgo = HashFNV64a
 	default:
 		log.Printf("ERROR History_Boot unknown keyalgo")
 		return
@@ -175,7 +182,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		os.Exit(1)
 	}
 	// default history settings
-	history_settings := &HistorySettings{HashType: his.hashtype, KeyLen: his.keylen}
+	history_settings := &HistorySettings{KeyAlgo: his.keyalgo, KeyLen: his.keylen}
 	// opens history.dat
 	var fh *os.File
 	new := false
@@ -212,7 +219,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}
-		switch history_settings.HashType {
+		switch history_settings.KeyAlgo {
 		case HashShort:
 			// pass
 		case HashFNV32:
@@ -224,10 +231,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		case HashFNV64a:
 			// pass
 		default:
-			log.Printf("ERROR History_Boot gobDecodeHeader Unknown HashType=%d'", his.hashtype)
+			log.Printf("ERROR History_Boot gobDecodeHeader Unknown KeyAlgo=%d'", his.keyalgo)
 			os.Exit(1)
 		}
-		his.hashtype = history_settings.HashType
+		his.keyalgo = history_settings.KeyAlgo
 		his.keylen = history_settings.KeyLen
 		//log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
@@ -237,13 +244,19 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	his.L3CACHE.L3CACHE_Boot()
 
 	if useHashDB {
+		his.BatchQueues = &BQ{}
+		his.BatchQueues.Booted = make(chan struct{}, 16*16)                           // char [0-9a-f] * bucket [0-9a-f]
+		his.BatchQueues.Maps = make(map[string]map[string]chan *BatchOffset, BoltDBs) // maps char : bucket => chan
+		for _, char := range HEXCHARS {
+			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset, BoltDBs) // maps bucket => chan
+		}
 		his.IndexChan = make(chan *HistoryIndex, readq)
 		his.useHashDB = true
 		his.charsMap = make(map[string]int, BoltDBs)
 		his.History_DBZinit(boltOpts)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s' KeyAlgo=%d KeyLen=%d", his.HF, his.HF_hash, his.hashtype, his.keylen)
+	log.Printf("History: HF='%s' DB='%s' KeyAlgo=%d KeyLen=%d", his.HF, his.HF_hash, his.keyalgo, his.keylen)
 	his.WriterChan = make(chan *HistoryObject, writeq)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
