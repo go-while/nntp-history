@@ -255,7 +255,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	var added, total, processed, dupes, searches, retry uint64
 	//cutHashlen := 7 // 4:7 = 3 chars
 	cutHashlen := 5 // 2:5 = 3 chars
-	if his.hashtype == HashShort {
+	if his.keyalgo == HashShort {
 		//cutHashlen = 4 + his.keylen
 		cutHashlen = 2 + his.keylen
 	}
@@ -265,16 +265,21 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		log.Printf("ERROR HDBZW os.OpenFile his.HF err='%v'", err)
 		return
 	}
-	batchQueues := make(map[string]chan *BatchOffset)
+	batchQueues := make(map[string]chan *BatchOffset, BoltDBs) // for this char and string is bucket
 	for _, bucket := range HEXCHARS {
-		batchQueue := make(chan *BatchOffset, BATCHSIZE*BoltDBs)
+		batchQueue := make(chan *BatchOffset, BATCHSIZE*BoltDBs) // make the batchQueue can hold 16x more than actual batchsize. eats some memory but burts performance.
 		batchQueues[bucket] = batchQueue
+		his.BatchQueues.mux.Lock()
+		his.BatchQueues.Maps[char][bucket] = batchQueue
+		his.BatchQueues.mux.Unlock()
 		// launches a batchQueue for every bucket in this `char` db.
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
 			timer := 500
-			lastflush := utils.UnixTimeSec()
+			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced bool
 			var err error
+			his.BatchQueues.Booted <- struct{}{}
+		forbatchqueue:
 			for {
 				Q := len(batchQueue)
 				if Q >= 10000 {
@@ -292,26 +297,41 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				retbool, err = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
 				if err != nil {
 					log.Printf("ERROR gofunc char=%s boltBucketPutBatch err='%v'", char, err)
-					return // this go func
+					break forbatchqueue // this go func
 				}
 				switch retbool {
-					case true:
-						lastflush = utils.UnixTimeSec()
-						forced = false
-					case false:
-						if len(batchQueue) == 0 {
-							lastflush = utils.UnixTimeSec()
-						}
-						if lastflush < utils.UnixTimeSec()-3 && len(batchQueue) > 0 {
-							forced = true
-							timer = 1
-						}
+				case true:
+					lastflush = utils.UnixTimeMilliSec()
+					forced = false
+				case false:
+					if len(batchQueue) == 0 {
+						lastflush = utils.UnixTimeMilliSec()
+					}
+					if lastflush < utils.UnixTimeMilliSec()-3000 && len(batchQueue) > 0 {
+						forced = true
+						timer = 1
+					}
 				}
 				time.Sleep(time.Duration(timer) * time.Millisecond)
 				//log.Printf("gofunc char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
-			}
+			} // end forbatchqueue
+			<-his.BatchQueues.Booted
+			return // ends this gofunc
 		}(db, char, bucket, batchQueue)
 	}
+	BQtimeout := 9000
+	for {
+		if len(his.BatchQueues.Booted) == 16*16 {
+			break
+		}
+		time.Sleep(time.Millisecond)
+		BQtimeout--
+		if BQtimeout <= 0 {
+			log.Printf("ERROR History_DBZ_Worker char=%s BatchQueues.Boot timeout", char)
+			return
+		}
+	}
+
 forever:
 	for {
 		select {
@@ -320,7 +340,7 @@ forever:
 				// receiving a nil object stops history_dbz_worker
 				logf(DEBUG9, "Stopping History_DBZ_Worker indexchan[%s] received nil pointer", char)
 				for _, bucket := range HEXCHARS {
-					batchQueues[bucket] <- nil
+					his.BatchQueues.Maps[char][bucket] <- nil
 				}
 				break forever
 			}
@@ -328,7 +348,7 @@ forever:
 			//bucket := string(string(*hi.Hash)[1:4]) // get 3 chars for bucket
 			bucket := string(string(*hi.Hash)[1]) // get 1 char for bucket
 
-			switch his.hashtype {
+			switch his.keyalgo {
 			case HashShort:
 				max := len(*hi.Hash)
 				if cutHashlen > max {
@@ -349,7 +369,7 @@ forever:
 			if hi.Offset > 0 {
 				logf(DEBUG2, "WORKER HDBZW char=%s bucket=%s key=%s hash=%s @0x%010x|%d|%x", char, bucket, *key, *hi.Hash, hi.Offset, hi.Offset, hi.Offset)
 			}
-			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false, historyfile, batchQueues[bucket])
+			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false, historyfile, his.BatchQueues.Maps[char][bucket])
 			if err != nil {
 				if err != io.EOF {
 					if hi.IndexRetChan != nil {
@@ -395,7 +415,7 @@ forever:
 	} // end for
 	for _, bucket := range HEXCHARS {
 		logf(DEBUG2, "FINAL-BATCH HDBZW char=%s bucket=%s", char, bucket)
-		his.boltBucketPutBatch(db, char, bucket, batchQueues[bucket], true, fmt.Sprintf("defer:%s%s", char, bucket), false)
+		his.boltBucketPutBatch(db, char, bucket, his.BatchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:%s%s", char, bucket), false)
 	}
 	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
 	his.Sync_upcounterN("searches", searches)
@@ -430,24 +450,24 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 	}
 
 	/*
-	if val := his.L1CACHE.L1CACHE_GetSet(hash, *char, -1, -2, *offset); val != nil {
-	//if val := his.L1CACHE.L1CACHE_Get(hash, *char); val != nil {
-		switch *val {
-		case -1:
-			//if *offset > 0 {
-			//	his.L1CACHE.L1CACHESet(hash, *char, -2)
-			//}
-			// pass
-		case 1:
-			return 1, nil
-		case 2:
-			return 2, nil
-		case -2:
-			return -2, nil
-		default:
-			return -999, fmt.Errorf("ERROR DupeCheck uncaptured cache val=%d", val)
-		}
-	}*/
+		if val := his.L1CACHE.L1CACHE_GetSet(hash, *char, -1, -2, *offset); val != nil {
+		//if val := his.L1CACHE.L1CACHE_Get(hash, *char); val != nil {
+			switch *val {
+			case -1:
+				//if *offset > 0 {
+				//	his.L1CACHE.L1CACHESet(hash, *char, -2)
+				//}
+				// pass
+			case 1:
+				return 1, nil
+			case 2:
+				return 2, nil
+			case -2:
+				return -2, nil
+			default:
+				return -999, fmt.Errorf("ERROR DupeCheck uncaptured cache val=%d", val)
+			}
+		}*/
 
 	offsets, err := his.boltBucketGetOffsets(db, char, bucket, key)
 	if err != nil {
@@ -566,15 +586,19 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 } // end func DupeCheck
 
 func (his *HISTORY) Sync_upcounter(counter string) {
-	his.cmux.Lock()
-	his.Counter[counter] += 1
-	his.cmux.Unlock()
+	go func(counter string) {
+		his.cmux.Lock()
+		his.Counter[counter] += 1
+		his.cmux.Unlock()
+	}(counter)
 } // end func sync_upcounter
 
 func (his *HISTORY) Sync_upcounterN(counter string, value uint64) {
-	his.cmux.Lock()
-	his.Counter[counter] += value
-	his.cmux.Unlock()
+	go func(counter string, value uint64) {
+		his.cmux.Lock()
+		his.Counter[counter] += value
+		his.cmux.Unlock()
+	}(counter, value)
 } // end func Sync_upcounterN
 
 func (his *HISTORY) GetCounter(counter string) uint64 {
@@ -736,7 +760,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 			select {
 			case bo, ok := <-batchQueue:
 				if !ok || bo == nil {
-					logf(DEBUG2,"boltBucketPutBatch received nil pointer char=%s bucket=%s", char, bucket)
+					logf(DEBUG2, "boltBucketPutBatch received nil pointer char=%s bucket=%s", char, bucket)
 					break fetchbatch
 				}
 				if bo.bucket != "" {
@@ -805,20 +829,20 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	//queued := len(batchQueue)
 	/*
-	if forced && !looped {
-		for {
-			time.Sleep(time.Second / 100)
-			Q := len(batchQueue)
-			if Q == 0 {
-				logf(DEBUG9, "DONE FORCED SYNCING boltBucketPutBatch char=%s buk=%s", char, bucket)
-				return true, nil
+		if forced && !looped {
+			for {
+				time.Sleep(time.Second / 100)
+				Q := len(batchQueue)
+				if Q == 0 {
+					logf(DEBUG9, "DONE FORCED SYNCING boltBucketPutBatch char=%s buk=%s", char, bucket)
+					return true, nil
+				}
+				logf(DEBUG, "FORCED SYNCING boltBucketPutBatch char=%s buk=%s Q=%d", char, bucket, Q)
+				//his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src+"+", true)
 			}
-			logf(DEBUG, "FORCED SYNCING boltBucketPutBatch char=%s buk=%s Q=%d", char, bucket, Q)
-			//his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src+"+", true)
-		}
-	}*/
+		}*/
 
-	inserted := inserted1+inserted2
+	inserted := inserted1 + inserted2
 	if inserted > 0 {
 		retbool = true
 	}
@@ -874,7 +898,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 
 	offsets = his.L3CACHE.L3CACHE_GetOffsets(*char+*bucket+*key, *char)
 	if offsets != nil && len(*offsets) > 0 {
-		his.Sync_upcounter("cached_decodedOffsets")
+		his.Sync_upcounter("L3CACHE_GetOffsets")
 		//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
 		return offsets, nil
 	}
@@ -913,28 +937,28 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 	return
 } // end func boltBucketGetOffsets
 /*
-func Offsets2String(offsets []int64) string {
-	var output string
-	for _, offset := range offsets {
-		output += strconv.FormatInt(offset, 10) + ","
-	}
-	return output
-} // end func Offsets2String
+	func Offsets2String(offsets []int64) string {
+		var output string
+		for _, offset := range offsets {
+			output += strconv.FormatInt(offset, 10) + ","
+		}
+		return output
+	} // end func Offsets2String
 
-func String2Offsets(input string) []int64 {
-	var offsets []int64
-	stroffs := strings.Split(input, ",")
-	for _, so := range stroffs {
-		if so == "" {
-			continue
+	func String2Offsets(input string) []int64 {
+		var offsets []int64
+		stroffs := strings.Split(input, ",")
+		for _, so := range stroffs {
+			if so == "" {
+				continue
+			}
+			offset := utils.Str2int64(so)
+			if offset > 0 {
+				offsets = append(offsets, offset)
+			}
 		}
-		offset := utils.Str2int64(so)
-		if offset > 0 {
-			offsets = append(offsets, offset)
-		}
-	}
-	return offsets
-} // end func String2Offsets
+		return offsets
+	} // end func String2Offsets
 */
 func boltGetAllKeysVals(db *bolt.DB, char *string, bucket *string) (keyvals map[*string]*[]byte, err error) {
 	if char == nil {
