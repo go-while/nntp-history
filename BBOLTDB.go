@@ -271,23 +271,25 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		batchQueues[bucket] = batchQueue
 
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
-			timer := 50
+			timer := 500
 			lastflush := utils.UnixTimeSec()
 			var retbool, forced bool
 			var err error
 			for {
 				Q := len(batchQueue)
-				if Q >= 1000 {
-					timer -= 10
+				if Q >= 10000 {
+					timer = 1
+				} else if Q >= 1000 {
+					timer -= 20
 				} else if Q < 1000 {
-					timer += 5
+					timer += 10
 				}
 				if timer <= 0 {
 					timer = 1
-				} else if timer > 500 {
-					timer = 500
+				} else if timer > 5000 {
+					timer = 5000
 				}
-				retbool, err = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), false)
+				retbool, err = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
 				if err != nil {
 					log.Printf("ERROR gofunc char=%s boltBucketPutBatch err='%v'", char, err)
 					return // this go func
@@ -297,13 +299,16 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 						lastflush = utils.UnixTimeSec()
 						forced = false
 					case false:
+						if len(batchQueue) == 0 {
+							lastflush = utils.UnixTimeSec()
+						}
 						if lastflush < utils.UnixTimeSec()-3 && len(batchQueue) > 0 {
 							forced = true
 							timer = 1
 						}
 				}
 				time.Sleep(time.Duration(timer) * time.Millisecond)
-				//log.Printf("gofunc char=%s sleep=%d Q=%d", char, timer, Q)
+				//log.Printf("gofunc char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
 			}
 		}(db, char, bucket, batchQueue)
 	}
@@ -389,7 +394,7 @@ forever:
 		} // end select
 	} // end for
 	for _, bucket := range HEXCHARS {
-		logf(DEBUG9, "FINAL-BATCH HDBZW char=%s bucket=%s", char, bucket)
+		logf(DEBUG, "FINAL-BATCH HDBZW char=%s bucket=%s", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, batchQueues[bucket], true, fmt.Sprintf("defer:%s%s", char, bucket), false)
 	}
 	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
@@ -713,10 +718,10 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 		log.Printf("ERROR boltBucketPutBatch batchQueue=nil")
 		return
 	}
-	//logf(DEBUG9, "LOCKING boltBucketPutBatch char=%s bucket=%s", char, bucket)
+	logf(forced, "LOCKING boltBucketPutBatch char=%s bucket=%s", char, bucket)
 	his.BatchLocks[char][bucket] <- struct{}{}
 	defer his.returnBatchLock(char, bucket)
-	//logf(DEBUG9, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
+	logf(forced, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
 
 	if len(batchQueue) < BATCHSIZE && !forced {
 		return
@@ -799,6 +804,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	}
 
 	//queued := len(batchQueue)
+	/*
 	if forced && !looped {
 		for {
 			time.Sleep(time.Second / 100)
@@ -807,17 +813,18 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 				logf(DEBUG9, "DONE FORCED SYNCING boltBucketPutBatch char=%s buk=%s", char, bucket)
 				return true, nil
 			}
-			logf(DEBUG9, "FORCED SYNCING boltBucketPutBatch char=%s buk=%s Q=%d", char, bucket, Q)
-			his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src+"+", true)
+			logf(DEBUG, "FORCED SYNCING boltBucketPutBatch char=%s buk=%s Q=%d", char, bucket, Q)
+			//his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src+"+", true)
 		}
-	}
+	}*/
+
 	inserted := inserted1+inserted2
 	if inserted > 0 {
 		retbool = true
 	}
 	his.Sync_upcounterN("inserted1", inserted1)
 	his.Sync_upcounterN("inserted2", inserted2)
-	logf(DEBUG9, "BATCHED boltBucketPutBatch char=%s buk=%s i1=%d i2=%d Q=%d forced=%t (took %d ms) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMilliSec()-start, src)
+	logf(forced, "BATCHED boltBucketPutBatch char=%s buk=%s i1=%d i2=%d Q=%d forced=%t (took %d ms) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMilliSec()-start, src)
 	return
 } // end func boltBucketPutBatch
 
