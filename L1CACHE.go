@@ -82,7 +82,7 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 } // end func LockL1Cache
 
 func (l1 *L1CACHE) L1Cache_Thread(char string) {
-	logf(DEBUG1, "Boot L1Cache_Thread [%s]", char)
+	logf(DEBUG2, "Boot L1Cache_Thread [%s]", char)
 	//forever
 	for {
 		time.Sleep(time.Duration(L1Purge) * time.Second)
@@ -116,14 +116,14 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 					l1.caches[char].cache = newmap
 				}
 				l1.mapsizes[char].maxmapsize = 1024
-				logf(DEBUG1, "L1Cache_Thread [%s] shrink size to 1024", char)
+				logf(DEBUG2, "L1Cache_Thread [%s] shrink size to 1024", char)
 			}
 			newmax := l1.mapsizes[char].maxmapsize
 			l1.muxers[char].mux.Unlock()
-			logf(DEBUG1, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, newmax, max)
+			logf(DEBUG2, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, newmax, max)
 			cleanup = nil
 		}
-		logf(DEBUG1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+		logf(DEBUG2, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 	} // end for
 
 } //end func L1Cache_Thread
