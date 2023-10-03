@@ -33,6 +33,8 @@ type L3MUXER struct {
 	mux sync.Mutex
 }
 
+// The L3CACHE_Boot method initializes the L3 cache.
+// It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
 func (l3 *L3CACHE) L3CACHE_Boot() {
 	initsize := 128
 	l3.mux.Lock()
@@ -54,6 +56,8 @@ func (l3 *L3CACHE) L3CACHE_Boot() {
 	}
 } // end func L3CACHE_Boot
 
+// The L3Cache_Thread function runs as a goroutine for each character.
+// It periodically cleans up expired cache entries and dynamically shrinks the cache size if needed.
 func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	logf(DEBUG2, "Boot L3Cache_Thread [%s]", char)
 	//forever
@@ -101,6 +105,8 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 
 } //end func L3Cache_Thread
 
+// The L3CACHE_SetOffsets method sets a cache item in the L3 cache using a key and a slice of offsets as the value.
+// It also dynamically grows the cache when necessary.
 func (l3 *L3CACHE) L3CACHE_SetOffsets(key string, char string, offsets *[]int64) {
 	if len(key) == 0 {
 		log.Printf("ERROR L3CACHESet key=nil")
@@ -127,6 +133,7 @@ func (l3 *L3CACHE) L3CACHE_SetOffsets(key string, char string, offsets *[]int64)
 	l3.muxers[char].mux.Unlock()
 } // end func L3CACHE_SetOffsets
 
+// The L3CACHE_GetOffsets method retrieves a slice of offsets from the L3 cache using a key.
 func (l3 *L3CACHE) L3CACHE_GetOffsets(key string, char string) (offsets *[]int64) {
 	if key == "" {
 		log.Printf("ERROR L3CACHEGet key=nil")
@@ -145,6 +152,7 @@ func (l3 *L3CACHE) L3CACHE_GetOffsets(key string, char string) (offsets *[]int64
 	return
 } // end func L3CACHE_GetOffsets
 
+// The L3CACHE_Del method deletes a cache item from the L3 cache.
 func (l3 *L3CACHE) L3CACHE_Del(key *string, char string) {
 	if key == nil || *key == "" {
 		log.Printf("ERROR L3CACHEDel key=nil")
