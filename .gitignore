@@ -25,3 +25,4 @@ test/src
 test/history
 test/hashdb
 test/nntp-history-test
+test/test*
