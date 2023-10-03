@@ -274,7 +274,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		his.BatchQueues.mux.Unlock()
 		// launches a batchQueue for every bucket in this `char` db.
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
-			timer := 500
+			timer, mintimer, maxtimer:= 500, 1, 1000
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
@@ -283,16 +283,16 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			for {
 				Q := len(batchQueue)
 				if Q >= 10000 {
-					timer = 1
+					timer = mintimer
 				} else if Q >= 1000 {
 					timer -= 20
 				} else if Q < 1000 {
 					timer += 10
 				}
-				if timer <= 0 {
-					timer = 1
-				} else if timer > 2500 {
-					timer = 2500
+				if timer < mintimer {
+					timer = mintimer
+				} else if timer > maxtimer {
+					timer = maxtimer
 				}
 				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
 				if closed {  // received nil pointer
@@ -484,19 +484,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 	}
 	if offsets == nil { // no offsets stored for numhash
 		if *offset == -1 { // search only
-			if *hash == TESTHASH1 {
-				log.Printf("TESTHASH1 char=%s bucket=%s k=%s searched offsets=nil", *char, *bucket, *key)
-			}
-			if *hash == TESTHASH2 {
-				log.Printf("TESTHASH2 char=%s bucket=%s k=%s searched offsets=nil", *char, *bucket, *key)
-			}
 			return 0, nil // not a duplicate
-		}
-		if *hash == TESTHASH1 {
-			log.Printf("TESTHASH1 char=%s bucket=%s k=%s add offset=%d ", *char, *bucket, *key, *offset)
-		}
-		if *hash == TESTHASH2 {
-			log.Printf("TESTHASH2 char=%s bucket=%s k=%s add offset=%d ", *char, *bucket, *key, *offset)
 		}
 		newoffsets := []int64{*offset}
 		// add hash=>key:offset to db
@@ -506,7 +494,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		}
 		//logf(DEBUG2, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
 
-		his.L1CACHE.L1CACHE_Set(hash, *char, 1) // offset of history entry added to key: hash is a duplicate in cached response now
+		his.L1Cache.L1CACHE_Set(hash, *char, 1) // offset of history entry added to key: hash is a duplicate in cached response now
 		his.L2CACHE.L2CACHE_SetOffsetHash(offset, hash)
 
 		his.Sync_upcounter("key_add")
@@ -524,12 +512,6 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v", *char, *key, *hash, lo, *offsets)
 		his.Sync_upcounter("multioffsets")
 	}
-	if *hash == TESTHASH1 {
-		log.Printf("TESTHASH1 char=%s bucket=%s k=%s check check_offsets=%d ", *char, *bucket, *key, lo)
-	}
-	if *hash == TESTHASH2 {
-		log.Printf("TESTHASH2 char=%s bucket=%s k=%s check check_offsets=%d ", *char, *bucket, *key, lo)
-	}
 	for _, check_offset := range *offsets {
 		// check history for duplicate hash / evades collissions
 		//logf(DEBUG2, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, lo, check_offset)
@@ -543,32 +525,20 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -999, err
 		}
 		if historyHash != nil {
-			if *hash == TESTHASH1 {
-				log.Printf("TESTHASH1 char=%s bucket=%s k=%s check historyHash='%#v'='%s'@%d", *char, *bucket, *key, historyHash, *historyHash, check_offset)
-			}
-			if *hash == TESTHASH2 {
-				log.Printf("TESTHASH2 char=%s bucket=%s k=%s check historyHash='%#v'='%s'@%d", *char, *bucket, *key, historyHash, *historyHash, check_offset)
-			}
 			if len(*historyHash) == 3 && *historyHash == eofhash {
 				log.Printf("EOF history.dat offset=%d", check_offset)
 				// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
-				his.L1CACHE.L1CACHE_Set(hash, *char, 2)
+				his.L1Cache.L1CACHE_Set(hash, *char, 2)
 				return 2, nil
 
 			} else if string(*historyHash) == string(*hash) {
-				if *hash == TESTHASH1 {
-					log.Printf("TESTHASH1 char=%s bucket=%s k=%s DUPLICATE historyHash='%#v'='%s'@%d +offset=%d", *char, *bucket, *key, historyHash, *historyHash, check_offset, *offset)
-				}
-				if *hash == TESTHASH2 {
-					log.Printf("TESTHASH2 char=%s bucket=%s k=%s DUPLICATE historyHash='%#v'='%s'@%d +offset=%d", *char, *bucket, *key, historyHash, *historyHash, check_offset, *offset)
-				}
 				// hash is a duplicate in history
 				if *offset > 0 { // not a search
 					logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d +offset='%d'", *historyHash, check_offset, *offset)
 				} else { // is a search
 					logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d", *historyHash, check_offset)
 				}
-				his.L1CACHE.L1CACHE_Set(hash, *char, 1)
+				his.L1Cache.L1CACHE_Set(hash, *char, 1)
 				return 1, nil
 			}
 		} else {
@@ -586,7 +556,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			return -999, err
 		}
 		logf(DEBUG1, "HDBZW char=%s bucket=%s APPENDED key=%s hash=%s offset=%d offsets=%d='%#v'", *char, *bucket, *key, *hash, *offset, len(*offsets), *offsets)
-		his.L1CACHE.L1CACHE_Set(hash, *char, 1) // offset of history entry added to key: hash is a duplicate in cached response now
+		his.L1Cache.L1CACHE_Set(hash, *char, 1) // offset of history entry added to key: hash is a duplicate in cached response now
 		his.Sync_upcounter("key_app")
 		return 0, nil
 	}
@@ -914,7 +884,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 
 	offsets = his.L3CACHE.L3CACHE_GetOffsets(*char+*bucket+*key, *char)
 	if offsets != nil && len(*offsets) > 0 {
-		his.Sync_upcounter("L3CACHE_GetOffsets")
+		his.Sync_upcounter("L3CACHE_Get")
 		//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
 		return offsets, nil
 	}
