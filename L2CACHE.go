@@ -38,7 +38,7 @@ func (l2 *L2CACHE) L2CACHE_Boot() {
 } // end func L2CACHE_Boot
 
 func (l2 *L2CACHE) L2Cache_Thread() {
-	logf(DEBUG1, "Boot L2Cache_Thread")
+	logf(DEBUG2, "Boot L2Cache_Thread")
 	//forever
 	for {
 		time.Sleep(time.Duration(L2Purge) * time.Second)
@@ -72,15 +72,15 @@ func (l2 *L2CACHE) L2Cache_Thread() {
 					l2.cache = newmap
 				}
 				l2.mapsize = 1024
-				logf(DEBUG1, "L2Cache_Thread shrink size to 1024")
+				logf(DEBUG2, "L2Cache_Thread shrink size to 1024")
 			}
 			newmax := l2.mapsize
 			l2.mux.Unlock()
-			logf(DEBUG1, "L2Cache_Thread deleted=%d maplen=%d/%d oldmax=%d", len(cleanup), maplen, newmax, max)
+			logf(DEBUG2, "L2Cache_Thread deleted=%d maplen=%d/%d oldmax=%d", len(cleanup), maplen, newmax, max)
 			cleanup = nil
 		}
 
-		logf(DEBUG1, "L2Cache_Thread (took %d ms)", utils.UnixTimeMilliSec()-start)
+		logf(DEBUG2, "L2Cache_Thread (took %d ms)", utils.UnixTimeMilliSec()-start)
 	} // end for
 } //end func L2Cache_Thread
 
