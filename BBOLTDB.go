@@ -677,7 +677,7 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 		return err
 	}
 
-	his.L3CACHE.L3CACHE_SetOffsets(*bucket+*key, *char, &offsets)
+	his.L3CACHE.L3CACHE_SetOffsets(*char+*bucket+*key, *char, &offsets)
 
 	if batchQueue != nil {
 		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
@@ -872,7 +872,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=%s key=nil", *char, *bucket)
 	}
 
-	offsets = his.L3CACHE.L3CACHE_GetOffsets(*bucket+*key, *char)
+	offsets = his.L3CACHE.L3CACHE_GetOffsets(*char+*bucket+*key, *char)
 	if offsets != nil && len(*offsets) > 0 {
 		his.Sync_upcounter("cached_decodedOffsets")
 		//logf(DEBUG1,"boltBucketGetOffsets: get CACHED char=%s bucket=%s key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
@@ -904,7 +904,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 		offsets = decodedOffsets
 
 		if offsets != nil {
-			his.L3CACHE.L3CACHE_SetOffsets(*bucket+*key, *char, offsets)
+			his.L3CACHE.L3CACHE_SetOffsets(*char+*bucket+*key, *char, offsets)
 		}
 	}
 	//if offsets != nil {
