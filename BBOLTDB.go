@@ -269,7 +269,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	for _, bucket := range HEXCHARS {
 		batchQueue := make(chan *BatchOffset, BATCHSIZE*BoltDBs)
 		batchQueues[bucket] = batchQueue
-
+		// launches a batchQueue for every bucket in this `char` db.
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
 			timer := 500
 			lastflush := utils.UnixTimeSec()
@@ -286,8 +286,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				}
 				if timer <= 0 {
 					timer = 1
-				} else if timer > 5000 {
-					timer = 5000
+				} else if timer > 2500 {
+					timer = 2500
 				}
 				retbool, err = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
 				if err != nil {
