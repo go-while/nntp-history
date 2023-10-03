@@ -94,9 +94,6 @@ func main() {
 		}
 		boltOpts = &bO
 	}
-	//if useGoCache {
-	//	gocache = cache.New(history.DefaultCacheExpires, history.DefaultCachePurge)
-	//}
 	start := utils.UnixTimeSec()
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, KeyAlgo, KeyLen)
 	if offset >= 0 {
@@ -144,9 +141,10 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 
-				retval := history.History.L1CACHE.LockL1Cache(&hash, string(hash[0]), -1) // checks and locks hash for processing
+				retval := history.History.L1Cache.LockL1Cache(&hash, string(hash[0]), -1) // checks and locks hash for processing
 				switch retval {
 				case 0:
+					history.History.Sync_upcounter("L1CACHE_Lock")
 					// pass
 				case -1:
 					// cache hits, already in processing
@@ -159,7 +157,7 @@ func main() {
 					cacheretry1++
 					continue fortodo
 				default:
-					log.Printf("main: ERROR unknown switch CheckL1Cache retval=%d", retval)
+					log.Printf("main: ERROR unknown switch LockL1Cache retval=%d", retval)
 					break fortodo
 				}
 
@@ -245,6 +243,7 @@ func main() {
 	}
 	history.History.WriterChan <- nil // closes workers
 	for {
+		time.Sleep(time.Second)
 		lock1, v1 := len(history.HISTORY_WRITER_LOCK) > 0, len(history.HISTORY_WRITER_LOCK)
 		lock2, v2 := len(history.HISTORY_INDEX_LOCK) > 0, len(history.HISTORY_INDEX_LOCK)
 		lock3, v3 := len(history.HISTORY_INDEX_LOCK16) > 0, len(history.HISTORY_INDEX_LOCK16)
@@ -254,20 +253,23 @@ func main() {
 			break
 		}
 		log.Printf("wait: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5)
-		time.Sleep(time.Second)
 	}
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
 	fseeks := history.History.GetCounter("FSEEK")
 	fseekeof := history.History.GetCounter("FSEEK_EOF")
-	L3CACHE_GetOffsets := history.History.GetCounter("L3CACHE_GetOffsets")
+	L1CACHE_Lock := history.History.GetCounter("L1CACHE_Lock")
+	L1CACHE_Get := history.History.GetCounter("L1CACHE_Get")
+	L2CACHE_Get := history.History.GetCounter("L2CACHE_Get")
+	L3CACHE_Get := history.History.GetCounter("L3CACHE_Get")
 	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
 	multioffsets := history.History.GetCounter("multioffsets")
 	searches := history.History.GetCounter("searches")
 	inserted1 := history.History.GetCounter("inserted1")
 	inserted2 := history.History.GetCounter("inserted2")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d L3CACHE_GetOffsets=%d BoltDB_decodedOffsets=%d multioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, L3CACHE_GetOffsets, BoltDB_decodedOffsets, multioffsets, searches, inserted1, inserted2)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d multioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, multioffsets, searches, inserted1, inserted2)
+	log.Printf("L1LOCK=%d | Get: L1=%d L2=%d L3=%d ", L1CACHE_Lock, L1CACHE_Get, L2CACHE_Get, L3CACHE_Get)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec()-start)
 	/*
 		runtime.GC()
