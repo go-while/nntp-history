@@ -37,6 +37,8 @@ type MAPSIZES struct {
 	maxmapsize int
 }
 
+// The L1CACHE_Boot method initializes the cache system.
+// It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
 func (l1 *L1CACHE) L1CACHE_Boot() {
 	initsize := 128
 	l1.mux.Lock()
@@ -58,6 +60,8 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 	}
 } // end func L1CACHE_Boot
 
+// The LockL1Cache method is used to retrieve a value from the cache.
+// If the value is not in the cache or has expired, it locks the cache, updates the cache with a new value, and returns the value.
 func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
@@ -81,6 +85,8 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	return 0
 } // end func LockL1Cache
 
+// The L1Cache_Thread function runs as a goroutine for each character.
+// It periodically cleans up expired cache entries, and if the cache size is too large, it shrinks the cache.
 func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	logf(DEBUG2, "Boot L1Cache_Thread [%s]", char)
 	//forever
@@ -128,6 +134,8 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 
 } //end func L1Cache_Thread
 
+// The L1CACHE_Set method is used to set a value in the cache.
+// If the cache size is close to its maximum, it grows the cache.
 func (l1 *L1CACHE) L1CACHE_Set(hash *string, char string, value int) {
 	if hash == nil || len(*hash) < 32 { // at least md5
 		log.Printf("ERROR L1CACHESet hash=nil")
@@ -153,6 +161,7 @@ func (l1 *L1CACHE) L1CACHE_Set(hash *string, char string, value int) {
 	l1.muxers[char].mux.Unlock()
 } // end func L1CACHE_Set
 
+// The L1CACHE_Get method retrieves a value from the cache.
 func (l1 *L1CACHE) L1CACHE_Get(hash *string, char string) (retval *int) {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR L1CACHEGet hash=nil")
@@ -194,6 +203,7 @@ func (l1 *L1CACHE) L1CACHE_GetSet(hash *string, char string, want int, setval in
 } // end func L1CACHE_GetSet
 */
 
+// The L1CACHE_Del method deletes a cache item from the L1 cache.
 func (l1 *L1CACHE) L1CACHE_Del(hash *string, char string) {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR L1CACHEDel hash=nil")
