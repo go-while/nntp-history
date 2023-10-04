@@ -291,7 +291,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		his.BatchQueues.mux.Unlock()
 		// launches a batchQueue for every bucket in this `char` db.
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
-			timer, mintimer, maxtimer:= 500, 1, 1000
+			timer, mintimer, maxtimer := 500, 1, 1000
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
@@ -312,8 +312,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 					timer = maxtimer
 				}
 				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
-				if closed {  // received nil pointer
-					logf(DEBUG2,"Closed gofunc char=%s bucket=%s", char, bucket)
+				if closed { // received nil pointer
+					logf(DEBUG2, "Closed gofunc char=%s bucket=%s", char, bucket)
 
 					break forbatchqueue // this go func
 				}
@@ -1044,7 +1044,7 @@ func gobEncodeOffsets(offsets []int64, src string) ([]byte, error) {
 	var buf bytes.Buffer
 	//gob.Register(GOBOFFSETS{})
 	encoder := gob.NewEncoder(&buf)
-	gobOffsets := &GOBOFFSETS{ Offsets: offsets }
+	gobOffsets := &GOBOFFSETS{Offsets: offsets}
 	err := encoder.Encode(*gobOffsets)
 	if err != nil {
 		log.Printf("ERROR gobEncodeOffsets offsets='%#v' err='%v'", offsets, err)
@@ -1116,8 +1116,6 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string) error {
 	return nil
 } // end func BoltSync
 
-
-
 func (his *HISTORY) returnBatchLocks(char string, buckets []string) {
 	for _, bucket := range buckets {
 		<-his.BatchLocks[char][bucket]
@@ -1168,17 +1166,17 @@ func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int) (int, error)
 				return -999, fmt.Errorf("ERROR IndexQuery IndexRetChan closed! error in History_DBZ_Worker")
 			}
 			/* the possible return values of IndexQuery(..)
-				switch isDup {
-				case 0:
-					// pass, not a duplicate
-					return 0
-				case 1:
-					dupes++
-					return 1
-				case 2:
-					retry++
-					return 2
-				}
+			switch isDup {
+			case 0:
+				// pass, not a duplicate
+				return 0
+			case 1:
+				dupes++
+				return 1
+			case 2:
+				retry++
+				return 2
+			}
 			*/
 			return isDup, nil
 		} // end select
