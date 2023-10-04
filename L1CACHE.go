@@ -77,7 +77,6 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	}
 	//now := utils.UnixTimeSec()
 	l1.muxers[char].mux.Lock()
-	defer l1.muxers[char].mux.Unlock()
 	if l1.caches[char].cache[*hash] != nil {
 		retval := l1.caches[char].cache[*hash].value
 		/*
@@ -87,9 +86,11 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 		} else {
 			// entry expired
 		}*/
+		l1.muxers[char].mux.Unlock()
 		return retval
 	}
 	l1.caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
+	l1.muxers[char].mux.Unlock()
 	return 0
 } // end func LockL1Cache
 
