@@ -300,7 +300,9 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			var retbool, forced, closed bool
 			var err error
 			 // every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
-			his.BatchQueues.Booted <- struct{}{}
+			if !LOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted") {
+				return
+			}
 		forbatchqueue:
 			for {
 				Q := len(batchQueue)
@@ -342,7 +344,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				time.Sleep(time.Duration(timer) * time.Millisecond)
 				//log.Printf("gofunc char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
 			} // end forbatchqueue
-			<-his.BatchQueues.Booted
+			UNLOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted")
 			// ends this gofunc
 		}(db, char, bucket, batchQueue)
 	} // end for hexchars
