@@ -166,11 +166,16 @@ CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo
 
 
 
-## Message-ID Hash Splitting with BoltDB
+## Message-ID Hash Splitting with BoltDB and KeyAlgo=`ShortHash`
 
-This README explains the process of splitting Message-ID hashes and using BoltDB to organize data into 16 different databases based on the first character of the hash, and further dividing each database into buckets using the next 3 characters of the hash.
+- Standard KeyAlgo is `ShortHash`:
+- For faster processing we organized 16 BoltDBs based on the first character of the hash.
+- Further dividing each database into buckets using the second character of the hash.
+- The remaining hash is used as key to store offsets and can be customized based on the `KeyLen` setting.
+- A lower `KeyLen` produces more "multioffsets" stored per key and results in more Fseeks.
+- Default KeyLen is 6. MinKeyLen is 4. Reasonable Values are 5-8.
 
-The remaining hash can be customized based on the "KeyLen" setting.
+- The other available `FNV` KeyAlgos have a pre-defined KeyLen and use the full hash to generate keys.
 
 ## Example
 
@@ -180,5 +185,5 @@ Using the described approach:
 
 - The first character "1" selects the database "1".
 - The next character "a" select the bucket "a" within the "1" database.
-- The remaining hash "2b3c4d5e6f0..." can be used for further data organization within the "a" bucket based on the "KeyLen" setting.
+- The remaining hash "2b3c4d5e6f0..." is the key in the "a" bucket based on the "KeyLen" setting.
 
