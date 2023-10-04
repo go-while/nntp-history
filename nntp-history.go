@@ -546,7 +546,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	}
 	his.WriterChan <- nil // closes workers
 	for {
-		time.Sleep(time.Second)
+		time.Sleep(time.Second/10)
 		lock1, v1 := len(HISTORY_WRITER_LOCK) > 0, len(HISTORY_WRITER_LOCK)
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
@@ -562,7 +562,11 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !lockBatch {
 			break
 		}
-		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d lockBatch=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, lockBatch, batchQ)
+		// if batchQ < 256: it's most likely remaining 'nil' pointers which should be returned on next BATCHFLUSH
+		// if v5 == 256: all batchQueues are still running
+		if batchQ > 256 && v5 == 256 {
+			log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d lockBatch=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, lockBatch, batchQ)
+		}
 	}
 	his.WriterChan = nil
 } // end func CLOSE_HISTORY
