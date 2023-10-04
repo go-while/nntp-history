@@ -534,14 +534,6 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		batchQ := 0
 		for _, char := range HEXCHARS {
 			for _, bucket := range HEXCHARS {
-				/*
-				qchan := his.BatchQueues.Maps[char][bucket]
-				if qchan == nil {
-					log.Printf("ERROR his.BatchQueues.Maps[%s][%s] qchan=nil", char, bucket)
-					continue
-				}
-				batchQ += len(qchan)
-				*/
 				batchQ += len(his.BatchQueues.Maps[char][bucket])
 			}
 		}
