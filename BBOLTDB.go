@@ -511,6 +511,8 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		if *offset > 0 { // is not a search
 			logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", *char, *key, *hash, lo, *offsets, *offset)
 			his.Sync_upcounter("gotmultioffsets")
+		} else {
+			his.Sync_upcounter("trymultioffsets")
 		}
 	}
 	for _, check_offset := range *offsets {
