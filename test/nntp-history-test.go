@@ -221,20 +221,21 @@ func main() {
 				} // end responseChan
 				//tdone++
 			} // end for i
-			time.Sleep(time.Second)
 			P_donechan <- struct{}{}
 			sum := added + dupes + cachehits + retry + adddupes + cachedupes + cacheretry1
 			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors)
 		}(p) // end go func parallel
+	} // end for parallelTest
 
-	} // end for parallel
-
+	// wait for test to finish
 	for {
 		if len(P_donechan) == parallelTest {
 			break
 		}
 		time.Sleep(time.Second / 10)
 	}
+
+	// close history
 	history.History.CLOSE_HISTORY()
 
 	// get some numbers
