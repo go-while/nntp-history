@@ -12,7 +12,7 @@ import (
 	"os"
 	"strings"
 	//"github.com/dgraph-io/badger"
-	"strconv"
+	//"strconv"
 	"time"
 )
 
@@ -357,16 +357,15 @@ forever:
 
 func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flush bool, wbt *uint64) error {
 	expiresStr := DefExpiresStr
-	if hobj.Expires >= 0 {
-		expiresStr = strconv.FormatInt(hobj.Expires, 10)
+	if hobj.Expires > 0 {
+		expiresStr = fmt.Sprintf("%010d", hobj.Expires) // leftpad zeros to 10 digit
 	}
-	line := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
-	//line := "{" + *hobj.MessageIDHash + "}\t" + strconv.FormatInt(hobj.Arrival, 10) + "~" + expiresStr + "~" + strconv.FormatInt(hobj.Date, 10) + "\t" + *hobj.StorageToken + "\n"
+	line := fmt.Sprintf("{%s}\t%010d~%s~%010d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken) // leftpad zeros to 10 digit
 	if wb, err := dw.WriteString(line); err != nil {
 		log.Printf("ERROR History_Writer WriteString err='%v'", err)
 		return err
 	} else {
-		//log.Printf("History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
+		logf(DEBUG2, "History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
 		if wbt != nil {
 			*wbt += uint64(wb)
 		}
