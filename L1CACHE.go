@@ -152,11 +152,10 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 					l1.caches[char].cache = newmap
 				}
 				l1.mapsizes[char].maxmapsize = newmax
-				logf(DEBUG2, "L1Cache_Thread [%s] shrink size to 1024", char)
+				logf(DEBUG2, "L1Cache_Thread [%s] shrink size to %d", char, newmax)
 			}
-			newmax := l1.mapsizes[char].maxmapsize
+			//logf(DEBUG2, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, l1.mapsizes[char].maxmapsize, max)
 			l1.muxers[char].mux.Unlock()
-			logf(DEBUG2, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, newmax, max)
 			cleanup = nil
 		}
 		logf(DEBUG2, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
@@ -174,7 +173,7 @@ func (l1 *L1CACHE) Set(hash *string, char string, value int) {
 	if char == "" {
 		char = string(string(*hash)[0])
 	}
-	start := utils.UnixTimeMilliSec()
+	//start := utils.UnixTimeMilliSec()
 	l1.muxers[char].mux.Lock()
 
 	if len(l1.caches[char].cache) >= int(l1.mapsizes[char].maxmapsize/100*98) { // grow map
@@ -185,7 +184,7 @@ func (l1 *L1CACHE) Set(hash *string, char string, value int) {
 		}
 		l1.caches[char].cache = newmap
 		l1.mapsizes[char].maxmapsize = newmax
-		logf(DEBUG1, "L1CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		//logf(DEBUG1, "L1CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 	l1.caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
 	l1.muxers[char].mux.Unlock()
