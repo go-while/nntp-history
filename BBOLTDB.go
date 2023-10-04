@@ -271,10 +271,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 
 	lastsync := utils.UnixTimeSec()
 	var added, total, processed, dupes, searches, retry uint64
-	//cutHashlen := 7 // 4:7 = 3 chars
-	cutHashlen := 5 // 2:5 = 3 chars
+	cutHashlen := 8 // 2:8 = 6 chars
 	if his.keyalgo == HashShort {
-		//cutHashlen = 4 + his.keylen
 		cutHashlen = 2 + his.keylen
 	}
 
