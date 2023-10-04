@@ -526,7 +526,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	}
 	his.WriterChan <- nil // closes workers
 	for {
-		time.Sleep(time.Second/10)
+		time.Sleep(time.Second / 10)
 		lock1, v1 := len(HISTORY_WRITER_LOCK) > 0, len(HISTORY_WRITER_LOCK)
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
