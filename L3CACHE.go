@@ -105,9 +105,9 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 
 } //end func L3Cache_Thread
 
-// The L3CACHE_SetOffsets method sets a cache item in the L3 cache using a key and a slice of offsets as the value.
+// The SetOffsets method sets a cache item in the L3 cache using a key and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
-func (l3 *L3CACHE) L3CACHE_SetOffsets(key string, char string, offsets *[]int64) {
+func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64) {
 	if len(key) == 0 {
 		log.Printf("ERROR L3CACHESet key=nil")
 		return
@@ -131,10 +131,10 @@ func (l3 *L3CACHE) L3CACHE_SetOffsets(key string, char string, offsets *[]int64)
 
 	l3.caches[char].cache[key] = &L3ITEM{offsets: *offsets, expires: utils.UnixTimeSec() + DefaultL3CacheExpires}
 	l3.muxers[char].mux.Unlock()
-} // end func L3CACHE_SetOffsets
+} // end func SetOffsets
 
-// The L3CACHE_GetOffsets method retrieves a slice of offsets from the L3 cache using a key.
-func (l3 *L3CACHE) L3CACHE_GetOffsets(key string, char string) (offsets *[]int64) {
+// The GetOffsets method retrieves a slice of offsets from the L3 cache using a key.
+func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets *[]int64) {
 	if key == "" {
 		log.Printf("ERROR L3CACHEGet key=nil")
 		return
@@ -142,7 +142,6 @@ func (l3 *L3CACHE) L3CACHE_GetOffsets(key string, char string) (offsets *[]int64
 	if char == "" {
 		char = string(key[0])
 	}
-	//now := utils.UnixTimeSec()
 	l3.muxers[char].mux.Lock()
 	if l3.caches[char].cache[key] != nil {
 		item := l3.caches[char].cache[key]
@@ -150,10 +149,10 @@ func (l3 *L3CACHE) L3CACHE_GetOffsets(key string, char string) (offsets *[]int64
 	}
 	l3.muxers[char].mux.Unlock()
 	return
-} // end func L3CACHE_GetOffsets
+} // end func GetOffsets
 
-// The L3CACHE_Del method deletes a cache item from the L3 cache.
-func (l3 *L3CACHE) L3CACHE_Del(key *string, char string) {
+// The Delete method deletes a cache item from the L3 cache.
+func (l3 *L3CACHE) Delete(key *string, char string) {
 	if key == nil || *key == "" {
 		log.Printf("ERROR L3CACHEDel key=nil")
 		return
@@ -164,4 +163,4 @@ func (l3 *L3CACHE) L3CACHE_Del(key *string, char string) {
 	l3.muxers[char].mux.Lock()
 	delete(l3.caches[char].cache, *key)
 	l3.muxers[char].mux.Unlock()
-} // end func L3CACHE_Del
+} // end func Delete
