@@ -3,6 +3,7 @@ package history
 import (
 	//"bufio"
 	"bytes"
+	"encoding/base64"
 	"encoding/gob"
 	"fmt"
 	//"github.com/go-while/go-utils"
@@ -1025,18 +1026,28 @@ func gobEncodeHeader(settings *HistorySettings) (*[]byte, error) {
 	encoder := gob.NewEncoder(&buf)
 	err := encoder.Encode(settings)
 	if err != nil {
+		log.Printf("ERROR gobEncodeHeader Encode err='%v'", err)
 		return nil, err
 	}
 	encodedData := buf.Bytes()
-	return &encodedData, nil
+	//return &encodedData, nil
+	b64 := []byte(base64.StdEncoding.EncodeToString(encodedData))
+	return &b64, nil
 } // end func gobEncodeHeader
 
 func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
-	buf := bytes.NewBuffer(encodedData)
+    decoded, err := base64.StdEncoding.DecodeString(string(encodedData))
+    if err != nil {
+        log.Printf("ERROR gobDecodeHeader base64decode err='%v'", err)
+        return nil, err
+    }
+	buf := bytes.NewBuffer([]byte(decoded))
+	//buf := bytes.NewBuffer(encodedData)
 	decoder := gob.NewDecoder(buf)
 	settings := &HistorySettings{}
-	err := decoder.Decode(&settings)
+	err = decoder.Decode(&settings)
 	if err != nil {
+		log.Printf("ERROR gobDecodeHeader Decode err='%v'", err)
 		return nil, err
 	}
 	return settings, nil
