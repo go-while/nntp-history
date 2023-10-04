@@ -281,7 +281,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
-			 // every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
+			// every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			if !LOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted") {
 				return
 			}
@@ -437,7 +437,7 @@ forever:
 	his.Sync_upcounterN("searches", searches)
 	historyfile.Close()
 	his.boltSyncClose(db, char)
-	time.Sleep(time.Second/10)
+	time.Sleep(time.Second / 10)
 	his.returnBoltHashOpen()
 } // end func History_DBZ_Worker
 
@@ -1025,11 +1025,11 @@ func gobEncodeHeader(settings *HistorySettings) (*[]byte, error) {
 } // end func gobEncodeHeader
 
 func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
-    decoded, err := base64.StdEncoding.DecodeString(string(encodedData))
-    if err != nil {
-        log.Printf("ERROR gobDecodeHeader base64decode err='%v'", err)
-        return nil, err
-    }
+	decoded, err := base64.StdEncoding.DecodeString(string(encodedData))
+	if err != nil {
+		log.Printf("ERROR gobDecodeHeader base64decode err='%v'", err)
+		return nil, err
+	}
 	buf := bytes.NewBuffer([]byte(decoded))
 	//buf := bytes.NewBuffer(encodedData)
 	decoder := gob.NewDecoder(buf)
