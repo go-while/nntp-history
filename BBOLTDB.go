@@ -169,10 +169,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	}
 	testkey := "1"
 	testoffsets := []int64{1}
-	//tocheck := 4096
 	tocheck := 16
-	checked := 0
-	created := 0
+	checked, created := 0, 0
 	setempty := false
 	initLongTest := false
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
@@ -196,7 +194,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				continue
 			}
 			// put1
-			if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, testoffsets, setempty, nil); err != nil {
+			if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, &testoffsets, setempty, nil); err != nil {
 				log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets1 char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
 				os.Exit(1)
 			}
@@ -212,7 +210,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			}
 			// put2
 			*offsets1 = append(*offsets1, 2)
-			if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, *offsets1, setempty, nil); err != nil {
+			if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, offsets1, setempty, nil); err != nil {
 				log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets2 char=%s bucket=%s err='%v'", char, bucket, err)
 				os.Exit(1)
 			}
@@ -479,7 +477,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		}
 		newoffsets := []int64{*offset}
 		// add hash=>key:offset to db
-		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, newoffsets, setempty, batchQueue); err != nil {
+		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, &newoffsets, setempty, batchQueue); err != nil {
 			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketKeyPutOffsets bucket=%s err='%v'", *char, *bucket, err)
 			return -999, err
 		}
@@ -547,7 +545,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		if err := AppendOffset(offsets, offset); err != nil {
 			return -999, err
 		}
-		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, *offsets, setempty, batchQueue); err != nil {
+		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, offsets, setempty, batchQueue); err != nil {
 			log.Printf("ERROR HDBZW APPEND boltBucketKeyPutOffsets char=%s bucket=%s err='%v'", *char, *bucket, err)
 			return -999, err
 		}
@@ -624,7 +622,7 @@ func AppendOffset(offsets *[]int64, offset *int64) error {
 	return nil
 } // end func AppendOffset
 
-func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *string, offsets []int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
+func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *string, offsets *[]int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
 	if char == nil {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=nil")
 	}
@@ -637,22 +635,22 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 	if key == nil || *key == "" {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s key=nil", *char, *bucket)
 	}
-	//if offsets == nil {
-	//	return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s offsets=nil", *char, *bucket)
-	//}
-	if !setempty && len(offsets) == 0 {
+	if offsets == nil {
+		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s offsets=nil", *char, *bucket)
+	}
+	if !setempty && len(*offsets) == 0 {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s offsetsN=0 setempty=%t", *char, *bucket, setempty)
 	}
-	if setempty && len(offsets) != 0 {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s offsetsN=%d setempty=%t", *char, *bucket, len(offsets), setempty)
+	if setempty && len(*offsets) != 0 {
+		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=%s offsetsN=%d setempty=%t", *char, *bucket, len(*offsets), setempty)
 	}
-	gobEncodedOffsets, err := gobEncodeOffsets(offsets, "boltBucketKeyPutOffsets")
+	gobEncodedOffsets, err := gobEncodeOffsets(*offsets, "boltBucketKeyPutOffsets")
 	if err != nil {
 		log.Printf("ERROR boltBucketKeyPutOffsets gobEncodedOffsets err='%v'", err)
 		return err
 	}
 
-	his.L3Cache.SetOffsets(*char+*bucket+*key, *char, &offsets)
+	his.L3Cache.SetOffsets(*char+*bucket+*key, *char, offsets)
 
 	if batchQueue != nil {
 		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
@@ -665,7 +663,7 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 			err := b.Put([]byte(*key), gobEncodedOffsets)
 			return err
 		}); err != nil {
-			log.Printf("ERROR boltBucketKeyPutOffsets char=%s buk=%s key=%s offsetsN=%d err='%v'", *char, *bucket, *key, len(offsets), err)
+			log.Printf("ERROR boltBucketKeyPutOffsets char=%s buk=%s key=%s offsetsN=%d err='%v'", *char, *bucket, *key, len(*offsets), err)
 			return err
 		}
 	}
