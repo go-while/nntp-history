@@ -247,11 +247,12 @@ func main() {
 	L3CACHE_Get := history.History.GetCounter("L3CACHE_Get")
 	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
 	gotmultioffsets := history.History.GetCounter("gotmultioffsets")
+	trymultioffsets := history.History.GetCounter("trymultioffsets")
 	searches := history.History.GetCounter("searches")
 	inserted1 := history.History.GetCounter("inserted1")
 	inserted2 := history.History.GetCounter("inserted2")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, searches, inserted1, inserted2)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, trymultioffsets, searches, inserted1, inserted2)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec()-start)
 	/*
