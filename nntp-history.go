@@ -365,7 +365,7 @@ func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flus
 		log.Printf("ERROR History_Writer WriteString err='%v'", err)
 		return err
 	} else {
-		logf(DEBUG2, "History_Writer whs=%d wrote=%d msgidhash='%s'", len(whs), wb, *hobj.MessageIDHash)
+		logf(DEBUG2, "History_Writer ll=%d wb=%d hash='%s'", len(line), wb, *hobj.MessageIDHash)
 		if wbt != nil {
 			*wbt += uint64(wb)
 		}
