@@ -230,20 +230,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
 
-func LOCKfunc(achan chan struct{}, src string) bool {
-	select {
-	case achan <- struct{}{}:
-		return true
-	default:
-		log.Printf("ERROR LOCKfunc src='%s' already running=%d", src, len(achan))
-	}
-	return false
-} // end LOCKfunc
-
-func UNLOCKfunc(achan chan struct{}, src string) {
-	<-achan
-} // end func UNLOCKfunc
-
 func (his *HISTORY) wait4HashDB() {
 	now := utils.UnixTimeSec()
 	if his.useHashDB {
@@ -531,12 +517,6 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 	return &result, nil
 } // end func FseekHistoryLine
 
-func logf(debug bool, format string, a ...any) {
-	if debug {
-		log.Printf(format, a...)
-	}
-} // end logf
-
 func (his *HISTORY) CLOSE_HISTORY() {
 	his.mux.Lock()
 	defer his.mux.Unlock()
@@ -570,3 +550,23 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	}
 	his.WriterChan = nil
 } // end func CLOSE_HISTORY
+
+func LOCKfunc(achan chan struct{}, src string) bool {
+	select {
+	case achan <- struct{}{}:
+		return true
+	default:
+		log.Printf("ERROR LOCKfunc src='%s' already running=%d", src, len(achan))
+	}
+	return false
+} // end LOCKfunc
+
+func UNLOCKfunc(achan chan struct{}, src string) {
+	<-achan
+} // end func UNLOCKfunc
+
+func logf(debug bool, format string, a ...any) {
+	if debug {
+		log.Printf(format, a...)
+	}
+} // end logf
