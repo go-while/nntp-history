@@ -17,9 +17,11 @@ import (
 )
 
 const (
-	TESTHASH1           string = "x76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
-	TESTHASH2           string = "x76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
-	DefexpiresStr       string = "-"
+	TESTHASH1           string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
+	TESTHASH2           string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
+	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
+	DefExpiresStr       string = "----------" // never expires
+	//DefExpiresStr       string = "-" // never expires
 	DefaultCacheExpires int64  = 9 // seconds
 	DefaultCachePurge   int64  = 3 // seconds
 )
@@ -32,6 +34,8 @@ var (
 	DEBUG9              bool = false
 	History             HISTORY
 	HISTORY_WRITER_LOCK        = make(chan struct{}, 1)
+	QueueWriteChan         int = BoltDBs
+	BATCHFLUSH           int64 = 3000
 	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash             string = "EOF"
 )
@@ -44,12 +48,10 @@ var (
 //   - history_dir: The directory where history data will be stored.
 //   - hashdb_dir: The directory where the history database (HashDB) will be stored.
 //   - useHashDB: If true, enables the use of the history database (HashDB).
-//   - readq: The size of the read queue.
-//   - writeq: The size of the write queue.
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, keyalgo int, keylen int) {
+func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	gob.Register(GOBOFFSETS{})
 	//gob.RegisterName("GOBOFFSETS", GOBOFFSETS{})
 	his.mux.Lock()
@@ -57,6 +59,19 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
 		return
+	}
+	if QueueWriteChan <= 0 {
+		QueueWriteChan = 1
+	} else if QueueWriteChan > 1000000 {
+		QueueWriteChan = 1000000
+	}
+	if BATCHFLUSH == 0 {
+		BATCHFLUSH = 3000
+	} else
+	if BATCHFLUSH < 10 {
+		BATCHFLUSH = 10
+	} else if BATCHFLUSH > 5000 {
+		BATCHFLUSH = 5000
 	}
 	linSlashS := "/"
 	winSlashS := "\\" // escaped
@@ -101,12 +116,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if useHashDB && !utils.DirExists(hashdb_dir) && !utils.Mkdir(hashdb_dir) {
 		log.Printf("ERROR creating hashdb_dir='%s'", hashdb_dir)
 		os.Exit(1)
-	}
-	if readq <= 0 {
-		readq = 1
-	}
-	if writeq <= 0 {
-		writeq = 1
 	}
 	switch keyalgo {
 	case HashShort:
@@ -189,7 +198,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	his.L1Cache.L1CACHE_Boot()
 	his.L2Cache.L2CACHE_Boot()
 	his.L3Cache.L3CACHE_Boot()
-
+	HashDBQueues := ""
 	if useHashDB {
 		his.useHashDB = true
 		his.BatchQueues = &BQ{}
@@ -198,13 +207,14 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		for _, char := range HEXCHARS {
 			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset, BoltDBs) // maps bucket => chan
 		}
-		his.IndexChan = make(chan *HistoryIndex, readq)
+		his.IndexChan = make(chan *HistoryIndex, QueueIndexChan)
 		his.charsMap = make(map[string]int, BoltDBs)
 		his.History_DBZinit(boltOpts)
+		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d", QueueIndexChan, QueueIndexChans)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s' KeyAlgo=%d KeyLen=%d", his.HF, his.HF_hash, his.keyalgo, his.keylen)
-	his.WriterChan = make(chan *HistoryObject, writeq)
+	log.Printf("History: HF='%s' DB='%s' KeyAlgo=%d KeyLen=%d QueueWriteChan=%d HashDBQueues={%s}", his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
+	his.WriterChan = make(chan *HistoryObject, QueueWriteChan)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
 
@@ -347,7 +357,7 @@ forever:
 } // end func History_Writer
 
 func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flush bool, wbt *uint64) error {
-	expiresStr := DefexpiresStr
+	expiresStr := DefExpiresStr
 	if hobj.Expires >= 0 {
 		expiresStr = strconv.FormatInt(hobj.Expires, 10)
 	}
