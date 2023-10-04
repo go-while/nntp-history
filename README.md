@@ -213,5 +213,8 @@ ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | k
   KeyAlgo=11 KeyLen=6 QueueWriteChan=16
   HashDBQueues:{QueueIndexChan=16 QueueIndexChans=16}
 ...
-
+2023/10/04 18:51:03 key_add=0 key_app=102 total=102 fseeks=101151631 eof=0 BoltDB_decodedOffsets=99987676 gotmultioffsets=1 trymultioffsets=2300824 searches=100000000 inserted1=102 inserted2=0
+2023/10/04 18:51:03 L1LOCK=100000000 | Get: L2=12509 L3=12426
+2023/10/04 18:51:03 done=400000000 (took 2063 seconds) (closewait 7 seconds)
 ```
+^^ something is buggy ^^ the second run should not add or app anything ... but appended key_app=102 ?! ....
