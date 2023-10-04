@@ -178,22 +178,15 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	created := 0
 	setempty := false
 	initLongTest := false
-	his.boltInitChan <- struct{}{}
+	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
 	logf(DEBUG0, "HDBZW: INIT HashDB char=%s", char)
-	for _, c1 := range HEXCHARS {
-		//for _, c2 := range HEXCHARS {
-		//for _, c3 := range HEXCHARS {
-		//for {
-		//c1, c2, c3 := "0", "0", "0"
-		//bucket := c1 + c2 + c3
-		bucket := c1
+	for _, bucket := range HEXCHARS {
 		retbool, err := boltCreateBucket(db, &char, &bucket)
 		if err != nil || !retbool {
 			if err == bolt.ErrBucketExists {
 				if !initLongTest {
 					checked++
 					continue
-					//break
 				}
 			} else {
 				log.Printf("ERROR HDBZW INIT HashDB boltCreateBucket char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
@@ -204,39 +197,37 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			if !initLongTest {
 				checked++
 				continue
-				//break
 			}
 			// put1
 			if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, testoffsets, setempty, nil); err != nil {
 				log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets1 char=%s bucket=%s err='%v' retbool=%t", char, bucket, err, retbool)
-				return
+				os.Exit(1)
 			}
 			// get1
 			offsets1, err := his.boltBucketGetOffsets(db, &char, &bucket, &testkey)
 			if err != nil || offsets1 == nil {
 				log.Printf("ERROR HDBZW INIT HashDB boltBucketGetOffsets1 char=%s bucket=%s key=%s err='%v'", char, bucket, testkey, err)
-				return
+				os.Exit(1)
 			}
 			if len(*offsets1) != 1 {
 				log.Printf("ERROR HDBZW INIT HashDB boltBucketGetOffsets1 char=%s bucket=%s len(offsets)=%d != 1 ", char, bucket, len(*offsets1))
-				return
+				os.Exit(1)
 			}
 			// put2
 			*offsets1 = append(*offsets1, 2)
 			if err := his.boltBucketKeyPutOffsets(db, &char, &bucket, &testkey, *offsets1, setempty, nil); err != nil {
 				log.Printf("ERROR HDBZW INIT HashDB boltBucketKeyPutOffsets2 char=%s bucket=%s err='%v'", char, bucket, err)
-				return
+				os.Exit(1)
 			}
 		}
 		if !initLongTest {
 			continue
-			//break
 		}
 		// get2
 		offsets2, err := his.boltBucketGetOffsets(db, &char, &bucket, &testkey)
 		if err != nil || offsets2 == nil || len(*offsets2) != 2 {
 			log.Printf("ERROR HDBZW INIT HashDB boltBucketGetOffsets2 char=%s bucket=%s key=%s err='%v'", char, bucket, testkey, err)
-			return
+			os.Exit(1)
 		}
 		if keys, err := boltGetAllKeys(db, &char, &bucket); err != nil || keys == nil {
 			log.Printf("ERROR HDBZW INIT HashDB boltGetAllKeys char=%s bucket=%s err='%v'", char, bucket, err)
@@ -245,9 +236,6 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			checked++
 		}
 		break
-		//}
-		//} // end for c3
-		//} // end for c2
 		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tcheck)
 	} // end for c1
 	<-his.boltInitChan
