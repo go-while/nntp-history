@@ -192,12 +192,16 @@ CPU=4/12 | useHashDB: true | useGoCache: false | jobs=4 | todo=1000000 | total=4
 
 ## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb
 ```sh
-./nntp-history-test -todo 100000000
-CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/10/03 02:50:30 his.History_DBZinit() boltInitChan=4 boltSyncChan=1
-2023/10/03 02:50:30 History: HF='history/history.dat' DB='hashdb/history.dat.hash' KeyAlgo=11 KeyLen=6
+./nntp-history-test -todo=100000000
+ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+2023/10/04 16:24:43 History: new=true
+  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  KeyAlgo=11 KeyLen=6 QueueWriteChan=16
+  HashDBQueues:{QueueIndexChan=16 QueueIndexChans=16}
 ...
-2023/10/03 05:32:22 done=400000000 took 9712 seconds
+2023/10/04 18:08:52 key_add=98845096 key_app=1154904 total=100000000 fseeks=1158418 eof=0 BoltDB_decodedOffsets=1149297 gotmultioffsets=9084 trymultioffsets=9084 searches=100000000 inserted1=100000000 inserted2=0
+2023/10/04 18:08:52 L1LOCK=100000000 | Get: L2=1169656 L3=1160511
+2023/10/04 18:08:52 done=400000000 (took 6244 seconds) (closewait 5 seconds)
 ```
 
 ## Checking 400.000.000 `i` hashes (75% duplicates)
