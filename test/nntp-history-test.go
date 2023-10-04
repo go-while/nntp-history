@@ -234,9 +234,12 @@ func main() {
 		}
 		time.Sleep(time.Second / 10)
 	}
+	took := utils.UnixTimeSec()-start
 
 	// close history
+	closewait := utils.UnixTimeSec()
 	history.History.CLOSE_HISTORY()
+	waited := utils.UnixTimeSec()-closewait
 
 	// get some numbers
 	key_add := history.History.GetCounter("key_add")
@@ -256,7 +259,7 @@ func main() {
 	total := key_add + key_app
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, trymultioffsets, searches, inserted1, inserted2)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get)
-	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec()-start)
+	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 	/*
 		runtime.GC()
 		time.Sleep(30 * time.Second)
