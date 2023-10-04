@@ -5,11 +5,11 @@ import (
 )
 
 type HISTORY struct {
-	mux     sync.Mutex
-	cmux    sync.Mutex // sync counter
-	L1Cache L1CACHE
-	L2Cache L2CACHE
-	L3Cache L3CACHE
+	mux          sync.Mutex
+	cmux         sync.Mutex // sync counter
+	L1Cache      L1CACHE
+	L2Cache      L2CACHE
+	L3Cache      L3CACHE
 	boltInitChan chan struct{}
 	boltSyncChan chan struct{}
 	Offset       int64
