@@ -82,8 +82,14 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			}
 			maplen := len(l3.caches[char].cache)
 			max := l3.mapsizes[char].maxmapsize
-			if maplen < 1024 && max > 4096 || maplen == 0 && max == 1024 {
-				newmap := make(map[string]*L3ITEM, 1024)
+			case1 := maplen < 1024 && max > 4096
+			case2 := maplen == 0 && max > 1024
+			if case1 || case2 {
+				newmax := 1024
+				if case1 {
+					newmax = 4096
+				}
+				newmap := make(map[string]*L3ITEM, newmax)
 				if maplen == 0 {
 					l3.caches[char].cache = newmap
 				} else {
@@ -92,7 +98,7 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 					}
 					l3.caches[char].cache = newmap
 				}
-				l3.mapsizes[char].maxmapsize = 1024
+				l3.mapsizes[char].maxmapsize = newmax
 				logf(DEBUG2, "L3Cache_Thread [%s] shrink size to 1024", char)
 			}
 			newmax := l3.mapsizes[char].maxmapsize
