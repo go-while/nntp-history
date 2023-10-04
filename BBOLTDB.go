@@ -434,10 +434,11 @@ forever:
 		logf(DEBUG2, "FINAL-BATCH HDBZW char=%s bucket=%s", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, his.BatchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:%s%s", char, bucket), false)
 	}
-	log.Printf("Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
+	logf(DEBUG1, "Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, total, dupes, processed, searches, retry)
 	his.Sync_upcounterN("searches", searches)
 	historyfile.Close()
 	his.boltSyncClose(db, char)
+	time.Sleep(time.Second/10)
 	his.returnBoltHashOpen()
 } // end func History_DBZ_Worker
 
