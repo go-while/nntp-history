@@ -116,6 +116,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR creating hashdb_dir='%s'", hashdb_dir)
 		os.Exit(1)
 	}
+
 	switch keyalgo {
 	case HashShort:
 		his.keyalgo = HashShort
@@ -136,8 +137,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
+
 	// default history settings
 	history_settings := &HistorySettings{KeyAlgo: his.keyalgo, KeyLen: his.keylen}
+
 	// opens history.dat
 	var fh *os.File
 	new := false
@@ -191,14 +194,15 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		}
 		his.keyalgo = history_settings.KeyAlgo
 		his.keylen = history_settings.KeyLen
-		//log.Printf("Loaded History Settings: '%#v'", history_settings)
+		log.Printf("Loaded History Settings: '%#v'", history_settings)
 	}
 
 	his.L1Cache.L1CACHE_Boot()
-	his.L2Cache.L2CACHE_Boot()
-	his.L3Cache.L3CACHE_Boot()
+
 	HashDBQueues := ""
 	if useHashDB {
+		his.L2Cache.L2CACHE_Boot()
+		his.L3Cache.L3CACHE_Boot()
 		his.useHashDB = true
 		his.BatchQueues = &BQ{}
 		his.BatchQueues.Booted = make(chan struct{}, 16*16)                           // char [0-9a-f] * bucket [0-9a-f]
@@ -212,7 +216,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d", QueueIndexChan, QueueIndexChans)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s.[0-9a-f]' KeyAlgo=%d KeyLen=%d QueueWriteChan=%d HashDBQueues={%s}", his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
+	log.Printf("History: HF='%s' DB='%s.[0-9a-f]' KeyAlgo=%d KeyLen=%d QueueWriteChan=%d HashDBQueues:{%s}", his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
 	his.WriterChan = make(chan *HistoryObject, QueueWriteChan)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
