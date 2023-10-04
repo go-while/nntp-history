@@ -60,8 +60,13 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 	}
 } // end func L1CACHE_Boot
 
-// The LockL1Cache method is used to retrieve a value from the cache.
+// The LockL1Cache method is used to LOCK a `MessageIDHash` for processing.
 // If the value is not in the cache or has expired, it locks the cache, updates the cache with a new value, and returns the value.
+// Possible return values:
+//   -1 == in processing
+//    0 == not a duplicate // locked article for processing
+//    1 == is a duplicate
+//    2 == retry later
 func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
@@ -70,16 +75,19 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if char == "" {
 		char = string(string(*hash)[0])
 	}
-	now := utils.UnixTimeSec()
+	//now := utils.UnixTimeSec()
 	l1.muxers[char].mux.Lock()
 	defer l1.muxers[char].mux.Unlock()
 	if l1.caches[char].cache[*hash] != nil {
+		retval := l1.caches[char].cache[*hash].value
+		/*
 		if l1.caches[char].cache[*hash].expires >= now {
 			retval := l1.caches[char].cache[*hash].value
 			return retval
 		} else {
 			// entry expired
-		}
+		}*/
+		return retval
 	}
 	l1.caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
 	return 0
@@ -97,9 +105,22 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		cleanup := []string{}
 
 		l1.muxers[char].mux.Lock()
+		getexpired:
 		for hash, item := range l1.caches[char].cache {
+			expired := false
 			if item.expires < now {
-				cleanup = append(cleanup, hash)
+				// value is cached response:
+				switch item.value {
+					case -1: // processing
+						continue getexpired
+					case 1: // duplicate
+						expired = true
+					case 2: // retry
+						expired = true
+				}
+				if expired {
+					cleanup = append(cleanup, hash)
+				}
 			}
 		}
 		l1.muxers[char].mux.Unlock()
@@ -134,9 +155,9 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 
 } //end func L1Cache_Thread
 
-// The L1CACHE_Set method is used to set a value in the cache.
+// The Set method is used to set a value in the cache.
 // If the cache size is close to its maximum, it grows the cache.
-func (l1 *L1CACHE) L1CACHE_Set(hash *string, char string, value int) {
+func (l1 *L1CACHE) Set(hash *string, char string, value int) {
 	if hash == nil || len(*hash) < 32 { // at least md5
 		log.Printf("ERROR L1CACHESet hash=nil")
 		return
@@ -159,28 +180,11 @@ func (l1 *L1CACHE) L1CACHE_Set(hash *string, char string, value int) {
 	}
 	l1.caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
 	l1.muxers[char].mux.Unlock()
-} // end func L1CACHE_Set
-
-// The L1CACHE_Get method retrieves a value from the cache.
-func (l1 *L1CACHE) L1CACHE_Get(hash *string, char string) (retval *int) {
-	if hash == nil || *hash == "" {
-		log.Printf("ERROR L1CACHEGet hash=nil")
-		return
-	}
-	if char == "" {
-		char = string(string(*hash)[0])
-	}
-	l1.muxers[char].mux.Lock()
-	if l1.caches[char].cache[*hash] != nil {
-		item := l1.caches[char].cache[*hash]
-		retval = &item.value
-	}
-	l1.muxers[char].mux.Unlock()
-	return
-} // end func L1CACHE_Get
+} // end func Set
 
 /*
-func (l1 *L1CACHE) L1CACHE_GetSet(hash *string, char string, want int, setval int, offset int64) (retval *int) {
+// The Get method retrieves a value from the cache.
+func (l1 *L1CACHE) Get(hash *string, char string) (retval *int) {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR L1CACHEGet hash=nil")
 		return
@@ -188,23 +192,18 @@ func (l1 *L1CACHE) L1CACHE_GetSet(hash *string, char string, want int, setval in
 	if char == "" {
 		char = string(string(*hash)[0])
 	}
-	//now := utils.UnixTimeSec()
 	l1.muxers[char].mux.Lock()
 	if l1.caches[char].cache[*hash] != nil {
 		item := l1.caches[char].cache[*hash]
 		retval = &item.value
-		if offset > 0 && item.value == want {
-			l1.caches[char].cache[*hash].value = setval
-			l1.caches[char].cache[*hash].expires += 9
-		}
 	}
 	l1.muxers[char].mux.Unlock()
 	return
-} // end func L1CACHE_GetSet
-*/
+} // end func Get
 
-// The L1CACHE_Del method deletes a cache item from the L1 cache.
-func (l1 *L1CACHE) L1CACHE_Del(hash *string, char string) {
+
+// The Delete method deletes a cache item from the L1 cache.
+func (l1 *L1CACHE) Delete(hash *string, char string) {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR L1CACHEDel hash=nil")
 		return
@@ -215,4 +214,5 @@ func (l1 *L1CACHE) L1CACHE_Del(hash *string, char string) {
 	l1.muxers[char].mux.Lock()
 	delete(l1.caches[char].cache, *hash)
 	l1.muxers[char].mux.Unlock()
-} // end func L1CACHE_Del
+} // end func Delete
+*/
