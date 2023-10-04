@@ -86,9 +86,9 @@ func (l2 *L2CACHE) L2Cache_Thread() {
 	} // end for
 } //end func L2Cache_Thread
 
-// The L2CACHE_SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
+// The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
 // It also dynamically grows the cache when necessary.
-func (l2 *L2CACHE) L2CACHE_SetOffsetHash(offset *int64, hash *string) {
+func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string) {
 	if hash == nil || len(*hash) < 32 || offset == nil { // at least md5
 		log.Printf("ERROR L2CACHESet nil pointer")
 		return
@@ -109,10 +109,10 @@ func (l2 *L2CACHE) L2CACHE_SetOffsetHash(offset *int64, hash *string) {
 
 	l2.cache[*offset] = &L2ITEM{hash: *hash, expires: utils.UnixTimeSec() + DefaultL2CacheExpires}
 	l2.mux.Unlock()
-} // end func L2CACHE_SetOffsetHash
+} // end func SetOffsetHash
 
-// The L2CACHE_GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
-func (l2 *L2CACHE) L2CACHE_GetHashFromOffset(offset *int64) (hash *string) {
+// The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
+func (l2 *L2CACHE) GetHashFromOffset(offset *int64) (hash *string) {
 	if offset == nil || *offset <= 0 {
 		log.Printf("ERROR L2CACHEGetHashToOffset offset=nil")
 		return
@@ -124,10 +124,10 @@ func (l2 *L2CACHE) L2CACHE_GetHashFromOffset(offset *int64) (hash *string) {
 	}
 	l2.mux.Unlock()
 	return
-} // end func L2CACHE_GetHashFromOffset
+} // end func GetHashFromOffset
 
-// The L2CACHE_Del method deletes a cache item from the L2 cache using an offset as the key.
-func (l2 *L2CACHE) L2CACHE_Del(offset *int64) {
+// The Delete method deletes a cache item from the L2 cache using an offset as the key.
+func (l2 *L2CACHE) Delete(offset *int64) {
 	if offset == nil || *offset <= 0 {
 		log.Printf("ERROR L2CACHEDel offset=nil")
 		return
@@ -135,4 +135,4 @@ func (l2 *L2CACHE) L2CACHE_Del(offset *int64) {
 	l2.mux.Lock()
 	delete(l2.cache, *offset)
 	l2.mux.Unlock()
-} // end func L2CACHE_Del
+} // end func Delete
