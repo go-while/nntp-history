@@ -80,14 +80,12 @@ func (l2 *L2CACHE) L2Cache_Thread() {
 					l2.cache = newmap
 				}
 				l2.mapsize = newmax
-				logf(DEBUG2, "L2Cache_Thread shrink size to 1024")
+				logf(DEBUG2, "L2Cache_Thread shrink size to %d", newmax)
 			}
-			newmax := l2.mapsize
+			//logf(DEBUG2, "L2Cache_Thread deleted=%d maplen=%d/%d oldmax=%d", len(cleanup), maplen, l2.mapsize, max)
 			l2.mux.Unlock()
-			logf(DEBUG2, "L2Cache_Thread deleted=%d maplen=%d/%d oldmax=%d", len(cleanup), maplen, newmax, max)
 			cleanup = nil
 		}
-
 		logf(DEBUG2, "L2Cache_Thread (took %d ms)", utils.UnixTimeMilliSec()-start)
 	} // end for
 } //end func L2Cache_Thread
@@ -99,7 +97,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string) {
 		log.Printf("ERROR L2CACHESet nil pointer")
 		return
 	}
-	start := utils.UnixTimeMilliSec()
+	//start := utils.UnixTimeMilliSec()
 	l2.mux.Lock()
 
 	if len(l2.cache) >= int(l2.mapsize/100*98) { // grow map
@@ -110,7 +108,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string) {
 		}
 		l2.cache = newmap
 		l2.mapsize = newmax
-		logf(DEBUG1, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		//logf(DEBUG1, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 
 	l2.cache[*offset] = &L2ITEM{hash: *hash, expires: utils.UnixTimeSec() + DefaultL2CacheExpires}
