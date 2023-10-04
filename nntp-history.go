@@ -212,7 +212,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d", QueueIndexChan, QueueIndexChans)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s' KeyAlgo=%d KeyLen=%d QueueWriteChan=%d HashDBQueues={%s}", his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
+	log.Printf("History: HF='%s' DB='%s.[0-9a-f]' KeyAlgo=%d KeyLen=%d QueueWriteChan=%d HashDBQueues={%s}", his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
 	his.WriterChan = make(chan *HistoryObject, QueueWriteChan)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
