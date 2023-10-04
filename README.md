@@ -66,6 +66,53 @@ To use the `History_Boot` function, follow these steps:
   */
 ```
 
+# Message-ID Hash Splitting with BoltDB
+
+## KeyAlgo (`ShortHash`)
+
+- The standard key algorithm used is `ShortHash`.
+
+## Database Organization
+
+To improve processing speed and optimize data storage, we organize data into multiple BoltDB databases based on the first character of the hash:
+
+- We create 16 separate BoltDB databases, each corresponding to one of the 16 possible hexadecimal characters (0-9 and a-f).
+
+Each of these 16 databases is further divided into buckets using the second character of the hash:
+
+- For each database, we create buckets corresponding to the possible values of the second character (0-9 and a-f).
+
+## Key Structure
+
+The remaining portion of the hash (after the first two characters) is used as the key to store offsets in the database:
+
+- The length of this remaining hash used as a key can be customized based on the `KeyLen` setting.
+- A lower `KeyLen` results in more "multioffsets" stored per key, which can be beneficial for reducing storage space.
+- However, a lower `KeyLen` also result in more frequent file seeks when accessing data.
+- The default `KeyLen` is 6. The minimum recommended `KeyLen` is 4.
+- Reasonable values for `KeyLen` typically range from 5 to 8.
+
+## FNV KeyAlgos
+
+- The other available `FNV` KeyAlgos have pre-defined `KeyLen` values and use the full hash to generate keys.
+
+## Example
+
+Let's illustrate this approach with an example:
+
+Suppose you have a Message-ID hash of "1a2b3c4d5e6f0...":
+
+- The first character "1" selects the database "1".
+- The next character "a" selects the bucket "a" within the "1" database.
+- The remaining hash "2b3c4d5e6f0..." is used as the key in the "a" bucket based on the specified `KeyLen`.
+
+By following this approach, you can efficiently organize and retrieve data based on Message-ID hashes while benefiting from the performance and storage optimizations provided by BoltDB.
+
+Feel free to customize the `KeyLen` setting to meet your specific performance and storage requirements.
+
+Smaller `KeyLen` values save space but may result in more disk access, while larger `KeyLen` values reduce disk access but consume more space.
+
+
 ## File Descriptors: 33 (+ 3 /dev/pts + 1 anon_inode: + 2 pipe: ?) = 39
 
 - Writer History.dat: 1
@@ -163,27 +210,3 @@ CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo
 ```sh
 
 ```
-
-
-
-## Message-ID Hash Splitting with BoltDB and KeyAlgo=`ShortHash`
-
-- Standard KeyAlgo is `ShortHash`:
-- For faster processing we organized 16 BoltDBs based on the first character of the hash.
-- Further dividing each database into buckets using the second character of the hash.
-- The remaining hash is used as key to store offsets and can be customized based on the `KeyLen` setting.
-- A lower `KeyLen` produces more "multioffsets" stored per key and results in more Fseeks.
-- Default KeyLen is 6. MinKeyLen is 4. Reasonable Values are 5-8.
-
-- The other available `FNV` KeyAlgos have a pre-defined KeyLen and use the full hash to generate keys.
-
-## Example
-
-Suppose you have a Message-ID hash of "1a2b3c4d5e6f0..."
-
-Using the described approach:
-
-- The first character "1" selects the database "1".
-- The next character "a" select the bucket "a" within the "1" database.
-- The remaining hash "2b3c4d5e6f0..." is the key in the "a" bucket based on the "KeyLen" setting.
-
