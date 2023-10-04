@@ -28,7 +28,7 @@ const (
 	HashFNV32a int = 33
 	HashFNV64  int = 44
 	HashFNV64a int = 55
-	MinKeyLen  int = 6
+	MinKeyLen  int = 4
 	BoltDBs    int = 16
 )
 
@@ -36,7 +36,7 @@ var (
 	BATCHSIZE            int    = 100
 	QueueIndexChan       int    = BoltDBs // Main-indexchan can queue this
 	QueueIndexChans      int    = BoltDBs // every sub-indexchans for a `char` can queue this
-	DefaultKeyLen        int    = 8
+	DefaultKeyLen        int    = 6
 	Bolt_SYNC_EVERYs     int64  = 5                            // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	Bolt_SYNC_EVERYn     uint64 = 100                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int    = BoltDBs                      // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
