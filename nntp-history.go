@@ -1,8 +1,8 @@
 package history
 
 import (
-	"encoding/gob"
 	"bufio"
+	"encoding/gob"
 	"fmt"
 	//"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
@@ -17,25 +17,25 @@ import (
 )
 
 const (
-	TESTHASH1           string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
-	TESTHASH2           string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
+	TESTHASH1 string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
+	TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
-	DefExpiresStr       string = "----------" // never expires
+	DefExpiresStr string = "----------" // never expires
 	//DefExpiresStr       string = "-" // never expires
-	DefaultCacheExpires int64  = 9 // seconds
-	DefaultCachePurge   int64  = 3 // seconds
+	DefaultCacheExpires int64 = 9 // seconds
+	DefaultCachePurge   int64 = 3 // seconds
 )
 
 var (
-	DEBUG               bool = true
-	DEBUG0              bool = false
-	DEBUG1              bool = false
-	DEBUG2              bool = false
-	DEBUG9              bool = false
 	History             HISTORY
+	DEBUG               bool   = true
+	DEBUG0              bool   = false
+	DEBUG1              bool   = false
+	DEBUG2              bool   = false
+	DEBUG9              bool   = false
 	HISTORY_WRITER_LOCK        = make(chan struct{}, 1)
-	QueueWriteChan         int = BoltDBs
-	BATCHFLUSH           int64 = 3000
+	QueueWriteChan      int    = BoltDBs
+	BATCHFLUSH          int64  = 3000
 	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash             string = "EOF"
 )
@@ -67,8 +67,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	if BATCHFLUSH == 0 {
 		BATCHFLUSH = 3000
-	} else
-	if BATCHFLUSH < 10 {
+	} else if BATCHFLUSH < 10 {
 		BATCHFLUSH = 10
 	} else if BATCHFLUSH > 5000 {
 		BATCHFLUSH = 5000
