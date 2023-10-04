@@ -203,7 +203,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		}
 		his.keyalgo = history_settings.KeyAlgo
 		his.keylen = history_settings.KeyLen
-		log.Printf("Loaded History Settings: '%#v'", history_settings)
+		logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
 
 	his.L1Cache.L1CACHE_Boot()
@@ -225,7 +225,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d", QueueIndexChan, QueueIndexChans)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: HF='%s' DB='%s.[0-9a-f]' KeyAlgo=%d KeyLen=%d QueueWriteChan=%d HashDBQueues:{%s}", his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
+	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]'\n  KeyAlgo=%d KeyLen=%d QueueWriteChan=%d\n  HashDBQueues:{%s}", new, his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
 	his.WriterChan = make(chan *HistoryObject, QueueWriteChan)
 	go his.History_Writer(fh, dw)
 } // end func History_Boot
@@ -283,7 +283,7 @@ func (his *HISTORY) History_Writer(fh *os.File, dw *bufio.Writer) {
 		os.Exit(1)
 	}
 	his.Offset = fileInfo.Size()
-	log.Printf("History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
+	logf(DEBUG2, "History_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
 	flush := false // false: will flush when bufio gets full
 	var wbt uint64
 	var wroteLines uint64
@@ -365,7 +365,7 @@ forever:
 	if err := fh.Close(); err != nil {
 		log.Printf("ERROR History_Writer fh.Close err='%v'", err)
 	}
-	log.Printf("History_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.HF, wbt, his.Offset, wroteLines)
+	logf(DEBUG1, "History_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.HF, wbt, his.Offset, wroteLines)
 } // end func History_Writer
 
 func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flush bool, wbt *uint64) error {
