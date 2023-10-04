@@ -55,26 +55,31 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		log.Printf("ERROR History_DBZinit already loaded")
 		return
 	}
+
 	if BoltINITParallel == 0 {
 		BoltINITParallel = 1
 	} else if BoltINITParallel < 0 || BoltINITParallel > BoltDBs {
 		BoltINITParallel = BoltDBs
 	}
+
 	if BoltSYNCParallel == 0 {
 		BoltSYNCParallel = 1
 	} else if BoltSYNCParallel < 0 || BoltSYNCParallel > BoltDBs {
 		BoltSYNCParallel = BoltDBs
 	}
+
 	if QueueIndexChan <= 0 {
 		QueueIndexChan = 1
 	} else if QueueIndexChan > 1000000 {
 		QueueIndexChan = 1000000
 	}
+
 	if QueueIndexChans <= 0 {
 		QueueIndexChans = 1
 	} else if QueueIndexChans > 1000000 {
 		QueueIndexChans = 1000000
 	}
+
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
 	his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
 	his.BatchLocks = make(map[string]map[string]chan struct{}, BoltDBs)
@@ -85,8 +90,6 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		for _, bucket := range HEXCHARS {
 			his.BatchLocks[char][bucket] = make(chan struct{}, 1)
 		}
-	}
-	for i, char := range HEXCHARS {
 		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
 	logf(DEBUG, "his.History_DBZinit() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
