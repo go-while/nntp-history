@@ -105,38 +105,53 @@ func (his *HISTORY) History_DBZ() {
 	his.wait4HashDB()
 	logf(DEBUG2, "Boot History_DBZ")
 	defer logf(DEBUG2, "Quit History_DBZ")
-forever:
+	parallel := BoltDBs
+	waitchan := make(chan struct{}, parallel)
+	for p := 1; p <= parallel; p++ {
+		waitchan <- struct{}{}
+		go func(p int, waitchan chan struct{}) {
+		forever:
+			for {
+				select {
+				case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
+					if !ok {
+						logf(DEBUG2, "Stopping History_DBZ IndexChan closed")
+						break forever
+					}
+					if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
+						logf(DEBUG2, "Stopping History_DBZ IndexChan received nil pointer")
+						close(his.IndexChan)
+						break forever
+					}
+					if hi.Offset == 0 {
+						log.Printf("ERROR History_DBZ offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
+						break forever
+					}
+					C1 := ""
+					if hi.Char != nil && len(*hi.Char) == 1 {
+						C1 = *hi.Char
+					} else {
+						// gets first char of hash: hash must be lowercase!
+						// hex.EncodeToString returns a lowercased string of a hashsum
+						C1 = string(string(*hi.Hash)[0])
+					}
+					if his.IndexChans[his.charsMap[C1]] != nil {
+						his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
+					} else {
+						log.Printf("ERROR History_DBZ IndexChan C1=%s=nil", C1)
+						break forever
+					}
+				} // end select
+			} // end for
+			<-waitchan
+		}(p, waitchan) // end go func
+	} // end for p
 	for {
-		select {
-		case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
-			if !ok {
-				logf(DEBUG2, "Stopping History_DBZ IndexChan closed")
-				break forever
-			}
-			if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
-				logf(DEBUG2, "Stopping History_DBZ IndexChan received nil pointer")
-				break forever
-			}
-			if hi.Offset == 0 {
-				log.Printf("ERROR History_DBZ offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
-				break forever
-			}
-			C1 := ""
-			if hi.Char != nil && len(*hi.Char) == 1 {
-				C1 = *hi.Char
-			} else {
-				// gets first char of hash: hash must be lowercase!
-				// hex.EncodeToString returns a lowercased string of a hashsum
-				C1 = string(string(*hi.Hash)[0])
-			}
-			if his.IndexChans[his.charsMap[C1]] != nil {
-				his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
-			} else {
-				log.Printf("ERROR History_DBZ IndexChan C1=%s=nil", C1)
-				break forever
-			}
-		} // end select
-	} // end for
+		time.Sleep(time.Second)
+		if len(waitchan) == 0 {
+			break
+		}
+	}
 	for _, achan := range his.IndexChans {
 		// passing nils to IndexChans will stop History_DBZ_Worker
 		// achan <- nil
