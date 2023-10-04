@@ -276,15 +276,17 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		cutHashlen = 2 + his.keylen
 	}
 
+	// opens history.dat for Fseeking
 	historyfile, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
 	if err != nil {
 		log.Printf("ERROR HDBZW os.OpenFile his.HF err='%v'", err)
 		return
 	}
-	//batchQueues := make(map[string]chan *BatchOffset, BoltDBs) // for this char and string is bucket
+
+	// make the batchQueue
 	for _, bucket := range HEXCHARS {
-		batchQueue := make(chan *BatchOffset, BATCHSIZE*BoltDBs) // make the batchQueue can hold 16x more than actual batchsize. eats some memory but burts performance.
-		//batchQueues[bucket] = batchQueue
+		// batchQueue can hold 4x more than actual batchsize. eats some memory but bursts performance.
+		batchQueue := make(chan *BatchOffset, BATCHSIZE*4)
 		his.BatchQueues.mux.Lock()
 		his.BatchQueues.Maps[char][bucket] = batchQueue
 		his.BatchQueues.mux.Unlock()
@@ -294,6 +296,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
+			 // every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			his.BatchQueues.Booted <- struct{}{}
 		forbatchqueue:
 			for {
