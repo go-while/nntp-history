@@ -60,11 +60,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History already booted")
 		return
 	}
+
 	if QueueWriteChan <= 0 {
 		QueueWriteChan = 1
 	} else if QueueWriteChan > 1000000 {
 		QueueWriteChan = 1000000
 	}
+
 	if BATCHFLUSH == 0 {
 		BATCHFLUSH = 3000
 	} else if BATCHFLUSH < 10 {
@@ -72,6 +74,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	} else if BATCHFLUSH > 5000 {
 		BATCHFLUSH = 5000
 	}
+
+	if BATCHSIZE < 16 {
+		BATCHFLUSH = 16
+	} else if BATCHFLUSH > 65536 {
+		BATCHFLUSH = 65536
+	}
+
 	linSlashS := "/"
 	winSlashS := "\\" // escaped
 	linSlashB := byte('/')
