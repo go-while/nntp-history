@@ -10,6 +10,7 @@ import (
 var (
 	DefaultL3CacheExpires int64 = DefaultCacheExpires
 	L3Purge               int64 = DefaultCachePurge
+	L3InitSize            int   = 128
 )
 
 type L3CACHE struct {
@@ -35,7 +36,6 @@ type L3MUXER struct {
 // The L3CACHE_Boot method initializes the L3 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
 func (l3 *L3CACHE) L3CACHE_Boot() {
-	initsize := 128
 	l3.mux.Lock()
 	defer l3.mux.Unlock()
 	if l3.caches != nil {
@@ -46,11 +46,9 @@ func (l3 *L3CACHE) L3CACHE_Boot() {
 	l3.muxers = make(map[string]*L3MUXER, 16)
 	l3.mapsizes = make(map[string]*MAPSIZES, 16)
 	for _, char := range HEXCHARS {
-		l3.caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, initsize)}
+		l3.caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.muxers[char] = &L3MUXER{}
-		l3.mapsizes[char] = &MAPSIZES{maxmapsize: initsize}
-	}
-	for _, char := range HEXCHARS {
+		l3.mapsizes[char] = &MAPSIZES{maxmapsize: L3InitSize}
 		go l3.L3Cache_Thread(char)
 	}
 } // end func L3CACHE_Boot
@@ -83,10 +81,15 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			max := l3.mapsizes[char].maxmapsize
 			case1 := maplen < 1024 && max > 4096
 			case2 := maplen == 0 && max > 1024
-			if case1 || case2 {
-				newmax := 1024
+			case3 := maplen == 0 && max > 128
+			if case1 || case2 || case3 {
+				newmax := 128
 				if case1 {
 					newmax = 4096
+				} else if case2 {
+					newmax = 1024
+				} else if case3 {
+					//newmax = 128
 				}
 				newmap := make(map[string]*L3ITEM, newmax)
 				if maplen == 0 {
