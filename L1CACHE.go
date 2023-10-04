@@ -63,10 +63,11 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 // The LockL1Cache method is used to LOCK a `MessageIDHash` for processing.
 // If the value is not in the cache or has expired, it locks the cache, updates the cache with a new value, and returns the value.
 // Possible return values:
-//   -1 == in processing
-//    0 == not a duplicate // locked article for processing
-//    1 == is a duplicate
-//    2 == retry later
+//
+//	-1 == in processing
+//	 0 == not a duplicate // locked article for processing
+//	 1 == is a duplicate
+//	 2 == retry later
 func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
@@ -80,12 +81,13 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if l1.caches[char].cache[*hash] != nil {
 		retval := l1.caches[char].cache[*hash].value
 		/*
-		if l1.caches[char].cache[*hash].expires >= now {
-			retval := l1.caches[char].cache[*hash].value
-			return retval
-		} else {
-			// entry expired
-		}*/
+			if l1.caches[char].cache[*hash].expires >= now {
+				retval := l1.caches[char].cache[*hash].value
+				return retval
+			} else {
+				// entry expired
+			}
+		*/
 		l1.muxers[char].mux.Unlock()
 		return retval
 	}
@@ -106,18 +108,18 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		cleanup := []string{}
 
 		l1.muxers[char].mux.Lock()
-		getexpired:
+	getexpired:
 		for hash, item := range l1.caches[char].cache {
 			expired := false
 			if item.expires < now {
 				// value is cached response:
 				switch item.value {
-					case -1: // processing
-						continue getexpired
-					case 1: // duplicate
-						expired = true
-					case 2: // retry
-						expired = true
+				case -1: // processing
+					continue getexpired
+				case 1: // duplicate
+					expired = true
+				case 2: // retry
+					expired = true
 				}
 				if expired {
 					cleanup = append(cleanup, hash)
