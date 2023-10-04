@@ -116,7 +116,7 @@ func main() {
 				IndexRetChan = make(chan int, 1)
 			}
 			var spam, spammer, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1, errors uint64
-			//spam = uint64(todo)/10
+			//spammer = uint64(todo)/10
 			spammer = 500000
 		fortodo:
 			for i := 1; i <= todo; i++ {
@@ -128,20 +128,13 @@ func main() {
 				spam++
 				//time.Sleep(time.Nanosecond)
 				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
-
-				if hash == history.TESTHASH1 {
-					log.Printf("TESTHASH1 i=%d", i)
-				} else if hash == history.TESTHASH2 {
-					log.Printf("TESTHASH2 i=%d", i)
-				}
-
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
-
-				retval := history.History.L1Cache.LockL1Cache(&hash, string(hash[0]), -1) // checks and locks hash for processing
+				char := string(hash[0])
+				retval := history.History.L1Cache.LockL1Cache(&hash, char, -1) // checks and locks hash for processing
 				switch retval {
 				case 0:
 					history.History.Sync_upcounter("L1CACHE_Lock")
@@ -171,15 +164,10 @@ func main() {
 					// pass
 				case 1:
 					dupes++
-					// DUPLICATE entry
-					//log.Printf("main: DUP hash='%s'", hash)
 					continue fortodo
 				case 2:
 					retry++
 					continue fortodo
-				//case -2:
-				//	cacheretry3++
-				//	continue fortodo
 				default:
 					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
 					break fortodo
@@ -190,16 +178,19 @@ func main() {
 
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
+				doa := now // date of article
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
 					MessageIDHash: &hash,
+					Char:          &char,
 					StorageToken:  &storageToken,
 					Arrival:       now,
 					Expires:       expires,
-					Date:          now - 86400*7,
+					Date:          doa, // date of article
 					ResponseChan:  responseChan,
 				}
 				history.History.WriterChan <- hobj
+
 				if useHashDB && responseChan != nil {
 					select {
 					case isDup, ok := <-responseChan:
@@ -209,8 +200,6 @@ func main() {
 							break fortodo
 						} else {
 							switch isDup {
-							//case 17:
-							//	added++
 							case 0:
 								added++
 							case 1:
@@ -241,35 +230,25 @@ func main() {
 		}
 		time.Sleep(time.Second / 10)
 	}
-	history.History.WriterChan <- nil // closes workers
-	for {
-		time.Sleep(time.Second)
-		lock1, v1 := len(history.HISTORY_WRITER_LOCK) > 0, len(history.HISTORY_WRITER_LOCK)
-		lock2, v2 := len(history.HISTORY_INDEX_LOCK) > 0, len(history.HISTORY_INDEX_LOCK)
-		lock3, v3 := len(history.HISTORY_INDEX_LOCK16) > 0, len(history.HISTORY_INDEX_LOCK16)
-		lock4, v4 := len(history.History.BatchQueues.Booted) > 0, len(history.History.BatchQueues.Booted)
-		lock5, v5 := history.History.GetBoltHashOpen() > 0, history.History.GetBoltHashOpen()
-		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 {
-			break
-		}
-		log.Printf("wait: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5)
-	}
+	history.History.CLOSE_HISTORY()
+
+	// get some numbers
 	key_add := history.History.GetCounter("key_add")
 	key_app := history.History.GetCounter("key_app")
 	fseeks := history.History.GetCounter("FSEEK")
 	fseekeof := history.History.GetCounter("FSEEK_EOF")
 	L1CACHE_Lock := history.History.GetCounter("L1CACHE_Lock")
-	L1CACHE_Get := history.History.GetCounter("L1CACHE_Get")
+	//L1CACHE_Get := history.History.GetCounter("L1CACHE_Get")
 	L2CACHE_Get := history.History.GetCounter("L2CACHE_Get")
 	L3CACHE_Get := history.History.GetCounter("L3CACHE_Get")
 	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
-	multioffsets := history.History.GetCounter("multioffsets")
+	gotmultioffsets := history.History.GetCounter("gotmultioffsets")
 	searches := history.History.GetCounter("searches")
 	inserted1 := history.History.GetCounter("inserted1")
 	inserted2 := history.History.GetCounter("inserted2")
 	total := key_add + key_app
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d multioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, multioffsets, searches, inserted1, inserted2)
-	log.Printf("L1LOCK=%d | Get: L1=%d L2=%d L3=%d ", L1CACHE_Lock, L1CACHE_Get, L2CACHE_Get, L3CACHE_Get)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, searches, inserted1, inserted2)
+	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get)
 	log.Printf("done=%d took %d seconds", todo*parallelTest, utils.UnixTimeSec()-start)
 	/*
 		runtime.GC()
