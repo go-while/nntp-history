@@ -68,8 +68,8 @@ To use the `History_Boot` function, follow these steps:
 
 ## File Descriptors: 33 (+ 3 /dev/pts + 1 anon_inode: + 2 pipe: ?) = 39
 
-- Writer History.dat: 1 + 16 Fseeks
-- HashDB: 16
+- Writer History.dat: 1
+- HashDB: 16 + 16 Fseeks
 
 ```sh
 ls -lha /proc/$(pidof nntp-history-test)/fd
