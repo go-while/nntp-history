@@ -63,8 +63,14 @@ func (l2 *L2CACHE) L2Cache_Thread() {
 			}
 			maplen := len(l2.cache)
 			max := l2.mapsize
-			if maplen < 1024 && max > 4096 || maplen == 0 && max == 1024 {
-				newmap := make(map[int64]*L2ITEM, 1024)
+			case1 := maplen < 1024 && max > 4096
+			case2 := maplen == 0 && max > 1024
+			if case1 || case2 {
+				newmax := 1024
+				if case1 {
+					newmax = 4096
+				}
+				newmap := make(map[int64]*L2ITEM, newmax)
 				if maplen == 0 {
 					l2.cache = newmap
 				} else {
@@ -73,7 +79,7 @@ func (l2 *L2CACHE) L2Cache_Thread() {
 					}
 					l2.cache = newmap
 				}
-				l2.mapsize = 1024
+				l2.mapsize = newmax
 				logf(DEBUG2, "L2Cache_Thread shrink size to 1024")
 			}
 			newmax := l2.mapsize
