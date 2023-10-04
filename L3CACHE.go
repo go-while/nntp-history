@@ -99,11 +99,10 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 					l3.caches[char].cache = newmap
 				}
 				l3.mapsizes[char].maxmapsize = newmax
-				logf(DEBUG2, "L3Cache_Thread [%s] shrink size to 1024", char)
+				logf(DEBUG2, "L3Cache_Thread [%s] shrink size to %d", char, newmax)
 			}
-			newmax := l3.mapsizes[char].maxmapsize
+			//logf(DEBUG2, "L3Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, l3.mapsizes[char].maxmapsize, max)
 			l3.muxers[char].mux.Unlock()
-			logf(DEBUG2, "L3Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, newmax, max)
 			cleanup = nil
 		}
 		logf(DEBUG2, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
@@ -121,7 +120,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64) {
 	if char == "" {
 		char = string(key[0])
 	}
-	start := utils.UnixTimeMilliSec()
+	//start := utils.UnixTimeMilliSec()
 	l3.muxers[char].mux.Lock()
 
 	if len(l3.caches[char].cache) >= int(l3.mapsizes[char].maxmapsize/100*98) { // grow map
@@ -132,7 +131,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64) {
 		}
 		l3.caches[char].cache = newmap
 		l3.mapsizes[char].maxmapsize = newmax
-		logf(DEBUG1, "L3CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		//logf(DEBUG1, "L3CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 
 	l3.caches[char].cache[key] = &L3ITEM{offsets: *offsets, expires: utils.UnixTimeSec() + DefaultL3CacheExpires}
