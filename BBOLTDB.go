@@ -156,12 +156,9 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	dbpath := his.HF_hash + "." + char
 	if boltOpts == nil {
 		defboltOpts := bolt.Options{
-			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 128 * 1024 * 1024,
-			PageSize:        4 * 1024,
-			NoSync:          true,
-			//NoFreelistSync: true,
+			InitialMmapSize: 1024 * 1024 * 1024,
+			PageSize:        64 * 1024,
 		}
 		boltOpts = &defboltOpts
 	}
