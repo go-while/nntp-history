@@ -50,7 +50,6 @@ var (
 // It creates worker channels for each character in HEXCHARS and launches corresponding worker goroutines.
 // The provided boltOpts parameter allows configuring the BoltDB database options.
 func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
-	logf(DEBUG2, "his.History_DBZinit()")
 	if his.boltInitChan != nil {
 		log.Printf("ERROR History_DBZinit already loaded")
 		return
@@ -92,7 +91,7 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		}
 		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
-	logf(DEBUG, "his.History_DBZinit() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
+	logf(DEBUG2, "his.History_DBZinit() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
 	go his.History_DBZ()
 } // end func History_DBZinit
 
@@ -104,18 +103,18 @@ func (his *HISTORY) History_DBZ() {
 	}
 	defer UNLOCKfunc(HISTORY_INDEX_LOCK, "History_DBZ")
 	his.wait4HashDB()
-	logf(DEBUG1, "Boot History_DBZ")
-	defer log.Printf("Quit History_DBZ")
+	logf(DEBUG2, "Boot History_DBZ")
+	defer logf(DEBUG2, "Quit History_DBZ")
 forever:
 	for {
 		select {
 		case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
 			if !ok {
-				log.Printf("Stopping History_DBZ IndexChan closed")
+				logf(DEBUG2, "Stopping History_DBZ IndexChan closed")
 				break forever
 			}
 			if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
-				log.Printf("Stopping History_DBZ IndexChan received nil pointer")
+				logf(DEBUG2, "Stopping History_DBZ IndexChan received nil pointer")
 				break forever
 			}
 			if hi.Offset == 0 {
