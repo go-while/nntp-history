@@ -183,7 +183,7 @@ func main() {
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
 				//expires := int64(1234) // will expire on next expiry run
-				doa := now                // date of article
+				doa := now // date of article
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
 					MessageIDHash: &hash,
@@ -234,12 +234,12 @@ func main() {
 		}
 		time.Sleep(time.Second / 10)
 	}
-	took := utils.UnixTimeSec()-start
+	took := utils.UnixTimeSec() - start
 
 	// close history
 	closewait := utils.UnixTimeSec()
 	history.History.CLOSE_HISTORY()
-	waited := utils.UnixTimeSec()-closewait
+	waited := utils.UnixTimeSec() - closewait
 
 	// get some numbers
 	key_add := history.History.GetCounter("key_add")
