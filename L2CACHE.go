@@ -11,6 +11,7 @@ import (
 var (
 	DefaultL2CacheExpires int64 = DefaultCacheExpires
 	L2Purge               int64 = DefaultCachePurge
+	L2InitSize            int   = 128
 )
 
 type L2CACHE struct {
@@ -36,7 +37,6 @@ type L2MUXER struct {
 // The L2CACHE_Boot method initializes the L2 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
 func (l2 *L2CACHE) L2CACHE_Boot() {
-	initsize := 128
 	l2.mux.Lock()
 	defer l2.mux.Unlock()
 	if l2.caches != nil {
@@ -47,11 +47,9 @@ func (l2 *L2CACHE) L2CACHE_Boot() {
 	l2.muxers = make(map[string]*L2MUXER, 16)
 	l2.mapsizes = make(map[string]*MAPSIZES, 16)
 	for _, char := range HEXCHARS {
-		l2.caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, initsize)}
+		l2.caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.muxers[char] = &L2MUXER{}
-		l2.mapsizes[char] = &MAPSIZES{maxmapsize: initsize}
-	}
-	for _, char := range HEXCHARS {
+		l2.mapsizes[char] = &MAPSIZES{maxmapsize: L2InitSize}
 		go l2.L2Cache_Thread(char)
 	}
 } // end func L2CACHE_Boot
@@ -84,10 +82,15 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 			max := l2.mapsizes[char].maxmapsize
 			case1 := maplen < 1024 && max > 4096
 			case2 := maplen == 0 && max > 1024
-			if case1 || case2 {
-				newmax := 1024
+			case3 := maplen == 0 && max > 128
+			if case1 || case2 || case3 {
+				newmax := 128
 				if case1 {
 					newmax = 4096
+				} else if case2 {
+					newmax = 1024
+				} else if case3 {
+					//newmax = 128
 				}
 				newmap := make(map[int64]*L2ITEM, newmax)
 				if maplen == 0 {
@@ -118,23 +121,25 @@ func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string) {
 		return
 	}
 	char := OffsetToChar(offset)
-
+	if char == nil {
+		return
+	}
 	//start := utils.UnixTimeMilliSec()
-	l2.muxers[char].mux.Lock()
+	l2.muxers[*char].mux.Lock()
 
-	if len(l2.caches[char].cache) >= int(l2.mapsizes[char].maxmapsize/100*98) { // grow map
-		newmax := l2.mapsizes[char].maxmapsize * 2
+	if len(l2.caches[*char].cache) >= int(l2.mapsizes[*char].maxmapsize/100*98) { // grow map
+		newmax := l2.mapsizes[*char].maxmapsize * 2
 		newmap := make(map[int64]*L2ITEM, newmax)
-		for k, v := range l2.caches[char].cache {
+		for k, v := range l2.caches[*char].cache {
 			newmap[k] = v
 		}
-		l2.caches[char].cache = newmap
-		l2.mapsizes[char].maxmapsize = newmax
+		l2.caches[*char].cache = newmap
+		l2.mapsizes[*char].maxmapsize = newmax
 		//logf(DEBUG1, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 
-	l2.caches[char].cache[*offset] = &L2ITEM{hash: *hash, expires: utils.UnixTimeSec() + DefaultL2CacheExpires}
-	l2.muxers[char].mux.Unlock()
+	l2.caches[*char].cache[*offset] = &L2ITEM{hash: *hash, expires: utils.UnixTimeSec() + DefaultL2CacheExpires}
+	l2.muxers[*char].mux.Unlock()
 } // end func SetOffsetHash
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
@@ -144,15 +149,19 @@ func (l2 *L2CACHE) GetHashFromOffset(offset *int64) (hash *string) {
 		return
 	}
 	char := OffsetToChar(offset)
-	l2.muxers[char].mux.Lock()
-	if l2.caches[char].cache[*offset] != nil {
-		item := l2.caches[char].cache[*offset]
+	if char == nil {
+		return
+	}
+	l2.muxers[*char].mux.Lock()
+	if l2.caches[*char].cache[*offset] != nil {
+		item := l2.caches[*char].cache[*offset]
 		hash = &item.hash
 	}
-	l2.muxers[char].mux.Unlock()
+	l2.muxers[*char].mux.Unlock()
 	return
 } // end func GetHashFromOffset
 
+/*
 // The Delete method deletes a cache item from the L2 cache using an offset as the key.
 func (l2 *L2CACHE) Delete(offset *int64) {
 	if offset == nil || *offset <= 0 {
@@ -160,11 +169,23 @@ func (l2 *L2CACHE) Delete(offset *int64) {
 		return
 	}
 	char := OffsetToChar(offset)
-	l2.muxers[char].mux.Lock()
-	delete(l2.caches[char].cache, *offset)
-	l2.muxers[char].mux.Unlock()
+	l2.muxers[*char].mux.Lock()
+	delete(l2.caches[*char].cache, *offset)
+	l2.muxers[*char].mux.Unlock()
 } // end func Delete
+*/
 
-func OffsetToChar(offset *int64) (char string) {
-	return string(fmt.Sprintf("%x", *offset)[0])
+func OffsetToChar(offset *int64) *string {
+	if offset == nil {
+		log.Printf("ERROR L2CACHE.OffsetToChar offset=nil")
+		return nil
+	}
+	// get first char from hex: less random. repeats itself for longer period
+	//char := string(fmt.Sprintf("%x", *offset)[0])
+
+	// get last char from hex: the last char is more random
+	hex := fmt.Sprintf("%x", *offset)
+	char := string(hex[len(hex)-1])
+	//log.Printf("OffsetToChar = %s", char)
+	return &char
 } // end func OffsetToChar
