@@ -21,20 +21,23 @@ import (
 )
 
 const (
+	// never change this
 	HashShort  int = 11
 	HashFNV32  int = 22
 	HashFNV32a int = 33
 	HashFNV64  int = 44
 	HashFNV64a int = 55
 	MinKeyLen  int = 6
-	BoltDBs    int = 16 // never change this
+	BoltDBs    int = 16
 )
 
 var (
 	BATCHSIZE            int    = 100
+	QueueIndexChan       int    = BoltDBs // Main-indexchan can queue this
+	QueueIndexChans      int    = BoltDBs // every sub-indexchans for a `char` can queue this
 	DefaultKeyLen        int    = 8
-	Bolt_SYNC_EVERYs     int64  = 60                           // call db.sync() every seconds (only used with 'boltopts.NoSync = true')
-	Bolt_SYNC_EVERYn     uint64 = 1000                         // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
+	Bolt_SYNC_EVERYs     int64  = 5                            // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
+	Bolt_SYNC_EVERYn     uint64 = 100                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int    = BoltDBs                      // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
 	BoltSYNCParallel     int    = BoltDBs                      // set this via 'history.BoltSYNCParallel = 1' before calling History_Boot.
 	BoltHashOpen                = make(chan struct{}, BoltDBs) // dont change this
@@ -51,14 +54,32 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		log.Printf("ERROR History_DBZinit already loaded")
 		return
 	}
-	his.boltInitChan = make(chan struct{}, BoltINITParallel)
-	if BoltSYNCParallel != BoltDBs && BoltSYNCParallel >= 1 || BoltSYNCParallel < BoltSYNCParallel {
-		his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
+	if BoltINITParallel == 0 {
+		BoltINITParallel = 1
+	} else if BoltINITParallel < 0 || BoltINITParallel > BoltDBs {
+		BoltINITParallel = BoltDBs
 	}
+	if BoltSYNCParallel == 0 {
+		BoltSYNCParallel = 1
+	} else if BoltSYNCParallel < 0 || BoltSYNCParallel > BoltDBs {
+		BoltSYNCParallel = BoltDBs
+	}
+	if QueueIndexChan <= 0 {
+		QueueIndexChan = 1
+	} else if QueueIndexChan > 1000000 {
+		QueueIndexChan = 1000000
+	}
+	if QueueIndexChans <= 0 {
+		QueueIndexChans = 1
+	} else if QueueIndexChans > 1000000 {
+		QueueIndexChans = 1000000
+	}
+	his.boltInitChan = make(chan struct{}, BoltINITParallel)
+	his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
 	his.BatchLocks = make(map[string]map[string]chan struct{}, BoltDBs)
 	for i, char := range HEXCHARS {
 		his.charsMap[char] = i
-		his.IndexChans[i] = make(chan *HistoryIndex, 1)
+		his.IndexChans[i] = make(chan *HistoryIndex, QueueIndexChans)
 		his.BatchLocks[char] = make(map[string]chan struct{}, BoltDBs)
 		for _, bucket := range HEXCHARS {
 			his.BatchLocks[char][bucket] = make(chan struct{}, 1)
@@ -308,7 +329,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 					if len(batchQueue) == 0 {
 						lastflush = utils.UnixTimeMilliSec()
 					}
-					if lastflush < utils.UnixTimeMilliSec()-3000 && len(batchQueue) > 0 {
+					if lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH && len(batchQueue) > 0 {
 						forced = true
 						timer = 1
 					}
