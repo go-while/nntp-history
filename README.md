@@ -34,6 +34,8 @@ To use the `History_Boot` function, follow these steps:
 
 - It is primarily responsible for writing data to a historical data storage system, using a HashDB (BoltDB) to avoid duplicate entries.
 
+- To send data for writing, you create a `HistoryObject` and send it through the channel.
+
 - If the `ResponseChan` channel is provided, it receives one of the following (int) values:
 ```go
   /*
@@ -131,14 +133,6 @@ ls -lha /proc/$(pidof nntp-history-test)/fd|grep history.dat$|wc -l
 ls -lha /proc/$(pidof nntp-history-test)/fd|grep history.dat.hash|wc -l
 ```
 
-
-## Sending History Data
-
-- To send historical data for writing, you create a HistoryObject and send it through the channel.
-
-## Error Handling
-
-The `History_Boot` function performs basic error checks and logs errors if the history system is already booted.
 
 ## Contributing
 
