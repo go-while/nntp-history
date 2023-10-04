@@ -206,5 +206,12 @@ ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | k
 
 ## Checking 400.000.000 `i` hashes (75% duplicates)
 ```sh
+/nntp-history-test -todo=100000000
+ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+2023/10/04 18:16:33 History: new=false
+  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  KeyAlgo=11 KeyLen=6 QueueWriteChan=16
+  HashDBQueues:{QueueIndexChan=16 QueueIndexChans=16}
+...
 
 ```
