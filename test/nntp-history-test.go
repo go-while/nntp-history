@@ -51,7 +51,7 @@ func main() {
 		BatchSize = 16
 	}
 	runtime.GOMAXPROCS(numCPU)
-	fmt.Printf("CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
+	fmt.Printf("ARGS: CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	//time.Sleep(3*time.Second)
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
@@ -70,8 +70,8 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BATCHSIZE = BatchSize // this BatchSize queues this amount in db[char][bucket]queuechan
-		history.BATCHFLUSH = 2500     // ( can be: 10-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		history.BATCHSIZE = BatchSize // ( can be: 16-65536 ) this BatchSize queues this amount in db[char][bucket]queuechan
+		history.BATCHFLUSH = 5000     // ( can be: 10-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
