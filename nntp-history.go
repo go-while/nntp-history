@@ -1,6 +1,7 @@
 package history
 
 import (
+	"encoding/gob"
 	"bufio"
 	"fmt"
 	//"github.com/edsrzf/mmap-go"
@@ -12,7 +13,6 @@ import (
 	"strings"
 	//"github.com/dgraph-io/badger"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -32,55 +32,9 @@ var (
 	DEBUG9              bool = false
 	History             HISTORY
 	HISTORY_WRITER_LOCK        = make(chan struct{}, 1)
-	HEXCHARS                   = [16]string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash             string = "EOF"
 )
-
-type HISTORY struct {
-	mux     sync.Mutex
-	cmux    sync.Mutex // sync counter
-	L1Cache L1CACHE
-	L2CACHE L2CACHE
-	L3CACHE L3CACHE
-	boltInitChan chan struct{}
-	boltSyncChan chan struct{}
-	Offset       int64
-	HF           string // = "history/history.dat"
-	HF_hash      string // = "history/history.Hash"
-	WriterChan   chan *HistoryObject
-	IndexChan    chan *HistoryIndex
-	IndexChans   [16]chan *HistoryIndex
-	BatchLocks   map[string]map[string]chan struct{}
-	charsMap     map[string]int
-	useHashDB    bool
-	keyalgo      int
-	keylen       int
-	win          bool
-	Counter      map[string]uint64
-	BatchQueues  *BQ
-}
-
-type BQ struct {
-	mux    sync.Mutex
-	Maps   map[string]map[string]chan *BatchOffset
-	Booted chan struct{}
-}
-
-type HistoryObject struct {
-	MessageIDHash *string
-	StorageToken  *string // "F" = flatstorage | "M" = mongodb | "X" = deleted
-	Char          string
-	Arrival       int64
-	Expires       int64
-	Date          int64
-	ResponseChan  chan int // receives a 0,1,2 if not|duplicate|retrylater
-}
-
-/* builds the history.dat header */
-type HistorySettings struct {
-	KeyAlgo int
-	KeyLen  int
-}
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
 // It sets up the necessary directories for history and hash databases, and opens the history data file.
@@ -96,6 +50,8 @@ type HistorySettings struct {
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, readq int, writeq int, boltOpts *bolt.Options, keyalgo int, keylen int) {
+	gob.Register(GOBOFFSETS{})
+	//gob.RegisterName("GOBOFFSETS", GOBOFFSETS{})
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -231,8 +187,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 
 	his.L1Cache.L1CACHE_Boot()
-	his.L2CACHE.L2CACHE_Boot()
-	his.L3CACHE.L3CACHE_Boot()
+	his.L2Cache.L2CACHE_Boot()
+	his.L3Cache.L3CACHE_Boot()
 
 	if useHashDB {
 		his.useHashDB = true
@@ -340,7 +296,7 @@ forever:
 				hobj.Arrival = utils.UnixTimeSec()
 			}
 			if History.IndexChan != nil {
-				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Offset: his.Offset, IndexRetChan: indexRetChan}
+				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
 				select {
 				case isDup, ok := <-indexRetChan:
 					if !ok {
@@ -444,43 +400,6 @@ func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush boo
 	return nil
 } // end func writeHistoryHeader
 
-type FSEEK struct {
-	offset  *int64
-	retchan chan *string
-}
-
-/*
-func (his *HISTORY) Fseeker() {
-	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
-	if err != nil {
-		log.Printf("ERROR FseekWorker err='%v'", err)
-		return
-	}
-	defer file.Close()
-	fseekchan := make(chan FSEEK, 16)
-forever:
-	for {
-		select {
-			case fs := <- fseekchan:
-				hash, err := his.FseekHistoryMessageHash(file, fs.offset)
-				if err != nil {
-					continue forever
-				}
-				if fs.retchan != nil {
-					fs.retchan <- hash
-				}
-				/,*
-				_, seekErr := file.Seek(*fs.offset, 0)
-				if seekErr != nil {
-					log.Printf("ERROR FseekWorker seekErr='%v' fp='%s'", seekErr, his.HF)
-					continue forever
-				}
-				*,/
-		}
-	}
-} // end func Fseeker
-*/
-
 // FseekHistoryMessageHash seeks to a specified offset in the history file and extracts a message-ID hash.
 // It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
 // If a valid hash is found, it returns the hash as a string without curly braces.
@@ -498,7 +417,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		defer file.Close()
 	}
 
-	if hash := his.L2CACHE.L2CACHE_GetHashFromOffset(offset); hash != nil {
+	if hash := his.L2Cache.GetHashFromOffset(offset); hash != nil {
 		his.Sync_upcounter("L2CACHE_Get")
 		return hash, nil
 	}
@@ -533,7 +452,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
-			his.L2CACHE.L2CACHE_SetOffsetHash(offset, &hash)
+			his.L2Cache.SetOffsetHash(offset, &hash)
 			return &hash, nil
 		}
 	}
@@ -596,3 +515,41 @@ func logf(debug bool, format string, a ...any) {
 		log.Printf(format, a...)
 	}
 } // end logf
+
+func (his *HISTORY) CLOSE_HISTORY() {
+	his.mux.Lock()
+	defer his.mux.Unlock()
+	defer log.Printf("CLOSE_HISTORY DONE")
+	if his.WriterChan == nil {
+		return
+	}
+	his.WriterChan <- nil // closes workers
+	for {
+		time.Sleep(time.Second)
+		lock1, v1 := len(HISTORY_WRITER_LOCK) > 0, len(HISTORY_WRITER_LOCK)
+		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
+		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
+		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
+		lock5, v5 := len(his.BatchQueues.Booted) > 0, len(his.BatchQueues.Booted)
+		batchQ := 0
+		for _, char := range HEXCHARS {
+			for _, bucket := range HEXCHARS {
+				/*
+				qchan := his.BatchQueues.Maps[char][bucket]
+				if qchan == nil {
+					log.Printf("ERROR his.BatchQueues.Maps[%s][%s] qchan=nil", char, bucket)
+					continue
+				}
+				batchQ += len(qchan)
+				*/
+				batchQ += len(his.BatchQueues.Maps[char][bucket])
+			}
+		}
+		lockBatch := batchQ > 0
+		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !lockBatch {
+			break
+		}
+		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d lockBatch=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, lockBatch, batchQ)
+	}
+	his.WriterChan = nil
+} // end func CLOSE_HISTORY
