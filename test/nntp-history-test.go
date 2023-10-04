@@ -182,6 +182,7 @@ func main() {
 
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
+				//expires := int64(1234) // will expire on next expiry run
 				doa := now                // date of article
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
