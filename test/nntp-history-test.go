@@ -71,7 +71,7 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		history.BATCHSIZE = BatchSize // this BatchSize queues this amount in db[char][bucket]queuechan
-		history.BATCHFLUSH = 2500 // ( can be: 10-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		history.BATCHFLUSH = 2500     // ( can be: 10-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
@@ -182,7 +182,7 @@ func main() {
 
 				now := utils.UnixTimeSec()
 				expires := now + 86400*10 // expires in 10 days
-				doa := now // date of article
+				doa := now                // date of article
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
 					MessageIDHash: &hash,
