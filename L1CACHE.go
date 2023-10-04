@@ -10,6 +10,7 @@ import (
 var (
 	DefaultL1CacheExpires int64 = DefaultCacheExpires
 	L1Purge               int64 = DefaultCachePurge
+	L1InitSize            int   = 128
 )
 
 type L1CACHE struct {
@@ -39,7 +40,6 @@ type MAPSIZES struct {
 // The L1CACHE_Boot method initializes the cache system.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
 func (l1 *L1CACHE) L1CACHE_Boot() {
-	initsize := 128
 	l1.mux.Lock()
 	defer l1.mux.Unlock()
 	if l1.caches != nil {
@@ -50,11 +50,9 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 	l1.muxers = make(map[string]*L1MUXER, 16)
 	l1.mapsizes = make(map[string]*MAPSIZES, 16)
 	for _, char := range HEXCHARS {
-		l1.caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, initsize)}
+		l1.caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.muxers[char] = &L1MUXER{}
-		l1.mapsizes[char] = &MAPSIZES{maxmapsize: initsize}
-	}
-	for _, char := range HEXCHARS {
+		l1.mapsizes[char] = &MAPSIZES{maxmapsize: L1InitSize}
 		go l1.L1Cache_Thread(char)
 	}
 } // end func L1CACHE_Boot
@@ -136,10 +134,15 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 			max := l1.mapsizes[char].maxmapsize
 			case1 := maplen < 1024 && max > 4096
 			case2 := maplen == 0 && max > 1024
-			if case1 || case2 {
-				newmax := 1024
+			case3 := maplen == 0 && max > 128
+			if case1 || case2 || case3 {
+				newmax := 128
 				if case1 {
 					newmax = 4096
+				} else if case2 {
+					newmax = 1024
+				} else if case3 {
+					//newmax = 128
 				}
 				newmap := make(map[string]*L1ITEM, newmax)
 				if maplen == 0 {
