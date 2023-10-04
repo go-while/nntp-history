@@ -54,7 +54,6 @@ func main() {
 	fmt.Printf("CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	//time.Sleep(3*time.Second)
 	storageToken := "F" // storagetoken flatfile
-	readq, writeq := parallelTest, parallelTest
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
 	// the KeyLen defines length of hash we use as key in 'boltDB[a-f0-9][bucket][key]' minimum is 3
@@ -64,23 +63,28 @@ func main() {
 	// a server with very little messages can go as low as HashLen: 3.
 	// one can use debugs to see if keys got added or appended ort if retrieved key has more than 1 offset stored.
 	// meaningful range for KeyLen is 5-8. much longer is not better but bloats up the hashdb.
-	// KeyLen max 32(-2) with md5
-	// KeyLen max 40(-2) with sha1
-	// KeyLen max 64(-2) with sha256
-	// KeyLen max 128(-2) with sha512
+	// KeyLen max 32 with md5
+	// KeyLen max 40 with sha1
+	// KeyLen max 64 with sha256
+	// KeyLen max 128 with sha512
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BATCHSIZE = BatchSize
-		history.Bolt_SYNC_EVERYs = 60
-		history.Bolt_SYNC_EVERYn = 50000
-		history.BoltINITParallel = 4 // ( can be 1-16 ) default: `history.BoltDBs`
-		history.BoltSYNCParallel = 1 // ( can be 1-16 ) default: `history.BoltDBs`
-		// not safe to change any values later while running!
+		history.BATCHSIZE = BatchSize // this BatchSize queues this amount in db[char][bucket]queuechan
+		history.BATCHFLUSH = 2500 // ( can be: 10-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		// "SYNC" options are only used with 'boltopts.NoSync: true'
+		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
+		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
+		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
+		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16
+		//history.QueueWriteChan = 1     // ( can be any value > 0 ) default: 16
+		//history.QueueIndexChan = 1     // ( can be any value > 0 ) default: 16
+		//history.QueueIndexChans = 1    // ( can be any value > 0 ) default: 16
+		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 1024 * 1024 * 1024,
+			InitialMmapSize: 2 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
 			PageSize:        64 * 1024,
 			//NoSync:          true,
 			//NoFreelistSync: true,
@@ -95,7 +99,7 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, readq, writeq, boltOpts, KeyAlgo, KeyLen)
+	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
