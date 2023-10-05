@@ -682,7 +682,6 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 	//his.mux.Unlock()
 
 	if batchQueue != nil {
-		//his.boltBucketPutBatch(db, char, bucket, batchQueue, false, "putfunc")
 		batchQueue <- &BatchOffset{bucket: *bucket, key: *key, gobEncodedOffsets: gobEncodedOffsets}
 		return nil
 	}
@@ -1018,6 +1017,7 @@ func FNV64aS(data *string) *string {
 } // end func FNV64aS
 
 func gobEncodeHeader(settings *HistorySettings) (*[]byte, error) {
+	gob.Register(HistorySettings{})
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
 	err := encoder.Encode(settings)
@@ -1041,7 +1041,7 @@ func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
 	//buf := bytes.NewBuffer(encodedData)
 	decoder := gob.NewDecoder(buf)
 	settings := &HistorySettings{}
-	err = decoder.Decode(&settings)
+	err = decoder.Decode(settings)
 	if err != nil {
 		log.Printf("ERROR gobDecodeHeader Decode err='%v'", err)
 		return nil, err
@@ -1050,6 +1050,7 @@ func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
 } // end func gobDecodeHeader
 
 func gobEncodeOffsets(offsets []int64, src string) ([]byte, error) {
+	gob.Register(GOBOFFSETS{})
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
 	gobOffsets := &GOBOFFSETS{Offsets: offsets}
