@@ -9,9 +9,10 @@ import (
 )
 
 var (
+	DEBUGL2 bool
 	DefaultL2CacheExpires int64 = DefaultCacheExpires
 	L2Purge               int64 = DefaultCachePurge
-	L2InitSize            int   = 128
+	L2InitSize            int   = 16
 )
 
 type L2CACHE struct {
@@ -57,61 +58,77 @@ func (l2 *L2CACHE) L2CACHE_Boot() {
 // The L2Cache_Thread function runs as a goroutine for each character.
 // It periodically cleans up expired cache entries and dynamically shrinks the cache size if needed.
 func (l2 *L2CACHE) L2Cache_Thread(char string) {
-	logf(DEBUG2, "Boot L2Cache_Thread [%s]", char)
+	logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
 	//forever
+	cleanup := []int64{}
 	for {
 		time.Sleep(time.Duration(L2Purge) * time.Second)
 		now := utils.UnixTimeSec()
 		start := utils.UnixTimeMilliSec()
-		cleanup := []int64{}
 
 		l2.muxers[char].mux.Lock()
 		for key, item := range l2.caches[char].cache {
 			if item.expires < now {
+				logf(DEBUGL2, "L2 expire key='%#v' item='%#v' age=%d", key, item, now - item.expires)
 				cleanup = append(cleanup, key)
 			}
 		}
+		maplen := len(l2.caches[char].cache)
 		l2.muxers[char].mux.Unlock()
 
 		if len(cleanup) > 0 {
+			maplen -= len(cleanup)
 			l2.muxers[char].mux.Lock()
 			for _, key := range cleanup {
 				delete(l2.caches[char].cache, key)
 			}
-			maplen := len(l2.caches[char].cache)
 			max := l2.mapsizes[char].maxmapsize
-			case1 := maplen < 1024 && max > 4096
-			case2 := maplen == 0 && max > 1024
-			case3 := maplen == 0 && max > 128
-			if case1 || case2 || case3 {
-				newmax := 128
-				if case1 {
-					newmax = 4096
-				} else if case2 {
-					newmax = 1024
-				} else if case3 {
-					//newmax = 128
-				}
-				newmap := make(map[int64]*L2ITEM, newmax)
-				if maplen == 0 {
-					l2.caches[char].cache = newmap
-				} else {
-					for k, v := range l2.caches[char].cache {
-						newmap[k] = v
-					}
-					l2.caches[char].cache = newmap
-				}
-				l2.mapsizes[char].maxmapsize = newmax
-				logf(DEBUG2, "L2Cache_Thread [%s] shrink size to %d", char, newmax)
-			}
-			//logf(DEBUG2, "L2Cache_Thread [%s] deleted=%d maplen=%d/%d oldmax=%d", char, len(cleanup), maplen, l2.mapsizes[char].maxmapsize, max)
 			l2.muxers[char].mux.Unlock()
+			logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
 			cleanup = nil
 		}
-		logf(DEBUG2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+		l2.shrinkMapIfNeeded(char, maplen)
+		logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 	} // end for
 
 } //end func L2Cache_Thread
+
+func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int) {
+	shrinkmin := L2InitSize
+	oldmax := l2.mapsizes[char].maxmapsize
+	thresholdFactor := 0.125
+	threshold := int(float64(oldmax) * thresholdFactor)
+	if maplen > threshold {
+		return
+	}
+	thresmax := threshold * 4
+	logf(DEBUGL2, "L2 [%s] PRE-SHRINK maplen=%d threshold=%d oldmax=%d thresmax=%d", char, maplen, threshold, oldmax, thresmax)
+	if maplen < threshold && oldmax >= thresmax && thresmax > shrinkmin {
+		newmax := threshold * 4
+		if newmax < shrinkmin {
+			newmax = shrinkmin
+		} else if oldmax == shrinkmin && newmax == shrinkmin {
+			// dont shrink lower than this
+			return
+		}
+		l2.shrinkMap(char, newmax, maplen)
+	}
+} // end func shrinkMapIfNeeded
+
+func (l2 *L2CACHE) shrinkMap(char string, newmax int, maplen int) {
+	newmap := make(map[int64]*L2ITEM, newmax)
+	l2.muxers[char].mux.Lock()
+	if maplen > 0 {
+		for k, v := range l2.caches[char].cache {
+			newmap[k] = v
+		}
+	}
+	l2.caches[char].cache = nil
+	l2.caches[char].cache = newmap
+	l2.mapsizes[char].maxmapsize = newmax
+	l2.muxers[char].mux.Unlock()
+	logf(DEBUGL2, "L2Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
+} // end func shrinkMap
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
 // It also dynamically grows the cache when necessary.
@@ -124,18 +141,18 @@ func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string) {
 	if char == nil {
 		return
 	}
-	//start := utils.UnixTimeMilliSec()
+	start := utils.UnixTimeMilliSec()
 	l2.muxers[*char].mux.Lock()
 
-	if len(l2.caches[*char].cache) >= int(l2.mapsizes[*char].maxmapsize/100*98) { // grow map
-		newmax := l2.mapsizes[*char].maxmapsize * 2
+	if len(l2.caches[*char].cache) >= int(l2.mapsizes[*char].maxmapsize/100*48) { // grow map
+		newmax := l2.mapsizes[*char].maxmapsize * 4
 		newmap := make(map[int64]*L2ITEM, newmax)
 		for k, v := range l2.caches[*char].cache {
 			newmap[k] = v
 		}
 		l2.caches[*char].cache = newmap
 		l2.mapsizes[*char].maxmapsize = newmax
-		//logf(DEBUG1, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DEBUGL2, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 
 	l2.caches[*char].cache[*offset] = &L2ITEM{hash: *hash, expires: utils.UnixTimeSec() + DefaultL2CacheExpires}
