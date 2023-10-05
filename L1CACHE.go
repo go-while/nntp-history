@@ -61,10 +61,10 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 // If the value is not in the cache or has expired, it locks the cache, updates the cache with a new value, and returns the value.
 // Possible return values:
 //
-//	-1 == in processing
-//	 0 == not a duplicate // locked article for processing
-//	 1 == is a duplicate
-//	 2 == retry later
+//	CaseLock == in processing
+//	CaseDupes == is a duplicate
+//	CaseRetry == retry later
+//	CasePass == not a duplicate // locked article for processing
 func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if hash == nil || *hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
@@ -73,19 +73,9 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	if char == "" {
 		char = string(string(*hash)[0])
 	}
-	//now := utils.UnixTimeSec()
 	l1.muxers[char].mux.Lock()
 	if l1.caches[char].cache[*hash] != nil {
 		retval := l1.caches[char].cache[*hash].value
-		//logf(DEBUG9, "LOCKED hash=%s char=%s value=%#v CaseLock=%d=%x", *hash, char, value, CaseLock, CaseLock)
-		/*
-			if l1.caches[char].cache[*hash].expires >= now {
-				retval := l1.caches[char].cache[*hash].value
-				return retval
-			} else {
-				// entry expired
-			}
-		*/
 		l1.muxers[char].mux.Unlock()
 		return retval
 	}
