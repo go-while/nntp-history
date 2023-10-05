@@ -90,6 +90,8 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 		for _, bucket := range HEXCHARS {
 			his.BatchLocks[char][bucket] = make(chan struct{}, 1)
 		}
+	}
+	for i, char := range HEXCHARS { // dont move this up into the first for loop or it drops race conditions for nothing...
 		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
 	logf(DEBUG2, "his.History_DBZinit() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
@@ -155,8 +157,7 @@ func (his *HISTORY) History_DBZ() {
 	}
 	for _, achan := range his.IndexChans {
 		// passing nils to IndexChans will stop History_DBZ_Worker
-		// achan <- nil
-		close(achan)
+		achan <- nil
 	}
 } // end func History_DBZ
 
