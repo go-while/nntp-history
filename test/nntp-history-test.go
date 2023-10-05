@@ -91,6 +91,7 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
+	go history.PrintMemoryStatsEvery(5*time.Second)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
@@ -257,10 +258,23 @@ func main() {
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, trymultioffsets, searches, inserted1, inserted2)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
-	/*
-		runtime.GC()
-		time.Sleep(30 * time.Second)
-		runtime.GC()
-		time.Sleep(30 * time.Second)
-	*/
+
+	history.PrintMemoryStats()
+	log.Printf("runtime.GC()")
+	runtime.GC()
+	history.PrintMemoryStats()
+	time.Sleep(30 * time.Second)
+
+	history.PrintMemoryStats()
+	log.Printf("runtime.GC()")
+	runtime.GC()
+	history.PrintMemoryStats()
+	time.Sleep(30 * time.Second)
+
+	history.PrintMemoryStats()
+	log.Printf("runtime.GC()")
+	runtime.GC()
+	history.PrintMemoryStats()
+	time.Sleep(30 * time.Second)
+
 } // end func main
