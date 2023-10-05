@@ -24,6 +24,13 @@ const (
 	//DefExpiresStr       string = "-" // never expires
 	DefaultCacheExpires int64 = 9 // seconds
 	DefaultCachePurge   int64 = 3 // seconds
+	CaseLock     = 0xF0
+	CasePass     = 0xF1
+	CaseDupes    = 0xB1
+	CaseRetry    = 0xB2
+	CaseAdded    = 0xC1
+	//CaseAddDupes = 0xC2
+	//CaseAddRetry = 0xC3
 )
 
 var (
@@ -319,6 +326,26 @@ forever:
 					if hobj.ResponseChan != nil {
 						hobj.ResponseChan <- isDup
 					}
+					switch isDup {
+						case CaseDupes:
+							continue forever
+						case CaseRetry:
+							// got EOF retry from dupecheck. flush history file so next check may hit
+							if err := dw.Flush(); err != nil {
+								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
+								break forever
+							}
+							continue forever
+						//case CasePass:
+						//	is not a possible response here
+						case CaseAdded:
+							// pass
+						default:
+							log.Printf("ERROR History_Writer unknown Switch after indexRetChan: isDup=%d=%x=%#v", err, isDup, isDup, isDup)
+							break forever
+					}
+
+					/*
 					if isDup > 0 {
 						if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
 							if err := dw.Flush(); err != nil {
@@ -331,8 +358,9 @@ forever:
 						//logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
 						continue forever
 					}
+					*/
 				} // end select
-			}
+			} // end if History.IndexChan != nil {
 			// DONT! fake inn2 format... we use a lowercased hash and { as indicator, not < or [.
 			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
 			// not inn2 format
