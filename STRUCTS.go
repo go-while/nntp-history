@@ -4,6 +4,11 @@ import (
 	"sync"
 )
 
+var (
+	DEBUG_CACHE_GROW_SHRINK bool = true
+	DBG_C = DEBUG_CACHE_GROW_SHRINK
+)
+
 type HISTORY struct {
 	mux          sync.Mutex
 	cmux         sync.Mutex // sync counter
