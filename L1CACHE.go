@@ -169,7 +169,7 @@ func (l1 *L1CACHE) shrinkMap(char string, newmax int, maplen int) {
 	l1.caches[char].cache = newmap
 	l1.mapsizes[char].maxmapsize = newmax
 	l1.muxers[char].mux.Unlock()
-	logf(DEBUGL1, "L1Cache_Thread [%s] shrink size to %d", char, newmax)
+	logf(DBG_C, "L1Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
 } // end func shrinkMap
 
 // The Set method is used to set a value in the cache.
@@ -193,7 +193,7 @@ func (l1 *L1CACHE) Set(hash *string, char string, value int) {
 		}
 		l1.caches[char].cache = newmap
 		l1.mapsizes[char].maxmapsize = newmax
-		logf(DEBUGL1, "L1CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DBG_C, "L1CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 	l1.caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
 	l1.muxers[char].mux.Unlock()
