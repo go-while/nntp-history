@@ -516,6 +516,22 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 	return &result, nil
 } // end func FseekHistoryLine
 
+func (his *HISTORY) SET_DEBUG(debug int) {
+	switch debug {
+	case 0:
+		DEBUG0 = true
+	case 1:
+		DEBUG0 = true
+		DEBUG1 = true
+	case 2:
+		DEBUG0 = true
+		DEBUG1 = true
+		DEBUG2 = true
+	case 9:
+		DEBUG9 = true
+	}
+}
+
 func (his *HISTORY) CLOSE_HISTORY() {
 	his.mux.Lock()
 	defer his.mux.Unlock()
@@ -549,6 +565,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	}
 	his.WriterChan = nil
 } // end func CLOSE_HISTORY
+
 
 func LOCKfunc(achan chan struct{}, src string) bool {
 	select {
