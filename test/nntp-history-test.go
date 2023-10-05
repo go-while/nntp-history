@@ -111,14 +111,14 @@ func main() {
 				responseChan = make(chan int, 1)
 				IndexRetChan = make(chan int, 1)
 			}
-			var spam, spammer, dupes, added, cachehits, retry, adddupes, cachedupes, cacheretry1, errors uint64
+			var spam, spammer, dupes, added, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, errors uint64
 			//spammer = uint64(todo)/10
 			spammer = 500000
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if spam >= spammer {
-					sum := added + dupes + cachehits + retry + adddupes + cachedupes + cacheretry1
-					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d %d/%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, sum, todo)
+					sum := added + dupes + cachehits + addretry + retry + adddupes + cachedupes + cacheretry1
+					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cachehits=%d addretry=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d %d/%d", p, added, dupes, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, sum, todo)
 					spam = 0
 				}
 				spam++
@@ -130,23 +130,23 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 				char := string(hash[0])
-				retval := history.History.L1Cache.LockL1Cache(&hash, char, -1) // checks and locks hash for processing
+				retval := history.History.L1Cache.LockL1Cache(&hash, char, history.CaseLock) // checks and locks hash for processing
 				switch retval {
-				case 0:
+				case history.CasePass:
 					history.History.Sync_upcounter("L1CACHE_Lock")
 					// pass
-				case -1:
+				case history.CaseLock:
 					// cache hits, already in processing
 					cachehits++
 					continue fortodo
-				case 1:
+				case history.CaseDupes:
 					cachedupes++
 					continue fortodo
-				case 2:
+				case history.CaseRetry:
 					cacheretry1++
 					continue fortodo
 				default:
-					log.Printf("main: ERROR unknown switch LockL1Cache retval=%d", retval)
+					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%x=%#v", retval, retval, retval)
 					break fortodo
 				}
 				//locktime := utils.UnixTimeNanoSec()
@@ -156,20 +156,22 @@ func main() {
 					break fortodo
 				}
 				switch isDup {
-				//case locktime:
-				//	// pass
-				case 0:
+				case history.CasePass:
 					// pass
-				case 1:
+				//case history.CaseAdded:
+				//	// is not a possible response here
+				//	break fortodo
+				case history.CaseDupes:
 					dupes++
 					continue fortodo
-				case 2:
+				case history.CaseRetry:
 					retry++
 					continue fortodo
 				default:
 					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
 					break fortodo
 				}
+
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
@@ -199,12 +201,14 @@ func main() {
 							break fortodo
 						} else {
 							switch isDup {
-							case 0:
+							//case history.CasePass:
+							//	// is not a possible response here
+							case history.CaseAdded:
 								added++
-							case 1:
+							case history.CaseDupes:
 								adddupes++
-							case 2:
-								retry++
+							case history.CaseRetry:
+								addretry++
 							default:
 								errors++
 								log.Printf("main: ERROR fortodo unknown switch isDup=%d from responseChan", isDup)
@@ -213,11 +217,10 @@ func main() {
 						}
 					} // end select
 				} // end responseChan
-				//tdone++
-			} // end for i
+			} // end for i todo
 			P_donechan <- struct{}{}
-			sum := added + dupes + cachehits + retry + adddupes + cachedupes + cacheretry1
-			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d", p, added, dupes, cachehits, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors)
+			sum := added + dupes + cachehits + addretry + retry + adddupes + cachedupes + cacheretry1
+			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d addretry=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d", p, added, dupes, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors)
 		}(p) // end go func parallel
 	} // end for parallelTest
 
