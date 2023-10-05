@@ -37,16 +37,6 @@ func main() {
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
-	switch debugs {
-	case 0:
-		history.DEBUG0 = true
-	case 1:
-		history.DEBUG0 = true
-		history.DEBUG1 = true
-	case 9:
-		history.DEBUG9 = true
-
-	}
 	if BatchSize < 16 {
 		BatchSize = 16
 	}
@@ -54,7 +44,7 @@ func main() {
 		runtime.GOMAXPROCS(numCPU)
 	}
 	fmt.Printf("ARGS: CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
-	//time.Sleep(3*time.Second)
+	history.History.SET_DEBUG(debugs)
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
