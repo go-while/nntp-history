@@ -31,7 +31,7 @@ func main() {
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
-	flag.IntVar(&numCPU, "gomaxprocs", 4, "Limit CPU cores")
+	flag.IntVar(&numCPU, "numcpu", 0, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
@@ -50,7 +50,9 @@ func main() {
 	if BatchSize < 16 {
 		BatchSize = 16
 	}
-	runtime.GOMAXPROCS(numCPU)
+	if numCPU > 0 {
+		runtime.GOMAXPROCS(numCPU)
+	}
 	fmt.Printf("ARGS: CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	//time.Sleep(3*time.Second)
 	storageToken := "F" // storagetoken flatfile
@@ -157,13 +159,15 @@ func main() {
 					log.Printf("main: ERROR unknown switch LockL1Cache retval=%d", retval)
 					break fortodo
 				}
-
+				//locktime := utils.UnixTimeNanoSec()
 				isDup, err := history.History.IndexQuery(&hash, IndexRetChan)
 				if err != nil {
 					log.Printf("FALSE IndexQuery hash=%s", hash)
 					break fortodo
 				}
 				switch isDup {
+				//case locktime:
+				//	// pass
 				case 0:
 					// pass
 				case 1:
