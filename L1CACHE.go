@@ -77,6 +77,7 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	l1.muxers[char].mux.Lock()
 	if l1.caches[char].cache[*hash] != nil {
 		retval := l1.caches[char].cache[*hash].value
+		//logf(DEBUG9, "LOCKED hash=%s char=%s value=%#v CaseLock=%d=%x", *hash, char, value, CaseLock, CaseLock)
 		/*
 			if l1.caches[char].cache[*hash].expires >= now {
 				retval := l1.caches[char].cache[*hash].value
@@ -90,7 +91,7 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 	}
 	l1.caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
 	l1.muxers[char].mux.Unlock()
-	return 0
+	return CasePass
 } // end func LockL1Cache
 
 // The L1Cache_Thread function runs as a goroutine for each character.
@@ -111,11 +112,11 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 			if item.expires < now {
 				// value is cached response:
 				switch item.value {
-				case -1: // processing
+				case CaseLock: // processing
 					continue getexpired
-				case 1: // duplicate
+				case CaseDupes: // duplicate
 					expired = true
-				case 2: // retry
+				case CaseRetry: // retry
 					expired = true
 				}
 				if expired {
