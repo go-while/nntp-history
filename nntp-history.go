@@ -2,7 +2,7 @@ package history
 
 import (
 	"bufio"
-	"encoding/gob"
+	//"encoding/gob"
 	"fmt"
 	//"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
@@ -52,8 +52,6 @@ var (
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
-	gob.Register(GOBOFFSETS{})
-	gob.Register(HistorySettings{})
 	//gob.RegisterName("GOBOFFSETS", GOBOFFSETS{})
 	his.mux.Lock()
 	defer his.mux.Unlock()
