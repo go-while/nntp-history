@@ -127,7 +127,7 @@ func (l2 *L2CACHE) shrinkMap(char string, newmax int, maplen int) {
 	l2.caches[char].cache = newmap
 	l2.mapsizes[char].maxmapsize = newmax
 	l2.muxers[char].mux.Unlock()
-	logf(DEBUGL2, "L2Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
+	logf(DBG_C, "L2Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
 } // end func shrinkMap
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
@@ -152,7 +152,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string) {
 		}
 		l2.caches[*char].cache = newmap
 		l2.mapsizes[*char].maxmapsize = newmax
-		logf(DEBUGL2, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DBG_C, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 
 	l2.caches[*char].cache[*offset] = &L2ITEM{hash: *hash, expires: utils.UnixTimeSec() + DefaultL2CacheExpires}
