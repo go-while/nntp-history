@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 	//"github.com/dgraph-io/badger"
 	//"strconv"
@@ -614,3 +615,17 @@ func logf(debug bool, format string, a ...any) {
 		log.Printf(format, a...)
 	}
 } // end logf
+
+func PrintMemoryStats() {
+	var m runtime.MemStats
+	runtime.ReadMemStats(&m)
+	fmt.Printf("Alloc: %v MiB, TotalAlloc: %v MiB, Sys: %v MiB, NumGC: %v\n",
+		m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024, m.NumGC)
+}
+
+func PrintMemoryStatsEvery(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	for range ticker.C {
+		PrintMemoryStats()
+	}
+}
