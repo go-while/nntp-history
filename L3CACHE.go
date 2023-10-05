@@ -125,7 +125,7 @@ func (l3 *L3CACHE) shrinkMap(char string, newmax int, maplen int) {
 	l3.caches[char].cache = newmap
 	l3.mapsizes[char].maxmapsize = newmax
 	l3.muxers[char].mux.Unlock()
-	logf(DEBUGL3, "L3Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
+	logf(DBG_C, "L3Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
 } // end func shrinkMap
 
 // The SetOffsets method sets a cache item in the L3 cache using a key and a slice of offsets as the value.
@@ -149,7 +149,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64) {
 		}
 		l3.caches[char].cache = newmap
 		l3.mapsizes[char].maxmapsize = newmax
-		logf(DEBUGL3, "L3CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DBG_C, "L3CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 
 	l3.caches[char].cache[key] = &L3ITEM{offsets: *offsets, expires: utils.UnixTimeSec() + DefaultL3CacheExpires}
