@@ -5,8 +5,7 @@ import (
 )
 
 var (
-	DEBUG_CACHE_GROW_SHRINK bool = true
-	DBG_C = DEBUG_CACHE_GROW_SHRINK
+	DBG_C bool // DEBUG_CACHE_GROW_SHRINK
 )
 
 type HISTORY struct {
