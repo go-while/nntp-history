@@ -296,7 +296,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		his.BatchQueues.mux.Unlock()
 		// launches a batchQueue for every bucket in this `char` db.
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
-			timer, mintimer, maxtimer := 500, 1, 1000
+			timer, mintimer, maxtimer := 100, 1, 1000
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
@@ -306,18 +306,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 			}
 		forbatchqueue:
 			for {
-				Q := len(batchQueue)
-				if Q >= 10000 {
-					timer = mintimer
-				} else if Q >= 1000 {
-					timer -= 20
-				} else if Q < 1000 {
-					timer += 10
-				}
-				if timer < mintimer {
-					timer = mintimer
-				} else if timer > maxtimer {
-					timer = maxtimer
+				if timer > 0 {
+					time.Sleep(time.Duration(timer) * time.Millisecond)
 				}
 				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
 				if closed { // received nil pointer
@@ -342,8 +332,24 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 						timer = 1
 					}
 				}
-				time.Sleep(time.Duration(timer) * time.Millisecond)
-				//log.Printf("gofunc char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
+				Q := len(batchQueue)
+				if Q > 10000 {
+					logf(DEBUG, "forbatchqueue char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
+				}
+				if Q >= 1000 {
+					timer -= 2
+				} else if Q < 1000 {
+					timer += 1
+				}
+				if timer < mintimer {
+					timer = mintimer
+				} else if timer > maxtimer {
+					timer = maxtimer
+				}
+				if Q >= BATCHSIZE {
+					timer = 0
+				}
+				continue forbatchqueue
 			} // end forbatchqueue
 			UNLOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted")
 			// ends this gofunc
