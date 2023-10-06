@@ -152,7 +152,7 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
 2023/09/29 15:45:46 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='&{0xc000104f00}' HT=11 HL=6
 ...
-2023/09/29 15:45:52 History_Writer closed fp='history/history.dat' wbt=108148560 offset=108148622 wroteLines=1060280
+2023/09/29 15:45:52 history_Writer closed fp='history/history.dat' wbt=108148560 offset=108148622 wroteLines=1060280
 2023/09/29 15:45:52 key_add=0 key_app=0 total=0
 2023/09/29 15:45:52 done=4000000 took 6 seconds
 ```
@@ -162,7 +162,7 @@ CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4
 CPU=4/12 | useHashDB: false | useGoCache: false | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
 2023/09/29 15:46:20 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='<nil>' HT=11 HL=6
 ...
-2023/09/29 15:46:26 History_Writer closed fp='history/history.dat' wbt=408000000 offset=408000062 wroteLines=4000000
+2023/09/29 15:46:26 history_Writer closed fp='history/history.dat' wbt=408000000 offset=408000062 wroteLines=4000000
 2023/09/29 15:46:27 key_add=0 key_app=0 total=0
 2023/09/29 15:46:27 done=4000000 took 7 seconds
 ```
@@ -171,10 +171,10 @@ CPU=4/12 | useHashDB: false | useGoCache: false | jobs=4 | todo=1000000 | total=
 ```sh
 ./nntp-history-test
 CPU=4/12 | useHashDB: true | useGoCache: true | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:44:13 his.History_DBZinit() boltInitChan=4 boltSyncChan=1
+2023/09/29 15:44:13 his.boltDB_Init() boltInitChan=4 boltSyncChan=1
 2023/09/29 15:44:13 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='&{0xc00010cf00}' HT=11 HL=6
 ...
-2023/09/29 15:44:33 History_Writer closed fp='history/history.dat' wbt=102000000 offset=102000062 wroteLines=1000000
+2023/09/29 15:44:33 history_Writer closed fp='history/history.dat' wbt=102000000 offset=102000062 wroteLines=1000000
 2023/09/29 15:44:34 key_add=999886 key_app=114 total=1000000
 2023/09/29 15:44:34 done=4000000 took 21 seconds
 ```
@@ -182,10 +182,10 @@ CPU=4/12 | useHashDB: true | useGoCache: true | jobs=4 | todo=1000000 | total=40
 ```sh
 ./nntp-history-test -useGoCache=false
 CPU=4/12 | useHashDB: true | useGoCache: false | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:48:08 his.History_DBZinit() boltInitChan=4 boltSyncChan=1
+2023/09/29 15:48:08 his.boltDB_Init() boltInitChan=4 boltSyncChan=1
 2023/09/29 15:48:08 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='<nil>' HT=11 HL=6
 ...
-2023/09/29 15:48:58 History_Writer closed fp='history/history.dat' wbt=126904014 offset=126904076 wroteLines=1244157
+2023/09/29 15:48:58 history_Writer closed fp='history/history.dat' wbt=126904014 offset=126904076 wroteLines=1244157
 2023/09/29 15:48:59 key_add=1244033 key_app=124 total=1244157
 2023/09/29 15:48:59 done=4000000 took 51 seconds
 ```
