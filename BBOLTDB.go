@@ -125,13 +125,13 @@ func (his *HISTORY) History_DBZ() {
 						break forever
 					}
 					if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
-						logf(DEBUG2, "Stopping History_DBZ IndexChan received nil pointer")
 						switch IndexParallel {
 							case 1:
 								close(his.IndexChan)
 							default:
 								his.IndexChan <- nil
 						}
+						logf(DEBUG, "Stopping History_DBZ IndexChan p=%d/%d received nil pointer", p, IndexParallel)
 						break forever
 					}
 					if hi.Offset == 0 {
