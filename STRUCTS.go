@@ -5,6 +5,7 @@ import (
 )
 
 var (
+	IndexParallel int = 1
 	DBG_C bool // DEBUG_CACHE_GROW_SHRINK
 )
 
@@ -18,11 +19,12 @@ type HISTORY struct {
 	boltSyncChan chan struct{}
 	Offset       int64
 	HF           string // = "history/history.dat"
-	HF_hash      string // = "history/history.Hash"
+	HF_hash      string // = "hashdb/history.dat.hash[0-9a-f]"
 	WriterChan   chan *HistoryObject
 	IndexChan    chan *HistoryIndex
 	IndexChans   [16]chan *HistoryIndex
 	BatchLocks   map[string]map[string]chan struct{}
+	BoltDBsMap   map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
 	charsMap     map[string]int
 	useHashDB    bool
 	keyalgo      int
