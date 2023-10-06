@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DEBUGL2 bool
+	DEBUGL2               bool
 	DefaultL2CacheExpires int64 = DefaultCacheExpires
 	L2Purge               int64 = DefaultCachePurge
 	L2InitSize            int   = 16
@@ -69,7 +69,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 		l2.muxers[char].mux.Lock()
 		for key, item := range l2.caches[char].cache {
 			if item.expires < now {
-				logf(DEBUGL2, "L2 expire key='%#v' item='%#v' age=%d", key, item, now - item.expires)
+				logf(DEBUGL2, "L2 expire key='%#v' item='%#v' age=%d", key, item, now-item.expires)
 				cleanup = append(cleanup, key)
 			}
 		}
