@@ -25,11 +25,11 @@ const (
 	//DefExpiresStr       string = "-" // never expires
 	DefaultCacheExpires int64 = 9 // seconds
 	DefaultCachePurge   int64 = 3 // seconds
-	CaseLock     = 0xF0
-	CasePass     = 0xF1
-	CaseDupes    = 0xB1
-	CaseRetry    = 0xB2
-	CaseAdded    = 0xC1
+	CaseLock                  = 0xF0
+	CasePass                  = 0xF1
+	CaseDupes                 = 0xB1
+	CaseRetry                 = 0xB2
+	CaseAdded                 = 0xC1
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
@@ -221,14 +221,14 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	HashDBQueues := ""
 	if useHashDB {
+		his.useHashDB = true
 		his.L2Cache.L2CACHE_Boot()
 		his.L3Cache.L3CACHE_Boot()
-		his.useHashDB = true
 		his.BatchQueues = &BQ{}
-		his.BatchQueues.Booted = make(chan struct{}, 16*16)                           // char [0-9a-f] * bucket [0-9a-f]
-		his.BatchQueues.Maps = make(map[string]map[string]chan *BatchOffset, BoltDBs) // maps char : bucket => chan
+		his.BatchQueues.Booted = make(chan struct{}, 16*16)                  // char [0-9a-f] * bucket [0-9a-f]
+		his.BatchQueues.Maps = make(map[string]map[string]chan *BatchOffset) // maps char : bucket => chan
 		for _, char := range HEXCHARS {
-			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset, BoltDBs) // maps bucket => chan
+			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset) // maps bucket => chan
 		}
 		his.IndexChan = make(chan *HistoryIndex, QueueIndexChan)
 		his.charsMap = make(map[string]int, BoltDBs)
@@ -332,37 +332,37 @@ forever:
 						hobj.ResponseChan <- isDup
 					}
 					switch isDup {
-						case CaseDupes:
-							continue forever
-						case CaseRetry:
-							// got EOF retry from dupecheck. flush history file so next check may hit
-							if err := dw.Flush(); err != nil {
-								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
-								break forever
-							}
-							continue forever
-						//case CasePass:
-						//	is not a possible response here
-						case CaseAdded:
-							// pass
-						default:
-							log.Printf("ERROR History_Writer unknown Switch after indexRetChan: isDup=%d=%x=%#v", err, isDup, isDup, isDup)
+					case CaseDupes:
+						continue forever
+					case CaseRetry:
+						// got EOF retry from dupecheck. flush history file so next check may hit
+						if err := dw.Flush(); err != nil {
+							log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
 							break forever
+						}
+						continue forever
+					//case CasePass:
+					//	is not a possible response here
+					case CaseAdded:
+						// pass
+					default:
+						log.Printf("ERROR History_Writer unknown Switch after indexRetChan: isDup=%d=%x=%#v", err, isDup, isDup, isDup)
+						break forever
 					}
 
 					/*
-					if isDup > 0 {
-						if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
-							if err := dw.Flush(); err != nil {
-								log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
-								break forever
+						if isDup > 0 {
+							if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
+								if err := dw.Flush(); err != nil {
+									log.Printf("ERROR History_Writer dw.Flush err='%v'", err)
+									break forever
+								}
+								//log.Printf("EOF forced flush OK")
 							}
-							//log.Printf("EOF forced flush OK")
+							// DUPLICATE entry
+							//logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
+							continue forever
 						}
-						// DUPLICATE entry
-						//logf(DEBUG0, "History_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
-						continue forever
-					}
 					*/
 				} // end select
 			} // end if History.IndexChan != nil {
@@ -599,7 +599,6 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	his.WriterChan = nil
 } // end func CLOSE_HISTORY
 
-
 func LOCKfunc(achan chan struct{}, src string) bool {
 	select {
 	case achan <- struct{}{}:
@@ -636,7 +635,7 @@ func PrintMemoryStatsEvery(interval time.Duration) {
 
 func isPow2(n int) bool {
 	// result 0 is pow^2
-	res := n & (n-1)
+	res := n & (n - 1)
 	if res != 0 {
 		return false
 	}
