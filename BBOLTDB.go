@@ -47,12 +47,16 @@ var (
 	empty_offsets        []int64
 )
 
-// History_DBZinit initializes the history database (HashDB) and starts the worker goroutines for processing historical data.
+type BOLTDB_PTR struct {
+	BoltDB *bolt.DB
+}
+
+// boltDB_Init initializes the history database (HashDB) and starts the worker goroutines for processing historical data.
 // It creates worker channels for each character in HEXCHARS and launches corresponding worker goroutines.
 // The provided boltOpts parameter allows configuring the BoltDB database options.
-func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
+func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	if his.boltInitChan != nil {
-		log.Printf("ERROR History_DBZinit already loaded")
+		log.Printf("ERROR boltDB_Init already loaded")
 		return
 	}
 
@@ -70,33 +74,33 @@ func (his *HISTORY) History_DBZinit(boltOpts *bolt.Options) {
 
 	if QueueIndexChan <= 0 {
 		QueueIndexChan = 1
-	} else if QueueIndexChan > 1000000 {
-		QueueIndexChan = 1000000
+	} else if QueueIndexChan > 1024*1024 {
+		QueueIndexChan = 1024*1024
 	}
 
 	if QueueIndexChans <= 0 {
 		QueueIndexChans = 1
-	} else if QueueIndexChans > 1000000 {
-		QueueIndexChans = 1000000
+	} else if QueueIndexChans > 1024*1024 {
+		QueueIndexChans = 1024*1024
 	}
 
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
 	his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
-	his.BatchLocks = make(map[string]map[string]chan struct{}, BoltDBs)
+	his.BatchLocks = make(map[string]map[string]chan struct{})
 	for i, char := range HEXCHARS {
 		his.charsMap[char] = i
 		his.IndexChans[i] = make(chan *HistoryIndex, QueueIndexChans)
-		his.BatchLocks[char] = make(map[string]chan struct{}, BoltDBs)
+		his.BatchLocks[char] = make(map[string]chan struct{})
 		for _, bucket := range HEXCHARS {
 			his.BatchLocks[char][bucket] = make(chan struct{}, 1)
 		}
 	}
 	for i, char := range HEXCHARS { // dont move this up into the first for loop or it drops race conditions for nothing...
-		go his.History_DBZ_Worker(char, i, his.IndexChans[i], boltOpts)
+		go his.boltDB_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
-	logf(DEBUG2, "his.History_DBZinit() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
+	logf(DEBUG2, "his.boltDB_Init() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
 	go his.History_DBZ()
-} // end func History_DBZinit
+} // end func boltDB_Init
 
 // History_DBZ is the main routine for managing the historical data processing.
 // It listens to incoming HistoryIndex structs on the IndexChan channel and distributes them to corresponding worker goroutines.
@@ -108,9 +112,8 @@ func (his *HISTORY) History_DBZ() {
 	his.wait4HashDB()
 	logf(DEBUG2, "Boot History_DBZ")
 	defer logf(DEBUG2, "Quit History_DBZ")
-	parallel := BoltDBs
-	waitchan := make(chan struct{}, parallel)
-	for p := 1; p <= parallel; p++ {
+	waitchan := make(chan struct{}, IndexParallel)
+	for p := 1; p <= IndexParallel; p++ {
 		waitchan <- struct{}{}
 		go func(p int, waitchan chan struct{}) {
 		forever:
@@ -139,7 +142,7 @@ func (his *HISTORY) History_DBZ() {
 						C1 = string(string(*hi.Hash)[0])
 					}
 					if his.IndexChans[his.charsMap[C1]] != nil {
-						his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash History_DBZ_Worker char
+						his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
 					} else {
 						log.Printf("ERROR History_DBZ IndexChan C1=%s=nil", C1)
 						break forever
@@ -156,19 +159,19 @@ func (his *HISTORY) History_DBZ() {
 		}
 	}
 	for _, achan := range his.IndexChans {
-		// passing nils to IndexChans will stop History_DBZ_Worker
+		// passing nils to IndexChans will stop boltDB_Worker
 		achan <- nil
 	}
 } // end func History_DBZ
 
-// History_DBZ_Worker is a worker function responsible for processing historical data.
+// boltDB_Worker is a worker function responsible for processing historical data.
 // It manages BoltDB operations, including storing and retrieving offsets, and handles duplicate checks
 // to ensure message-ID hashes are correctly tracked in the history file.
-func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *HistoryIndex, boltOpts *bolt.Options) {
-	if !LOCKfunc(HISTORY_INDEX_LOCK16, "History_DBZ_Worker "+char) {
+func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryIndex, boltOpts *bolt.Options) {
+	if !LOCKfunc(HISTORY_INDEX_LOCK16, "boltDB_Worker "+char) {
 		return
 	}
-	defer UNLOCKfunc(HISTORY_INDEX_LOCK16, "History_DBZ_Worker "+char)
+	defer UNLOCKfunc(HISTORY_INDEX_LOCK16, "boltDB_Worker "+char)
 	dbpath := his.HF_hash + "." + char
 	if boltOpts == nil {
 		defboltOpts := bolt.Options{
@@ -183,6 +186,8 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		log.Printf("ERROR HashDB dbpath='%s' err='%v'", dbpath, err)
 		return
 	}
+	logf(DEBUG2, "HDBZW: INIT HashDB char=%s db=%#v", char, db)
+	his.BoltDBsMap[char].BoltDB = db
 	testkey := "1"
 	testoffsets := []int64{1}
 	testoffset := int64(1)
@@ -192,7 +197,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 	setempty := false
 	initLongTest := false
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
-	logf(DEBUG0, "HDBZW: INIT HashDB char=%s", char)
+
 	for _, bucket := range HEXCHARS {
 		retbool, err := boltCreateBucket(db, &char, &bucket)
 		if err != nil || !retbool {
@@ -375,19 +380,19 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		}
 		BQtimeout--
 		if BQtimeout <= 0 {
-			log.Printf("ERROR History_DBZ_Worker char=%s BatchQueues.Boot timeout", char)
+			log.Printf("ERROR boltDB_Worker char=%s BatchQueues.Boot timeout", char)
 			return
 		}
 	}
-	//log.Printf("BOOTED History_DBZ_Worker char=%s (took %d ms)", char, 1000-BQtimeout)
+	//log.Printf("BOOTED boltDB_Worker char=%s (took %d ms)", char, 1000-BQtimeout)
 
 forever:
 	for {
 		select {
-		case hi, ok := <-indexchan: // receives a HistoryIndex struct
+		case hi, ok := <-indexchan: // sub-indexchan receives a HistoryIndex struct for this char from main IndexChan
 			if !ok || hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // at least md5
 				// receiving a nil object stops history_dbz_worker
-				logf(DEBUG9, "Stopping History_DBZ_Worker indexchan[%s] received nil pointer", char)
+				logf(DEBUG9, "Stopping boltDB_Worker indexchan[%s] received nil pointer", char)
 				for _, bucket := range HEXCHARS {
 					his.BatchQueues.Maps[char][bucket] <- nil
 				}
@@ -477,7 +482,7 @@ forever:
 	his.boltSyncClose(db, char)
 	time.Sleep(time.Second / 10)
 	his.returnBoltHashOpen()
-} // end func History_DBZ_Worker
+} // end func boltDB_Worker
 
 // DupeCheck checks for duplicate message-ID hashes in a BoltDB bucket.
 // It manages offsets associated with message hashes and handles duplicates, ensuring the integrity of the historical data.
@@ -1113,12 +1118,21 @@ func (his *HISTORY) GetBoltHashOpen() int {
 	return len(BoltHashOpen)
 } // end func GetBoltHashOpen
 
+// BoltSync is a Public Function. for every DB call function with: db=nil and char=[0-9a-f]
 func (his *HISTORY) BoltSync(db *bolt.DB, char string) error {
-	if db == nil {
-		return fmt.Errorf("ERROR BoltSync db=nil")
+	if db == nil && char == "" {
+		return fmt.Errorf("ERROR BoltSync db=nil char=nil")
 	}
 	if char == "" {
 		return fmt.Errorf("ERROR BoltSync char=nil")
+	}
+	if db == nil && char != "" {
+		if his.BoltDBsMap[char].BoltDB != nil {
+			db = his.BoltDBsMap[char].BoltDB
+		}
+	}
+	if db == nil {
+		return fmt.Errorf("ERROR BoltSync db=nil")
 	}
 	his.lockBoltSync()
 	//logf(DEBUG9, "LOCKING BoltSync BatchLocks")
@@ -1168,8 +1182,14 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 	if err := his.BoltSync(db, char); err != nil {
 		return err
 	}
+	err := db.Close()
+	if err != nil {
+		log.Printf("ERROR boltSyncClose char=%s err='%v'", char, err)
+		return err
+	}
+	his.BoltDBsMap[char].BoltDB = nil
 	logf(DEBUG2, "BoltDB boltSyncClose char=%s", char)
-	return db.Close()
+	return nil
 } // end func boltSyncClose
 
 func (his *HISTORY) returnBoltSync() {
@@ -1179,6 +1199,24 @@ func (his *HISTORY) returnBoltSync() {
 func (his *HISTORY) lockBoltSync() {
 	his.boltSyncChan <- struct{}{}
 } // end func lockBoltSync
+
+func (his *HISTORY) getBucketStats(db *bolt.DB, bucketName string) (bolt.BucketStats, error) {
+	var stats bolt.BucketStats
+
+	err := db.View(func(tx *bolt.Tx) error {
+		// Access the specified bucket
+		bucket := tx.Bucket([]byte(bucketName))
+		if bucket == nil {
+			return fmt.Errorf("Bucket not found: %s", bucketName)
+		}
+
+		// Get statistics
+		stats = bucket.Stats()
+		return nil
+	})
+
+	return stats, err
+}
 
 func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int) (int, error) {
 	if hash == nil {
@@ -1192,7 +1230,7 @@ func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int) (int, error)
 		select {
 		case isDup, ok := <-IndexRetChan:
 			if !ok {
-				return -999, fmt.Errorf("ERROR IndexQuery IndexRetChan closed! error in History_DBZ_Worker")
+				return -999, fmt.Errorf("ERROR IndexQuery IndexRetChan closed! error in boltDB_Worker")
 			}
 			/* the possible return values of IndexQuery(..)
 			switch isDup {
@@ -1235,3 +1273,4 @@ func (his *HISTORY) GetCounter(counter string) uint64 {
 	his.cmux.Unlock()
 	return retval
 } // end func GetCounter
+
