@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	DEBUGL1 bool
+	DEBUGL1               bool
 	DefaultL1CacheExpires int64 = DefaultCacheExpires
 	L1Purge               int64 = DefaultCachePurge
 	L1InitSize            int   = 16
