@@ -66,9 +66,9 @@ func main() {
 		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16
-		//history.QueueWriteChan = 1     // ( can be any value > 0 ) default: 16
+		//history.NumQueueWriteChan = 1     // ( can be any value > 0 ) default: 16
 		//history.QueueIndexChan = 1     // ( can be any value > 0 ) default: 16
-		//history.QueueIndexChans = 1    // ( can be any value > 0 ) default: 16
+		//history.QueueIndexChans = 1    // ( can be any value > 0 ) default: 1
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
 			//ReadOnly: true,
@@ -90,7 +90,7 @@ func main() {
 	start := utils.UnixTimeSec()
 	go history.PrintMemoryStatsEvery(30 * time.Second)
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
-	fmt.Printf(" useHashDB: %t | IndexParallel=%d boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
+	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 
 	if offset >= 0 {
