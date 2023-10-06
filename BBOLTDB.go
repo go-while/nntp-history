@@ -289,9 +289,10 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 
 	// make the batchQueue
 	for _, bucket := range HEXCHARS {
-		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding fourfold the might of the actual CharBucketBatchSize.
+		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding N*fold the might of the actual CharBucketBatchSize.
 		// A daring gamble that ignites the fires of performance, but beware the voracious appetite!
-		batchQcap := CharBucketBatchSize*4
+		N := 1.5
+		batchQcap := int(float64(CharBucketBatchSize)*N)
 		batchQueue := make(chan *BatchOffset, batchQcap)
 		his.BatchQueues.mux.Lock()
 		his.BatchQueues.Maps[char][bucket] = batchQueue
