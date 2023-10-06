@@ -33,7 +33,7 @@ const (
 )
 
 var (
-	BATCHSIZE            int    = 100
+	CharBucketBatchSize            int    = 16 // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
 	QueueIndexChan       int    = BoltDBs // Main-indexchan can queue this
 	QueueIndexChans      int    = BoltDBs // every sub-indexchans for a `char` can queue this
 	DefaultKeyLen        int    = 6
@@ -289,64 +289,77 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 
 	// make the batchQueue
 	for _, bucket := range HEXCHARS {
-		// batchQueue can hold 4x more than actual batchsize. eats some memory but bursts performance.
-		batchQueue := make(chan *BatchOffset, BATCHSIZE*4)
+		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding fourfold the might of the actual CharBucketBatchSize.
+		// A daring gamble that ignites the fires of performance, but beware the voracious appetite!
+		batchQcap := CharBucketBatchSize*4
+		batchQueue := make(chan *BatchOffset, batchQcap)
 		his.BatchQueues.mux.Lock()
 		his.BatchQueues.Maps[char][bucket] = batchQueue
 		his.BatchQueues.mux.Unlock()
-		// launches a batchQueue for every bucket in this `char` db.
+		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
+		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
-			timer, mintimer, maxtimer := 100, 1, 2000
-			lastflush := utils.UnixTimeMilliSec()
-			var retbool, forced, closed bool
-			var err error
 			// every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			if !LOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted") {
 				return
 			}
+			lastflush := utils.UnixTimeMilliSec()
+			var retbool, forced, closed bool
+			var err error
+			timer, mintimer, maxtimer, Q := 100*1000, 100, 1000*1000, 0 // ms*1000 = Microseconds
 		forbatchqueue:
 			for {
 				if timer > 0 {
-					time.Sleep(time.Duration(timer) * time.Millisecond)
+					time.Sleep(time.Duration(timer) * time.Microsecond)
 				}
-				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d", char, bucket, timer), true)
+				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d Q=%d", char, bucket, timer, Q), true)
 				if closed { // received nil pointer
 					logf(DEBUG2, "Closed gofunc char=%s bucket=%s", char, bucket)
-
 					break forbatchqueue // this go func
 				}
 				if err != nil {
 					log.Printf("gofunc char=%s boltBucketPutBatch err='%v'", char, err)
 					break forbatchqueue // this go func
 				}
-				Q := len(batchQueue)
-				if Q > 10000 {
-					logf(DEBUG, "forbatchqueue char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
+
+				Q = len(batchQueue) // get remaining queued items after inserting
+				if Q > CharBucketBatchSize*3 {
+					logf(DEBUG2, "forbatchqueue char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
 				}
-				if Q >= 1000 {
-					timer -= 2
-				} else if Q < 1000 {
-					timer += 1
+
+				if Q >= CharBucketBatchSize {
+					timer = 0 // nosleep
+				} else if Q >= CharBucketBatchSize/2 {
+					timer -= 200
+				} else if Q < CharBucketBatchSize/2 {
+					timer += 100
+				} else if Q == 0 {
+					timer = 1*1000
 				}
-				if timer < mintimer {
+
+				if timer < mintimer && timer != 0 {
 					timer = mintimer
 				} else if timer > maxtimer {
 					timer = maxtimer
 				}
-				if Q >= BATCHSIZE {
-					timer = 0
-				}
+
 				switch retbool {
 				case true:
 					lastflush = utils.UnixTimeMilliSec()
-					forced = false
-				case false:
-					if len(batchQueue) == 0 {
-						lastflush = utils.UnixTimeMilliSec()
+					if forced == true {
+						forced = false
 					}
-					if lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH && len(batchQueue) > 0 {
-						forced = true
-						timer = 0
+				case false:
+					if Q == 0 {
+						lastflush = utils.UnixTimeMilliSec()
+					} else
+					if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
+						if !forced {
+							forced = true
+						}
+						if timer != 0 {
+							timer = 0
+						}
 					}
 				}
 				continue forbatchqueue
@@ -719,7 +732,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	defer his.returnBatchLock(char, bucket)
 	logf(DEBUG9, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
 
-	if len(batchQueue) < BATCHSIZE && !forced {
+	if len(batchQueue) < CharBucketBatchSize && !forced {
 		return
 	}
 	batch := []*BatchOffset{}
@@ -744,13 +757,13 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 					}
 					batchmap[bo.bucket] = append(batchmap[bo.bucket], bo)
 					queued++
-					if !forced && len(batchmap[bucket]) >= BATCHSIZE {
+					if !forced && len(batchmap[bucket]) >= CharBucketBatchSize {
 						break fetchbatch
 					}
 				} else {
 					// batch to inserted2. maybe remove soon?
 					batch = append(batch, bo)
-					if !forced && len(batch) >= BATCHSIZE {
+					if !forced && len(batch) >= CharBucketBatchSize {
 						break fetchbatch
 					}
 				}
