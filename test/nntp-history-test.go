@@ -91,7 +91,7 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	go history.PrintMemoryStatsEvery(5*time.Second)
+	go history.PrintMemoryStatsEvery(30*time.Second)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
