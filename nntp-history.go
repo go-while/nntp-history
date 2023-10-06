@@ -41,8 +41,8 @@ var (
 	DEBUG1              bool   = false
 	DEBUG2              bool   = false
 	DEBUG9              bool   = false
-	HISTORY_WRITER_LOCK        = make(chan struct{}, 1)
-	QueueWriteChan      int    = BoltDBs
+	LOCKHISTORY                = make(chan struct{}, 1)
+	NumQueueWriteChan   int    = BoltDBs
 	BATCHFLUSH          int64  = 3000
 	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash             string = "EOF"
@@ -68,10 +68,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		return
 	}
 
-	if QueueWriteChan <= 0 {
-		QueueWriteChan = 1
-	} else if QueueWriteChan > 1000000 {
-		QueueWriteChan = 1000000
+	if NumQueueWriteChan <= 0 {
+		NumQueueWriteChan = 1
+	} else if NumQueueWriteChan > 1000000 {
+		NumQueueWriteChan = 1000000
 	}
 
 	if BATCHFLUSH == 0 {
@@ -244,8 +244,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d BatchSize=%d IndexParallel=%d", QueueIndexChan, QueueIndexChans, CharBucketBatchSize, IndexParallel)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]'\n  KeyAlgo=%d KeyLen=%d QueueWriteChan=%d\n  HashDBQueues:{%s}", new, his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
-	his.WriterChan = make(chan *HistoryObject, QueueWriteChan)
+	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]'\n  KeyAlgo=%d KeyLen=%d NumQueueWriteChan=%d\n  HashDBQueues:{%s}", new, his.HF, his.HF_hash, his.keyalgo, his.keylen, NumQueueWriteChan, HashDBQueues)
+	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
 
@@ -276,11 +276,11 @@ func (his *HISTORY) history_Writer(fh *os.File, dw *bufio.Writer) {
 		log.Printf("ERROR history_Writer fh=nil || dw=nil")
 		return
 	}
-	if !LOCKfunc(HISTORY_WRITER_LOCK, "history_Writer") {
+	if !LOCKfunc(LOCKHISTORY, "history_Writer") {
 		return
 	}
 	defer fh.Close()
-	defer UNLOCKfunc(HISTORY_WRITER_LOCK, "history_Writer")
+	defer UNLOCKfunc(LOCKHISTORY, "history_Writer")
 	his.wait4HashDB()
 	fileInfo, err := fh.Stat()
 	if err != nil {
@@ -583,7 +583,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	his.WriterChan <- nil // closes workers
 	for {
 		time.Sleep(time.Second)
-		lock1, v1 := len(HISTORY_WRITER_LOCK) > 0, len(HISTORY_WRITER_LOCK)
+		lock1, v1 := len(LOCKHISTORY) > 0, len(LOCKHISTORY)
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
 		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
