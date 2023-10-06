@@ -76,16 +76,20 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	if BATCHFLUSH == 0 {
 		BATCHFLUSH = 3000
-	} else if BATCHFLUSH < 10 {
-		BATCHFLUSH = 10
+	} else if BATCHFLUSH < 1 {
+		BATCHFLUSH = 1
 	} else if BATCHFLUSH > 5000 {
 		BATCHFLUSH = 5000
 	}
 
-	if BATCHSIZE < 16 {
-		BATCHFLUSH = 16
-	} else if BATCHFLUSH > 65536 {
-		BATCHFLUSH = 65536
+	// With a mere batchsize of 1, behold as 256 queued hashes arise in all their glory!
+	// Divided among 256 queues, like the 16 sacred char databases and 16 mighty buckets.
+	// Yet, should one dare to wield a batchsize of 1024, prepare for the spectacle of 256K queued hashes!
+	// And for those who harness the power of 65,536 as their batchsize, a staggering 16.7M queued hashes shall stand as a testament to their courage!
+	if CharBucketBatchSize < 1 {
+		CharBucketBatchSize = 1
+	} else if CharBucketBatchSize > 65536 {
+		CharBucketBatchSize = 65536
 	}
 
 	linSlashS := "/"
@@ -229,7 +233,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.IndexChan = make(chan *HistoryIndex, QueueIndexChan)
 		his.charsMap = make(map[string]int, BoltDBs)
 		his.History_DBZinit(boltOpts)
-		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d", QueueIndexChan, QueueIndexChans)
+		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d BatchSize=%d", QueueIndexChan, QueueIndexChans, CharBucketBatchSize)
 	}
 	his.Counter = make(map[string]uint64)
 	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]'\n  KeyAlgo=%d KeyLen=%d QueueWriteChan=%d\n  HashDBQueues:{%s}", new, his.HF, his.HF_hash, his.keyalgo, his.keylen, QueueWriteChan, HashDBQueues)
@@ -629,3 +633,12 @@ func PrintMemoryStatsEvery(interval time.Duration) {
 		PrintMemoryStats()
 	}
 }
+
+func isPow2(n int) bool {
+	// result 0 is pow^2
+	res := n & (n-1)
+	if res != 0 {
+		return false
+	}
+	return true
+} // end func isPow2
