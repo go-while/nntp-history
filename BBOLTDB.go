@@ -296,7 +296,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		his.BatchQueues.mux.Unlock()
 		// launches a batchQueue for every bucket in this `char` db.
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
-			timer, mintimer, maxtimer := 100, 1, 1000
+			timer, mintimer, maxtimer := 100, 1, 500
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
