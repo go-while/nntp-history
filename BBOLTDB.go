@@ -33,9 +33,9 @@ const (
 )
 
 var (
-	CharBucketBatchSize            int    = 16 // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
+	CharBucketBatchSize  int    = 16      // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
 	QueueIndexChan       int    = BoltDBs // Main-indexchan can queue this
-	QueueIndexChans      int    = BoltDBs // every sub-indexchans for a `char` can queue this
+	QueueIndexChans      int    = 1       // every sub-indexchans for a `char` can queue this
 	DefaultKeyLen        int    = 6
 	Bolt_SYNC_EVERYs     int64  = 5                            // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	Bolt_SYNC_EVERYn     uint64 = 100                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
@@ -292,7 +292,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding N*fold the might of the actual CharBucketBatchSize.
 		// A daring gamble that ignites the fires of performance, but beware the voracious appetite!
 		N := 1.5
-		batchQcap := int(float64(CharBucketBatchSize)*N)
+		batchQcap := int(float64(CharBucketBatchSize) * N)
 		batchQueue := make(chan *BatchOffset, batchQcap)
 		his.BatchQueues.mux.Lock()
 		his.BatchQueues.Maps[char][bucket] = batchQueue
@@ -332,7 +332,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				} else if Q < CharBucketBatchSize/2 { // less than 50% full
 					timer += 250
 				} else if Q == 0 {
-					timer = 1*1000
+					timer = 1 * 1000
 				}
 
 				if timer < mintimer && timer != 0 {
@@ -350,8 +350,7 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				case false:
 					if Q == 0 {
 						lastflush = utils.UnixTimeMilliSec()
-					} else
-					if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
+					} else if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
 						if !forced {
 							forced = true
 						}
