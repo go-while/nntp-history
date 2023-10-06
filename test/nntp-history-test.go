@@ -39,8 +39,9 @@ func main() {
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
+		history.IndexParallel = runtime.GOMAXPROCS(0)
 	}
-	fmt.Printf("ARGS: CPU=%d/%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
+	fmt.Printf("ARGS: CPU=%d/%d IndexParallel=%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), history.IndexParallel, useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	history.History.SET_DEBUG(debugs)
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
