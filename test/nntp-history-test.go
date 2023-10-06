@@ -60,7 +60,7 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16)
-		history.BATCHFLUSH = 2500     // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		history.BATCHFLUSH = 2500               // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
@@ -88,7 +88,7 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	go history.PrintMemoryStatsEvery(30*time.Second)
+	go history.PrintMemoryStatsEvery(30 * time.Second)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	if offset >= 0 {
 		result, err := history.History.FseekHistoryLine(offset)
