@@ -8,7 +8,7 @@ import (
 )
 
 var (
-	DEBUGL3 bool
+	DEBUGL3               bool
 	DefaultL3CacheExpires int64 = DefaultCacheExpires
 	L3Purge               int64 = DefaultCachePurge
 	L3InitSize            int   = 128
