@@ -41,7 +41,6 @@ func main() {
 		runtime.GOMAXPROCS(numCPU)
 		history.IndexParallel = runtime.GOMAXPROCS(0)
 	}
-	fmt.Printf("ARGS: CPU=%d/%d IndexParallel=%d | useHashDB: %t | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), history.IndexParallel, useHashDB, parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	history.History.SET_DEBUG(debugs)
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
@@ -60,7 +59,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16)
+		history.CharBucketBatchSize = BatchSize // ( can be: 1-1024 ) BatchSize per db[char][bucket]queuechan (16*16)
 		history.BATCHFLUSH = 2500               // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
@@ -90,8 +89,12 @@ func main() {
 	}
 	start := utils.UnixTimeSec()
 	go history.PrintMemoryStatsEvery(30 * time.Second)
+	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n boltOpts='%#v'", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
+	fmt.Printf(" useHashDB: %t | IndexParallel=%d boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+
 	if offset >= 0 {
+		// command line: '-getHL offset'
 		result, err := history.History.FseekHistoryLine(offset)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
