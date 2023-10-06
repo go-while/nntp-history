@@ -14,7 +14,7 @@ import (
 	"os"
 	//"github.com/nutsdb/nutsdb"
 	//"strconv"
-	//"strings"
+	"strings"
 	//"sync"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
@@ -42,8 +42,8 @@ var (
 	BoltINITParallel     int    = BoltDBs                      // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
 	BoltSYNCParallel     int    = BoltDBs                      // set this via 'history.BoltSYNCParallel = 1' before calling History_Boot.
 	BoltHashOpen                = make(chan struct{}, BoltDBs) // dont change this
-	HISTORY_INDEX_LOCK          = make(chan struct{}, 1)
-	HISTORY_INDEX_LOCK16        = make(chan struct{}, BoltDBs)
+	HISTORY_INDEX_LOCK          = make(chan struct{}, 1)       // main lock
+	HISTORY_INDEX_LOCK16        = make(chan struct{}, BoltDBs) // sub locks
 	empty_offsets        []int64
 )
 
@@ -139,7 +139,7 @@ func (his *HISTORY) History_DBZ() {
 					} else {
 						// gets first char of hash: hash must be lowercase!
 						// hex.EncodeToString returns a lowercased string of a hashsum
-						C1 = string(string(*hi.Hash)[0])
+						C1 = strings.ToLower(string(string(*hi.Hash)[0]))
 					}
 					if his.IndexChans[his.charsMap[C1]] != nil {
 						his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
