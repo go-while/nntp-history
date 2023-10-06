@@ -196,7 +196,7 @@ CPU=4/12 | useHashDB: true | useGoCache: false | jobs=4 | todo=1000000 | total=4
 ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
 2023/10/04 16:24:43 History: new=true
   HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
-  KeyAlgo=11 KeyLen=6 QueueWriteChan=16
+  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
   HashDBQueues:{QueueIndexChan=16 QueueIndexChans=16}
 ...
 2023/10/04 18:08:52 key_add=98845096 key_app=1154904 total=100000000 fseeks=1158418 eof=0 BoltDB_decodedOffsets=1149297 gotmultioffsets=9084 trymultioffsets=9084 searches=100000000 inserted1=100000000 inserted2=0
@@ -210,7 +210,7 @@ ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | k
 ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
 2023/10/04 18:16:33 History: new=false
   HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
-  KeyAlgo=11 KeyLen=6 QueueWriteChan=16
+  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
   HashDBQueues:{QueueIndexChan=16 QueueIndexChans=16}
 ...
 2023/10/04 18:51:03 key_add=0 key_app=102 total=102 fseeks=101151631 eof=0 BoltDB_decodedOffsets=99987676 gotmultioffsets=1 trymultioffsets=2300824 searches=100000000 inserted1=102 inserted2=0
