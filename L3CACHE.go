@@ -72,6 +72,7 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			}
 		}
 		maplen := len(l3.caches[char].cache)
+		oldmax := l3.mapsizes[char].maxmapsize
 		l3.muxers[char].mux.Unlock()
 
 		if len(cleanup) > 0 {
@@ -85,15 +86,14 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
 			cleanup = nil
 		}
-		l3.shrinkMapIfNeeded(char, maplen)
+		l3.shrinkMapIfNeeded(char, maplen, oldmax)
 		logf(DEBUGL3, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 	} // end for
 
 } //end func L3Cache_Thread
 
-func (l3 *L3CACHE) shrinkMapIfNeeded(char string, maplen int) {
-	shrinkmin := L2InitSize
-	oldmax := l3.mapsizes[char].maxmapsize
+func (l3 *L3CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) {
+	shrinkmin := L3InitSize
 	thresholdFactor := 0.125
 	threshold := int(float64(oldmax) * thresholdFactor)
 	if maplen > threshold {
