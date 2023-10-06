@@ -324,16 +324,13 @@ func (his *HISTORY) History_DBZ_Worker(char string, i int, indexchan chan *Histo
 				}
 
 				Q = len(batchQueue) // get remaining queued items after inserting
-				if Q > CharBucketBatchSize*3 {
-					logf(DEBUG2, "forbatchqueue char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
-				}
-
+				logf(DEBUG2, "forbatchqueue char=%s bucket=%s sleep=%d Q=%d", char, bucket, timer, Q)
 				if Q >= CharBucketBatchSize {
 					timer = 0 // nosleep
-				} else if Q >= CharBucketBatchSize/2 {
-					timer -= 200
-				} else if Q < CharBucketBatchSize/2 {
-					timer += 100
+				} else if Q > CharBucketBatchSize/2 { // more than 50% full
+					timer -= 250
+				} else if Q < CharBucketBatchSize/2 { // less than 50% full
+					timer += 250
 				} else if Q == 0 {
 					timer = 1*1000
 				}
