@@ -116,6 +116,7 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 			}
 		}
 		maplen := len(l1.caches[char].cache)
+		oldmax := l1.mapsizes[char].maxmapsize
 		l1.muxers[char].mux.Unlock()
 
 		if len(cleanup) > 0 {
@@ -129,15 +130,14 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 			logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
 			cleanup = nil
 		}
-		l1.shrinkMapIfNeeded(char, maplen)
+		l1.shrinkMapIfNeeded(char, maplen, oldmax)
 		logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 	} // end for
 
 } //end func L1Cache_Thread
 
-func (l1 *L1CACHE) shrinkMapIfNeeded(char string, maplen int) {
+func (l1 *L1CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) {
 	shrinkmin := L1InitSize
-	oldmax := l1.mapsizes[char].maxmapsize
 	thresholdFactor := 0.125
 	threshold := int(float64(oldmax) * thresholdFactor)
 	if maplen > threshold {
