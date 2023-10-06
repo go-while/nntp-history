@@ -31,15 +31,12 @@ func main() {
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
-	flag.IntVar(&numCPU, "numcpu", 0, "Limit CPU cores")
-	flag.BoolVar(&useHashDB, "useHashDB", true, "true|false")
-	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort|22=FNV32|33=FNV32a|44=FNV64|55=FNV64a")
+	flag.IntVar(&numCPU, "numcpu", 4, "Limit CPU cores")
+	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
+	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 64, "You no mess with Lo Wang!")
 	flag.Parse()
-	if BatchSize < 16 {
-		BatchSize = 16
-	}
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
 	}
@@ -62,8 +59,8 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BATCHSIZE = BatchSize // ( can be: 16-65536 ) this BatchSize queues this amount in db[char][bucket]queuechan
-		history.BATCHFLUSH = 5000     // ( can be: 10-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16)
+		history.BATCHFLUSH = 2500     // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
