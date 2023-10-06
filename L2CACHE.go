@@ -74,6 +74,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 			}
 		}
 		maplen := len(l2.caches[char].cache)
+		oldmax := l2.mapsizes[char].maxmapsize
 		l2.muxers[char].mux.Unlock()
 
 		if len(cleanup) > 0 {
@@ -87,15 +88,14 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 			logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
 			cleanup = nil
 		}
-		l2.shrinkMapIfNeeded(char, maplen)
+		l2.shrinkMapIfNeeded(char, maplen, oldmax)
 		logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 	} // end for
 
 } //end func L2Cache_Thread
 
-func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int) {
+func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) {
 	shrinkmin := L2InitSize
-	oldmax := l2.mapsizes[char].maxmapsize
 	thresholdFactor := 0.125
 	threshold := int(float64(oldmax) * thresholdFactor)
 	if maplen > threshold {
