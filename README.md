@@ -134,6 +134,43 @@ ls -lha /proc/$(pidof nntp-history-test)/fd|grep history.dat.hash|wc -l
 ```
 
 
+## BBoltDB Statistics
+
+When you retrieve and examine the statistics (e.g., by using the Stats method) of a BoltDB (bbolt) database in Go, you can gather valuable information about the database's performance, resource usage, and structure. The statistics provide insights into how the database is operating and can be useful for optimizing your application. Here are some of the key metrics you can see from BoltDB database statistics:
+
+Number of Buckets: The total number of buckets in the database. Each bucket is essentially a separate namespace for key-value pairs.
+
+Number of Keys: The total number of keys stored in the database. This metric can help you understand the size of your dataset.
+
+Number of Data Pages: The total number of data pages used by the database. Data pages store key-value pairs.
+
+Number of Leaf Pages: The total number of leaf pages in the database. Leaf pages contain key-value pairs directly.
+
+Number of Branch Pages: The total number of branch pages in the database. Branch pages are used for indexing and navigating to leaf pages.
+
+Page Size: The size of each page in bytes. This information can be helpful for understanding memory usage.
+
+Bucket Page Size: The average size of bucket pages in bytes. This metric can provide insights into how efficiently your buckets are organized.
+
+Leaf Page Size: The average size of leaf pages in bytes. This helps you understand the size of the data itself.
+
+Branch Page Size: The average size of branch pages in bytes. This metric can be useful for optimizing indexing.
+
+Allocated Pages: The total number of pages allocated by the database. This can be helpful for monitoring resource usage.
+
+Freed Pages: The total number of pages that have been freed or released. This metric can indicate how efficiently the database manages space.
+
+Page Rebalance: The number of times pages have been rebalanced between sibling branches. This is relevant for understanding how the database maintains a balanced tree structure.
+
+Transaction Stats: Information about transactions, including the number of started and committed transactions.
+
+Page Cache Stats: Metrics related to the page cache, including the number of hits and misses, and the size of the cache.
+
+Free Page Ns: The number of free pages per page allocation size. This provides insight into the fragmentation of free space.
+
+These statistics can help you monitor and optimize your BoltDB database. For example, you can use them to identify performance bottlenecks, understand resource usage patterns, and assess the efficiency of your data organization. Depending on your application's specific requirements, you may want to focus on certain metrics more than others.
+
+
 ## Contributing
 
 Contributions to this code are welcome.
