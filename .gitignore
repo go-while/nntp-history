@@ -21,6 +21,7 @@
 # Go workspace file
 go.work
 src/
+pkg
 test/src
 test/history
 test/hashdb
