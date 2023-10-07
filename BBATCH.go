@@ -3,8 +3,8 @@ package history
 import (
 	"fmt"
 	"github.com/go-while/go-utils"
-	"log"
 	bolt "go.etcd.io/bbolt"
+	"log"
 	"os"
 	//"time"
 )
@@ -79,7 +79,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 		//if int(inserted1) != CharBucketBatchSize && lastflush < BatchFlushEvery {
 		if int(inserted1) != workerCharBucketBatchSize {
-			took := utils.UnixTimeMicroSec()-start
+			took := utils.UnixTimeMicroSec() - start
 			logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, took, workerCharBucketBatchSize)
 		}
 	}
@@ -123,5 +123,3 @@ func (his *HISTORY) returnBatchLock(char string, bucket string) {
 		os.Exit(1)
 	}
 } // end func returnBatchLock
-
-
