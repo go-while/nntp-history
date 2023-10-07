@@ -99,19 +99,18 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		go his.boltDB_Worker(char, i, his.IndexChans[i], boltOpts)
 	}
 	logf(DEBUG2, "his.boltDB_Init() boltInitChan=%d boltSyncChan=%d", cap(his.boltInitChan), cap(his.boltSyncChan))
-	go his.History_DBZ()
+	go his.boltDB_Index()
 } // end func boltDB_Init
 
-// History_DBZ is the main routine for managing the historical data processing.
-// It listens to incoming HistoryIndex structs on the IndexChan channel and distributes them to corresponding worker goroutines.
-func (his *HISTORY) History_DBZ() {
-	if !LOCKfunc(HISTORY_INDEX_LOCK, "History_DBZ") {
+// boltDB_Index listens to incoming HistoryIndex structs on the IndexChan channel and distributes them to corresponding worker goroutines.
+func (his *HISTORY) boltDB_Index() {
+	if !LOCKfunc(HISTORY_INDEX_LOCK, "boltDB_Index") {
 		return
 	}
-	defer UNLOCKfunc(HISTORY_INDEX_LOCK, "History_DBZ")
+	defer UNLOCKfunc(HISTORY_INDEX_LOCK, "boltDB_Index")
 	his.wait4HashDB()
-	logf(DEBUG2, "Boot History_DBZ")
-	defer logf(DEBUG2, "Quit History_DBZ")
+	logf(DEBUG2, "Boot boltDB_Index")
+	defer logf(DEBUG2, "Quit boltDB_Index")
 	waitchan := make(chan struct{}, IndexParallel)
 	for p := 1; p <= IndexParallel; p++ {
 		waitchan <- struct{}{}
@@ -121,7 +120,7 @@ func (his *HISTORY) History_DBZ() {
 				select {
 				case hi, ok := <-his.IndexChan: // recevies a HistoryIndex struct and passes it down to '0-9a-f' workers
 					if !ok {
-						logf(DEBUG2, "Stopping History_DBZ IndexChan closed")
+						logf(DEBUG2, "Stopping boltDB_Index IndexChan closed")
 						break forever
 					}
 					if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
@@ -131,11 +130,11 @@ func (his *HISTORY) History_DBZ() {
 							default:
 								his.IndexChan <- nil
 						}
-						logf(DEBUG, "Stopping History_DBZ IndexChan p=%d/%d received nil pointer", p, IndexParallel)
+						logf(DEBUG, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, IndexParallel)
 						break forever
 					}
 					if hi.Offset == 0 {
-						log.Printf("ERROR History_DBZ offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
+						log.Printf("ERROR boltDB_Index offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
 						break forever
 					}
 					C1 := ""
@@ -149,7 +148,7 @@ func (his *HISTORY) History_DBZ() {
 					if his.IndexChans[his.charsMap[C1]] != nil {
 						his.IndexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
 					} else {
-						log.Printf("ERROR History_DBZ IndexChan C1=%s=nil", C1)
+						log.Printf("ERROR boltDB_Index IndexChan C1=%s=nil", C1)
 						break forever
 					}
 				} // end select
@@ -167,7 +166,7 @@ func (his *HISTORY) History_DBZ() {
 		// passing nils to IndexChans will stop boltDB_Worker
 		achan <- nil
 	}
-} // end func History_DBZ
+} // end func boltDB_Index
 
 // boltDB_Worker is a worker function responsible for processing historical data.
 // It manages BoltDB operations, including storing and retrieving offsets, and handles duplicate checks
@@ -299,10 +298,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 
 	// make the batchQueue
 	for _, bucket := range HEXCHARS {
-		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding N*fold the might of the actual CharBucketBatchSize.
+		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding twofold the might of the actual CharBucketBatchSize.
 		// A daring gamble that ignites the fires of performance, but beware the voracious appetite!
-		N := 1.5
-		batchQcap := int(float64(CharBucketBatchSize) * N)
+		batchQcap := CharBucketBatchSize * 2
 		batchQueue := make(chan *BatchOffset, batchQcap)
 		his.BatchQueues.mux.Lock()
 		his.BatchQueues.Maps[char][bucket] = batchQueue
@@ -317,11 +315,11 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			lastflush := utils.UnixTimeMilliSec()
 			var retbool, forced, closed bool
 			var err error
-			timer, mintimer, maxtimer, Q := 100*1000, 100, 1000*1000, 0 // ms*1000 = Microseconds
+			timer, maxtimer, Q := 100, 1000, 0
 		forbatchqueue:
 			for {
 				if timer > 0 {
-					time.Sleep(time.Duration(timer) * time.Microsecond)
+					time.Sleep(time.Duration(timer) * time.Millisecond)
 				}
 				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d Q=%d", char, bucket, timer, Q), true)
 				if closed { // received nil pointer
@@ -338,34 +336,34 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				if Q >= CharBucketBatchSize {
 					timer = 0 // nosleep
 				} else if Q > CharBucketBatchSize/2 { // more than 50% full
-					timer -= 250
+					timer -= 1
 				} else if Q < CharBucketBatchSize/2 { // less than 50% full
-					timer += 250
-				} else if Q == 0 {
-					timer = 1 * 1000
+					timer += 1
 				}
 
-				if timer < mintimer && timer != 0 {
-					timer = mintimer
+				if timer < 0 {
+					timer = 0
 				} else if timer > maxtimer {
 					timer = maxtimer
 				}
 
-				switch retbool {
-				case true:
-					lastflush = utils.UnixTimeMilliSec()
-					if forced == true {
-						forced = false
-					}
-				case false:
-					if Q == 0 {
+				if timer > 0 {
+					switch retbool {
+					case true:
 						lastflush = utils.UnixTimeMilliSec()
-					} else if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
-						if !forced {
-							forced = true
+						if forced == true {
+							forced = false
 						}
-						if timer != 0 {
-							timer = 0
+					case false:
+						if Q == 0 {
+							lastflush = utils.UnixTimeMilliSec()
+						} else if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
+							if !forced {
+								forced = true
+							}
+							if timer != 0 {
+								timer = 0
+							}
 						}
 					}
 				}
@@ -1237,19 +1235,6 @@ func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int) (int, error)
 			if !ok {
 				return -999, fmt.Errorf("ERROR IndexQuery IndexRetChan closed! error in boltDB_Worker")
 			}
-			/* the possible return values of IndexQuery(..)
-			switch isDup {
-			case 0:
-				// pass, not a duplicate
-				return 0
-			case 1:
-				dupes++
-				return 1
-			case 2:
-				retry++
-				return 2
-			}
-			*/
 			return isDup, nil
 		} // end select
 	}
