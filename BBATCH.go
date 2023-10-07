@@ -25,7 +25,8 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	batch1 := []*BatchOffset{}
 	batch2 := []*BatchOffset{}
-	start := utils.UnixTimeMilliSec()
+	start := utils.UnixTimeMicroSec()
+
 	if batchQueue != nil {
 	fetchbatch:
 		for {
@@ -56,7 +57,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	var inserted1 uint64
 	if len(batch1) > 0 {
-		//start := utils.UnixTimeMicroSec()
+		//start1 := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
@@ -75,15 +76,14 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 			return inserted1, err, closed
 		}
 
-		//if int(inserted1) != CharBucketBatchSize && lastflush < BatchFlushEvery {
 		//if int(inserted1) != workerCharBucketBatchSize {
-		//	took := utils.UnixTimeMicroSec() - start
-		//	logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, took, workerCharBucketBatchSize)
+		//	logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, utils.UnixTimeMicroSec() - start1, workerCharBucketBatchSize)
 		//}
 	}
 
 	var inserted2 uint64
 	if len(batch2) > 0 { // if no batchqueue is set (almost impossible since it is hardcoded...?)
+		//start2 := utils.UnixTimeMicroSec()
 		if err := db.Update(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
@@ -101,12 +101,16 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 			log.Printf("ERROR boltBucketPutBatch char=%s bucket=%s err='%v'", char, bucket, err)
 			return inserted2, err, closed
 		}
+
+		//if int(inserted2) != workerCharBucketBatchSize {
+		//	logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch2=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch2), forced, inserted2, src, utils.UnixTimeMicroSec() - start2, workerCharBucketBatchSize)
+		//}
 	}
 
 	inserted = inserted1 + inserted2
 	his.Sync_upcounterN("inserted1", inserted1)
 	his.Sync_upcounterN("inserted2", inserted2)
-	logf(DEBUG9, "BATCHED boltBucketPutBatch char=%s bucket=%s ins1=%d ins2=%d Q=%d forced=%t (took %d ms) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMilliSec()-start, src)
+	logf(DEBUG9, "BATCHED boltBucketPutBatch char=%s bucket=%s ins1=%d ins2=%d Q=%d forced=%t (took %d micros) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMicroSec()-start, src)
 	return inserted, err, closed
 } // end func boltBucketPutBatch
 
