@@ -42,8 +42,8 @@ var (
 	DEBUG2              bool   = false
 	DEBUG9              bool   = false
 	LOCKHISTORY                = make(chan struct{}, 1)
-	NumQueueWriteChan   int    = BoltDBs
-	BATCHFLUSH          int64  = 3000
+	NumQueueWriteChan   int    = 16
+	BatchFlushEvery     int64  = 5000
 	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash             string = "EOF"
 )
@@ -73,12 +73,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		NumQueueWriteChan = 1000000
 	}
 
-	if BATCHFLUSH == 0 {
-		BATCHFLUSH = 3000
-	} else if BATCHFLUSH < 1 {
-		BATCHFLUSH = 1
-	} else if BATCHFLUSH > 5000 {
-		BATCHFLUSH = 5000
+	if BatchFlushEvery <= 500 {  // milliseconds
+		BatchFlushEvery = 500
+	} else if BatchFlushEvery > 5000 {
+		BatchFlushEvery = 5000
 	}
 
 	if IndexParallel < 1 {
@@ -240,10 +238,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset) // maps bucket => chan
 			his.BoltDBsMap[char] = &BOLTDB_PTR{ BoltDB: nil }
 		}
-		his.IndexChan = make(chan *HistoryIndex, QueueIndexChan)
+		his.IndexChan = make(chan *HistoryIndex, NumQueueIndexChan)
 		his.charsMap = make(map[string]int, BoltDBs)
 		his.boltDB_Init(boltOpts)
-		HashDBQueues = fmt.Sprintf("QueueIndexChan=%d QueueIndexChans=%d BatchSize=%d IndexParallel=%d", QueueIndexChan, QueueIndexChans, CharBucketBatchSize, IndexParallel)
+		HashDBQueues = fmt.Sprintf("NumQueueIndexChan=%d NumQueueIndexChans=%d BatchSize=%d IndexParallel=%d", NumQueueIndexChan, NumQueueIndexChans, CharBucketBatchSize, IndexParallel)
 	}
 	his.Counter = make(map[string]uint64)
 	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]'\n  KeyAlgo=%d KeyLen=%d NumQueueWriteChan=%d\n  HashDBQueues:{%s}", new, his.HF, his.HF_hash, his.keyalgo, his.keylen, NumQueueWriteChan, HashDBQueues)
@@ -582,29 +580,35 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	if his.WriterChan == nil {
 		return
 	}
+	log.Printf("CLOSE_HISTORY: his.WriterChan <- nil")
 	his.WriterChan <- nil // closes workers
 	for {
-		time.Sleep(time.Second)
+
 		lock1, v1 := len(LOCKHISTORY) > 0, len(LOCKHISTORY)
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
 		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
 		lock5, v5 := len(his.BatchQueues.Booted) > 0, len(his.BatchQueues.Booted)
-		batchQ := 0
+
+		batchQ, batchLOCKS := 0, 0
 		for _, char := range HEXCHARS {
 			for _, bucket := range HEXCHARS {
 				batchQ += len(his.BatchQueues.Maps[char][bucket])
+				batchLOCKS += len(his.BatchLocks[char][bucket])
 			}
 		}
-		lockBatch := batchQ > 0
-		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !lockBatch {
+		batchQueued := batchQ > 0
+		batchLocked := batchLOCKS > 0
+		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !batchQueued && !batchLocked {
 			break
 		}
-		// if batchQ < 256: it's most likely remaining 'nil' pointers which should be returned on next BATCHFLUSH
+		// if batchQ < 256: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
 		// if v5 == 256: all batchQueues are still running
 		//if batchQ > 256 && v5 == 256 {
-			log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d lockBatch=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, lockBatch, batchQ)
+		//if batchLOCKS > 0 {
+			log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
 		//}
+		time.Sleep(time.Second)
 	}
 	his.WriterChan = nil
 } // end func CLOSE_HISTORY
