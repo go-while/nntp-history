@@ -37,7 +37,7 @@ func main() {
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 977, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
@@ -119,9 +119,9 @@ func main() {
 				responseChan = make(chan int, 1)
 				IndexRetChan = make(chan int, 1)
 			}
-			var spam, spammer, dupes, added, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, errors uint64
+			var spam, spammer, dupes, added, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, errors, locked uint64
 			//spammer = uint64(todo)/10
-			spammer = 500000
+			spammer = 1000000
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if spam >= spammer {
@@ -142,6 +142,7 @@ func main() {
 				switch retval {
 				case history.CasePass:
 					history.History.Sync_upcounter("L1CACHE_Lock")
+					locked++
 					// pass
 				case history.CaseLock:
 					// cache hits, already in processing
@@ -228,7 +229,7 @@ func main() {
 			} // end for i todo
 			P_donechan <- struct{}{}
 			sum := added + dupes + cachehits + addretry + retry + adddupes + cachedupes + cacheretry1
-			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d addretry=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d", p, added, dupes, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors)
+			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d addretry=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d locked=%d", p, added, dupes, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors, locked)
 		}(p) // end go func parallel
 	} // end for parallelTest
 
