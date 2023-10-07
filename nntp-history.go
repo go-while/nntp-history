@@ -60,7 +60,6 @@ var (
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
-	//gob.RegisterName("GOBOFFSETS", GOBOFFSETS{})
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if his.WriterChan != nil {
@@ -88,10 +87,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		IndexParallel = 16 // hardcoded limit to 16
 	}
 
-	// With a mere batchsize of 1, behold as 256 queued hashes arise in all their glory!
+	// With a mere batchsize of 1, behold as 512 queued hashes arise in all their glory!
 	// Divided among 256 queues, like the 16 sacred char databases and 16 mighty buckets.
-	// Yet, should one dare to wield a batchsize of 1024, prepare for the spectacle of 256K queued hashes!
-	// And for those who harness the power of 65,536 as their batchsize, a staggering 16.7M queued hashes shall stand as a testament to their courage!
+	// Yet, should one dare to wield a batchsize of 1024, prepare for the spectacle of 512K queued hashes!
+	// Brace yourselves, champions of the shadows.
+	// For those who wield the unstoppable force of 65536 as their batchsize, an almost infinite horde of queued hashes shall rise.
+	// An awe-inspiring testament to their indomitable valor!
+	// Why, you ask? Because: batchQcap := CharBucketBatchSize * 2 (* 256 queues), and that's double the trouble, baby!
 	if CharBucketBatchSize < 1 {
 		CharBucketBatchSize = 1
 	} else if CharBucketBatchSize > 1024 {
