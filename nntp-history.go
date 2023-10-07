@@ -35,17 +35,17 @@ const (
 )
 
 var (
-	History             HISTORY
-	DEBUG               bool   = true
-	DEBUG0              bool   = false
-	DEBUG1              bool   = false
-	DEBUG2              bool   = false
-	DEBUG9              bool   = false
-	LOCKHISTORY                = make(chan struct{}, 1)
-	NumQueueWriteChan   int    = 16
-	BatchFlushEvery     int64  = 5000
-	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash             string = "EOF"
+	History           HISTORY
+	DEBUG             bool   = true
+	DEBUG0            bool   = false
+	DEBUG1            bool   = false
+	DEBUG2            bool   = false
+	DEBUG9            bool   = false
+	LOCKHISTORY              = make(chan struct{}, 1)
+	NumQueueWriteChan int    = 16
+	BatchFlushEvery   int64  = 5000
+	HEXCHARS                 = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash           string = "EOF"
 )
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -73,7 +73,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		NumQueueWriteChan = 1000000
 	}
 
-	if BatchFlushEvery <= 500 {  // milliseconds
+	if BatchFlushEvery <= 500 { // milliseconds
 		BatchFlushEvery = 500
 	} else if BatchFlushEvery > 5000 {
 		BatchFlushEvery = 5000
@@ -236,7 +236,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.BoltDBsMap = make(map[string]*BOLTDB_PTR)
 		for _, char := range HEXCHARS {
 			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset) // maps bucket => chan
-			his.BoltDBsMap[char] = &BOLTDB_PTR{ BoltDB: nil }
+			his.BoltDBsMap[char] = &BOLTDB_PTR{BoltDB: nil}
 		}
 		his.IndexChan = make(chan *HistoryIndex, NumQueueIndexChan)
 		his.charsMap = make(map[string]int, BoltDBs)
@@ -606,7 +606,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		// if v5 == 256: all batchQueues are still running
 		//if batchQ > 256 && v5 == 256 {
 		//if batchLOCKS > 0 {
-			log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
+		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
 		//}
 		time.Sleep(time.Second)
 	}
