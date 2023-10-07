@@ -5,8 +5,8 @@ import (
 )
 
 var (
-	IndexParallel int = 1
-	DBG_C bool // DEBUG_CACHE_GROW_SHRINK
+	IndexParallel int  = 1
+	DBG_C         bool // DEBUG_CACHE_GROW_SHRINK
 )
 
 type HISTORY struct {
