@@ -36,8 +36,8 @@ var (
 	AdaptiveBatchSize    bool             // adjusts workerCharBucketBatchSize automagically
 	BoltDB_MaxBatchSize  int    = 1000    // the default value from boltdb:db.go
 	CharBucketBatchSize  int    = 16      // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
-	NumQueueIndexChan       int    = BoltDBs // Main-indexchan can queue this
-	NumQueueIndexChans      int    = 1       // every sub-indexchans for a `char` can queue this
+	NumQueueIndexChan    int    = BoltDBs // Main-indexchan can queue this
+	NumQueueIndexChans   int    = 1       // every sub-indexchans for a `char` can queue this
 	DefaultKeyLen        int    = 6
 	Bolt_SYNC_EVERYs     int64  = 5                            // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	Bolt_SYNC_EVERYn     uint64 = 100                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
@@ -77,13 +77,13 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	if NumQueueIndexChan <= 0 {
 		NumQueueIndexChan = 1
 	} else if NumQueueIndexChan > 1024*1024 {
-		NumQueueIndexChan = 1024*1024
+		NumQueueIndexChan = 1024 * 1024
 	}
 
 	if NumQueueIndexChans <= 0 {
 		NumQueueIndexChans = 1
 	} else if NumQueueIndexChans > 1024*1024 {
-		NumQueueIndexChans = 1024*1024
+		NumQueueIndexChans = 1024 * 1024
 	}
 
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
@@ -127,10 +127,10 @@ func (his *HISTORY) boltDB_Index() {
 					}
 					if hi == nil || hi.Hash == nil || len(*hi.Hash) < 32 { // allow at least md5
 						switch IndexParallel {
-							case 1:
-								close(his.IndexChan)
-							default:
-								his.IndexChan <- nil
+						case 1:
+							close(his.IndexChan)
+						default:
+							his.IndexChan <- nil
 						}
 						logf(DEBUG, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, IndexParallel)
 						break forever
@@ -333,7 +333,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					time.Sleep(time.Duration(timer) * time.Millisecond)
 					slept++
 				}
-				lft := utils.UnixTimeMilliSec()-lastflush
+				lft := utils.UnixTimeMilliSec() - lastflush
 				src := fmt.Sprintf("gofunc:[%s|%s]:t=%d Q=%d lft=%d", char, bucket, timer, Q, lft)
 				inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src, true, lft, wCBBS)
 
@@ -351,31 +351,31 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				Q = len(batchQueue) // get remaining queued items after inserting
 
 				/*
-				//logf(DEBUG, "forbatchqueue A0 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-				if Q == 0 {
-					timer += 10
-				} else
-				if Q > wCBBS { // more than 100% queued, yes because cap is *2
-					//logf(DEBUG, "forbatchqueue B0 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-					timer -= 10
-				} else
-				if Q > wCBBS/2 { // more than 50% queued
-					//logf(DEBUG, "forbatchqueue B1 >50%% char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft/1000, inserted, wCBBS)
-					timer -= 1
-				} else if Q < wCBBS/2 { // less than 50% queued
-					//logf(DEBUG, "forbatchqueue B2 <50%% char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft/1000, inserted, wCBBS)
-					timer += 1
-				}
+					//logf(DEBUG, "forbatchqueue A0 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
+					if Q == 0 {
+						timer += 10
+					} else
+					if Q > wCBBS { // more than 100% queued, yes because cap is *2
+						//logf(DEBUG, "forbatchqueue B0 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
+						timer -= 10
+					} else
+					if Q > wCBBS/2 { // more than 50% queued
+						//logf(DEBUG, "forbatchqueue B1 >50%% char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft/1000, inserted, wCBBS)
+						timer -= 1
+					} else if Q < wCBBS/2 { // less than 50% queued
+						//logf(DEBUG, "forbatchqueue B2 <50%% char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft/1000, inserted, wCBBS)
+						timer += 1
+					}
 
-				if timer < mintimer {
-					timer = mintimer
-					//if inserted > 0 {
-					//	logf(DEBUG, "forbatchqueue C1 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-					//}
-				} else if timer > maxtimer {
-					timer = maxtimer
-					//logf(DEBUG, "forbatchqueue C2 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-				}
+					if timer < mintimer {
+						timer = mintimer
+						//if inserted > 0 {
+						//	logf(DEBUG, "forbatchqueue C1 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
+						//}
+					} else if timer > maxtimer {
+						timer = maxtimer
+						//logf(DEBUG, "forbatchqueue C2 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
+					}
 				*/
 
 				if inserted > 0 {
@@ -1091,8 +1091,6 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string) error {
 	return nil
 } // end func BoltSync
 
-
-
 func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 	if db == nil {
 		return fmt.Errorf("ERROR boltSyncClose db=nil")
@@ -1117,7 +1115,6 @@ func (his *HISTORY) returnBoltSync() {
 func (his *HISTORY) lockBoltSync() {
 	his.boltSyncChan <- struct{}{}
 } // end func lockBoltSync
-
 
 func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) {
 	ticker := time.NewTicker(interval)
@@ -1211,4 +1208,3 @@ func (his *HISTORY) GetCounter(counter string) uint64 {
 	his.cmux.Unlock()
 	return retval
 } // end func GetCounter
-
