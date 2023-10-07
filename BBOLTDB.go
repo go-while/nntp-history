@@ -451,9 +451,9 @@ forever:
 			switch isDup {
 			case CaseAdded:
 				added++
-			case CasePass:
-				log.Printf("ERROR HDBZW DupeCheck invalid response isDup=CasePass char=%s bucket=%s key=%s hash=%s @0x%010x|%d|%x", char, bucket, *key, *hi.Hash, hi.Offset)
-				passed++
+			//case CasePass:
+			//	log.Printf("ERROR HDBZW DupeCheck invalid response isDup=CasePass char=%s bucket=%s key=%s hash=%s @0x%010x|%d|%x", char, bucket, *key, *hi.Hash, hi.Offset)
+			//	passed++
 			case CaseDupes:
 				dupes++
 			case CaseRetry:
