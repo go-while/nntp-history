@@ -1123,26 +1123,61 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 	}
 } // end func PrintGetBoltStatsEvery
 
-func (his *HISTORY) GetBoltStats(char string) {
+func (his *HISTORY) GetBoltStats(char string) (int, int) {
+	startedTx, committTx := 0, 0
+	if char == "" {
+		for _, char := range HEXCHARS {
+			if his.BoltDBsMap[char].BoltDB != nil {
+				dbstats, _ := his.getDBStats(his.BoltDBsMap[char].BoltDB)
+				startedTx += dbstats.OpenTxN
+				committTx += dbstats.TxN
+				//log.Printf("BoltStats [%s] dbstats:'%+v' err='%#v' startedTx=%d committTx=%d", char, dbstats, err)
+				//log.Printf("BoltStats [%s] startedTx=%d committTx=%d err='%v'", char, dbstats.OpenTxN, dbstats.TxN, err)
+			}
+		}
+	}
+	/*
 	if char != "" {
 		for _, bucket := range HEXCHARS {
 			if his.BoltDBsMap[char].BoltDB != nil {
 				stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
+				//startedTx += stats.TxStats.Started
+				//committTx += stats.TxStats.Committed
 				log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
 			}
 		}
-		return
+		return startedTx, committTx
 	}
 
 	for _, char := range HEXCHARS {
 		for _, bucket := range HEXCHARS {
 			if his.BoltDBsMap[char].BoltDB != nil {
 				stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
+				//startedTx += stats.TxStats.Started
+				//committTx += stats.TxStats.Committed
 				log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
 			}
 		}
 	}
+	*/
+	return startedTx, committTx
 } // end func GetBoltStats
+
+func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
+	var stats bolt.Stats
+
+	if db == nil {
+		return stats, fmt.Errorf("ERROR getDBStats db=nil")
+	}
+
+	err := db.View(func(tx *bolt.Tx) error {
+		// Get statistics
+		stats = db.Stats()
+		return nil
+	})
+
+	return stats, err
+} // end func getDBStats
 
 func (his *HISTORY) getBucketStats(db *bolt.DB, bucketName string) (bolt.BucketStats, error) {
 	var stats bolt.BucketStats
