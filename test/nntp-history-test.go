@@ -37,11 +37,11 @@ func main() {
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 977, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
-		history.IndexParallel = runtime.GOMAXPROCS(0)
+		//history.IndexParallel = runtime.GOMAXPROCS(0)
 	}
 	history.History.SET_DEBUG(debugs)
 	storageToken := "F" // storagetoken flatfile
@@ -72,7 +72,7 @@ func main() {
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16
 		//history.NumQueueIndexChan = 1     // ( can be any value > 0 ) default: 16
-		//history.NumQueueIndexChans = 1    // ( can be any value > 0 ) default: 1
+		history.NumQueueIndexChans = 4    // ( can be any value > 0 ) default: 1
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
 			//ReadOnly: true,
@@ -94,7 +94,7 @@ func main() {
 	}
 	start := utils.UnixTimeSec()
 	//go history.PrintMemoryStatsEvery(30 * time.Second)
-	//go history.History.PrintGetBoltStatsEvery("", 5 * time.Second)
+	go history.History.PrintGetBoltStatsEvery("", 5 * time.Second)
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
