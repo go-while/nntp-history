@@ -37,7 +37,7 @@ func main() {
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 64, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
@@ -61,8 +61,9 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.CharBucketBatchSize = BatchSize // ( can be: 1-1024 ) BatchSize per db[char][bucket]queuechan (16*16)
-		history.BATCHFLUSH = 2500               // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
+		history.CharBucketBatchSize = BatchSize // ( can be: 1-1024 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
+		history.BatchFlushEvery = 5000               // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60     // only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYn = 50000  // only used with 'boltopts.NoSync: true'
@@ -92,6 +93,7 @@ func main() {
 	}
 	start := utils.UnixTimeSec()
 	go history.PrintMemoryStatsEvery(30 * time.Second)
+	go history.History.PrintGetBoltStatsEvery("", 5 * time.Second)
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
@@ -259,9 +261,14 @@ func main() {
 	inserted1 := history.History.GetCounter("inserted1")
 	inserted2 := history.History.GetCounter("inserted2")
 	total := key_add + key_app
+
+
+
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, trymultioffsets, searches, inserted1, inserted2)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
+
+
 
 	history.PrintMemoryStats()
 	log.Printf("runtime.GC()")
