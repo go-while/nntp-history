@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	IndexParallel int  = 1
+	IndexParallel int  = 16
 	DBG_C         bool // DEBUG_CACHE_GROW_SHRINK
 )
 
