@@ -56,9 +56,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	var inserted1 uint64
 	if len(batch1) > 0 {
-		start := utils.UnixTimeMicroSec()
-		// locks this char db:bucket for batch writing
-
+		//start := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
@@ -78,16 +76,14 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 		}
 
 		//if int(inserted1) != CharBucketBatchSize && lastflush < BatchFlushEvery {
-		if int(inserted1) != workerCharBucketBatchSize {
-			took := utils.UnixTimeMicroSec() - start
-			logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, took, workerCharBucketBatchSize)
-		}
+		//if int(inserted1) != workerCharBucketBatchSize {
+		//	took := utils.UnixTimeMicroSec() - start
+		//	logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, took, workerCharBucketBatchSize)
+		//}
 	}
 
 	var inserted2 uint64
 	if len(batch2) > 0 { // if no batchqueue is set (almost impossible since it is hardcoded...?)
-		// locks this char db:bucket for batch writing
-
 		if err := db.Update(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
