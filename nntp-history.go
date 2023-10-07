@@ -93,11 +93,11 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	// Brace yourselves, champions of the shadows.
 	// For those who wield the unstoppable force of 65536 as their batchsize, an almost infinite horde of queued hashes shall rise.
 	// An awe-inspiring testament to their indomitable valor!
-	// Why, you ask? Because: batchQcap := CharBucketBatchSize * 2 (* 256 queues), and that's double the trouble, baby!
+	// Why, you ask? Because: batchQcap := CharBucketBatchSize * 2 (* 256 queues), and that's more than double the trouble, baby!
 	if CharBucketBatchSize < 1 {
 		CharBucketBatchSize = 1
-	} else if CharBucketBatchSize > 1024 {
-		CharBucketBatchSize = 1024
+	} else if CharBucketBatchSize > 65536 {
+		CharBucketBatchSize = 65536
 	}
 
 	linSlashS := "/"
