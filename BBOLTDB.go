@@ -412,7 +412,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 
 				if Q > 0 && lastflush <= utils.UnixTimeMilliSec()-BatchFlushEvery {
-					logf(DEBUG, "forbatchqueue F1 char=%s bucket=%s timer=%d Q=%d forced=%t=>true lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
+					//logf(DEBUG, "forbatchqueue F1 char=%s bucket=%s timer=%d Q=%d forced=%t=>true lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
 					forced = true
 				}
 
