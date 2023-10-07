@@ -62,16 +62,17 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
-		history.CharBucketBatchSize = BatchSize // ( can be: 1-1024 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
-		history.BatchFlushEvery = 5000               // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
+		history.AdaptiveBatchSize = true // adjusts CharBucketBatchSize automagically
+		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
+		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60     // only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYn = 50000  // only used with 'boltopts.NoSync: true'
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16
-		//history.NumQueueWriteChan = 1     // ( can be any value > 0 ) default: 16
-		//history.QueueIndexChan = 1     // ( can be any value > 0 ) default: 16
-		//history.QueueIndexChans = 1    // ( can be any value > 0 ) default: 1
+		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16
+		//history.NumQueueIndexChan = 1     // ( can be any value > 0 ) default: 16
+		//history.NumQueueIndexChans = 1    // ( can be any value > 0 ) default: 1
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
 			//ReadOnly: true,
@@ -92,8 +93,8 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	go history.PrintMemoryStatsEvery(30 * time.Second)
-	go history.History.PrintGetBoltStatsEvery("", 5 * time.Second)
+	//go history.PrintMemoryStatsEvery(30 * time.Second)
+	//go history.History.PrintGetBoltStatsEvery("", 5 * time.Second)
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
@@ -255,20 +256,19 @@ func main() {
 	L2CACHE_Get := history.History.GetCounter("L2CACHE_Get")
 	L3CACHE_Get := history.History.GetCounter("L3CACHE_Get")
 	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
-	gotmultioffsets := history.History.GetCounter("gotmultioffsets")
+	addmultioffsets := history.History.GetCounter("addmultioffsets")
 	trymultioffsets := history.History.GetCounter("trymultioffsets")
 	searches := history.History.GetCounter("searches")
 	inserted1 := history.History.GetCounter("inserted1")
 	inserted2 := history.History.GetCounter("inserted2")
+	wCBBS := history.History.GetCounter("wCBBS")
+	wCBBSconti := history.History.GetCounter("wCBBSconti")
+	wCBBSslept := history.History.GetCounter("wCBBSslept")
 	total := key_add + key_app
 
-
-
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d gotmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, gotmultioffsets, trymultioffsets, searches, inserted1, inserted2)
-	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addmultioffsets, trymultioffsets, searches, inserted1, inserted2)
+	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d | wCBBS=~%d conti=%d slept=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get, wCBBS/256, wCBBSconti/256, wCBBSslept/256)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
-
-
 
 	history.PrintMemoryStats()
 	log.Printf("runtime.GC()")
