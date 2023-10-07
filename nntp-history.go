@@ -602,9 +602,9 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		}
 		// if batchQ < 256: it's most likely remaining 'nil' pointers which should be returned on next BATCHFLUSH
 		// if v5 == 256: all batchQueues are still running
-		if batchQ > 256 && v5 == 256 {
+		//if batchQ > 256 && v5 == 256 {
 			log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d lockBatch=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, lockBatch, batchQ)
-		}
+		//}
 	}
 	his.WriterChan = nil
 } // end func CLOSE_HISTORY
