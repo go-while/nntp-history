@@ -12,12 +12,14 @@ import (
 	"flag"
 	"os"
 	"runtime"
+	"runtime/debug"
 	_ "syscall"
 	"time"
 )
 
 func main() {
 	numCPU := runtime.NumCPU()
+	debug.SetGCPercent(200)
 	var offset int64
 	var todo int // todo x parallelTest
 	var parallelTest int
@@ -62,8 +64,8 @@ func main() {
 		history.CharBucketBatchSize = BatchSize // ( can be: 1-1024 ) BatchSize per db[char][bucket]queuechan (16*16)
 		history.BATCHFLUSH = 2500               // ( can be: 1-5000 ) if BatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
-		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
-		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
+		history.Bolt_SYNC_EVERYs = 60     // only used with 'boltopts.NoSync: true'
+		history.Bolt_SYNC_EVERYn = 50000  // only used with 'boltopts.NoSync: true'
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16
 		//history.NumQueueWriteChan = 1     // ( can be any value > 0 ) default: 16
@@ -75,12 +77,13 @@ func main() {
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 2 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
 			PageSize:        64 * 1024,
-			//NoSync:          true,
+			//NoSync:         true,
+			//NoGrowSync:     true,
 			//NoFreelistSync: true,
+			//MaxBatchSize: 100,
 			//FreelistType: "hashmap",
 			//FreelistType: "array",
-			//MaxBatchSize: 0,
-			//AllocSize: 64*1024*1024,
+			//PreLoadFreelist: ?,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
 			//MmapFlags: syscall.MAP_POPULATE,
