@@ -191,6 +191,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		return
 	}
 	logf(DEBUG2, "HDBZW: INIT HashDB char=%s db=%#v", char, db)
+	db.MaxBatchSize = 16
 	his.BoltDBsMap[char].BoltDB = db
 	testkey := "1"
 	testoffsets := []int64{1}
@@ -313,7 +314,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				return
 			}
 			lastflush := utils.UnixTimeMilliSec()
-			var retbool, forced, closed bool
+			var forced, closed bool
+			var inserted uint64
 			var err error
 			timer, maxtimer, Q := 100, 1000, 0
 		forbatchqueue:
@@ -321,7 +323,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				if timer > 0 {
 					time.Sleep(time.Duration(timer) * time.Millisecond)
 				}
-				retbool, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d Q=%d", char, bucket, timer, Q), true)
+				if len(batchQueue) < CharBucketBatchSize && !forced && lastflush > utils.UnixTimeMilliSec()-BATCHFLUSH {
+					if timer <= 0 {
+						timer += 1
+					}
+					continue forbatchqueue
+				}
+				inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, fmt.Sprintf("gofunc:%s%s:s=%d Q=%d", char, bucket, timer, Q), true)
 				if closed { // received nil pointer
 					logf(DEBUG2, "Closed gofunc char=%s bucket=%s", char, bucket)
 					break forbatchqueue // this go func
@@ -347,23 +355,21 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					timer = maxtimer
 				}
 
-				if timer > 0 {
-					switch retbool {
-					case true:
+				if inserted > 0 {
+					lastflush = utils.UnixTimeMilliSec()
+					if forced == true {
+						forced = false
+					}
+				} else {
+					logf(DEBUG, "forbatchqueue char=%s bucket=%s switch retbool case false inserted=0", char, bucket)
+					if Q == 0 {
 						lastflush = utils.UnixTimeMilliSec()
-						if forced == true {
-							forced = false
+					} else if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
+						if !forced {
+							forced = true
 						}
-					case false:
-						if Q == 0 {
-							lastflush = utils.UnixTimeMilliSec()
-						} else if Q > 0 && lastflush < utils.UnixTimeMilliSec()-BATCHFLUSH {
-							if !forced {
-								forced = true
-							}
-							if timer != 0 {
-								timer = 0
-							}
+						if timer != 0 {
+							timer = 0
 						}
 					}
 				}
@@ -726,23 +732,20 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 	return
 } // end func boltBucketKeyPutOffsets
 
-func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool) (retbool bool, err error, closed bool) {
+func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool) (inserted uint64, err error, closed bool) {
 	if batchQueue == nil {
 		log.Printf("ERROR boltBucketPutBatch batchQueue=nil")
 		return
 	}
 	logf(DEBUG9, "LOCKING boltBucketPutBatch char=%s bucket=%s", char, bucket)
 	// locks this char db:bucket for batch writing
-	his.BatchLocks[char][bucket] <- struct{}{}
-	defer his.returnBatchLock(char, bucket)
-	logf(DEBUG9, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
+	//his.BatchLocks[char][bucket] <- struct{}{}
+	//logf(DEBUG9, "iLOCKED boltBucketPutBatch char=%s bucket=%s", char, bucket)
 
-	if len(batchQueue) < CharBucketBatchSize && !forced {
-		return
-	}
-	batch := []*BatchOffset{}
-	batchmap := make(map[string][]*BatchOffset)
-	var queued uint64
+	//batch1 := make(map[string][]*BatchOffset)
+	batch1 := []*BatchOffset{}
+	batch2 := []*BatchOffset{}
+	//var queued uint64
 	start := utils.UnixTimeMilliSec()
 	//closed := false
 	if batchQueue != nil {
@@ -755,22 +758,17 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 					logf(DEBUG2, "boltBucketPutBatch received nil pointer char=%s bucket=%s", char, bucket)
 					break fetchbatch
 				}
-				if bo.bucket != "" {
-					if bo.bucket != bucket {
-						err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
-						return
-					}
-					batchmap[bo.bucket] = append(batchmap[bo.bucket], bo)
-					queued++
-					if !forced && len(batchmap[bucket]) >= CharBucketBatchSize {
-						break fetchbatch
-					}
-				} else {
-					// batch to inserted2. maybe remove soon?
-					batch = append(batch, bo)
-					if !forced && len(batch) >= CharBucketBatchSize {
-						break fetchbatch
-					}
+				if bo.bucket == "" {
+					log.Printf("ERROR boltBucketPutBatch bo.bucket empty!")
+					continue fetchbatch
+				}
+				if bo.bucket != bucket {
+					err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
+					return
+				}
+				batch1 = append(batch1, bo)
+				if !forced && len(batch1) >= CharBucketBatchSize {
+					break fetchbatch
 				}
 			default:
 				break fetchbatch
@@ -779,38 +777,41 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	}
 
 	var inserted1 uint64
-	if queued > 0 {
-		for buk, v := range batchmap {
-			if len(batchmap[buk]) == 0 {
-				continue
-			}
-			if err := db.Update(func(tx *bolt.Tx) error {
-				var err error
-				b := tx.Bucket([]byte(buk))
-			batchmapinsert:
-				for _, bo := range v {
-					puterr := b.Put([]byte(bo.key), bo.gobEncodedOffsets)
-					if puterr != nil {
-						err = puterr
-						break batchmapinsert
-					}
-					inserted1++
+	if len(batch1) > 0 {
+		start := utils.UnixTimeMicroSec()
+		his.BatchLocks[char][bucket] <- struct{}{}
+
+		if err := db.Batch(func(tx *bolt.Tx) error {
+			var err error
+			b := tx.Bucket([]byte(bucket))
+		batch1insert:
+			for _, bo := range batch1 {
+				puterr := b.Put([]byte(bo.key), bo.gobEncodedOffsets)
+				if puterr != nil {
+					err = puterr
+					break batch1insert
 				}
-				return err
-			}); err != nil {
-				log.Printf("ERROR boltBucketPutBatch char=%s buk=%s err='%v'", char, bucket, err)
-				return false, err, closed
+				inserted1++
 			}
+			return err
+		}); err != nil {
+			log.Printf("ERROR boltBucketPutBatch char=%s buk=%s err='%v'", char, bucket, err)
+			return inserted1, err, closed
+		}
+		his.returnBatchLock(char, bucket)
+		if int(inserted1) != CharBucketBatchSize {
+			log.Printf("WARN boltBucketPutBatch char=%s buk=%s batch1=%d forced=%t inserted1=%d ( took %d micros )", char, bucket, len(batch1), forced, inserted1, utils.UnixTimeMicroSec()-start)
 		}
 	}
 
 	var inserted2 uint64
-	if len(batch) > 0 { // if no batchqueue is set (almost impossible since it is hardcoded...?)
+	if len(batch2) > 0 { // if no batchqueue is set (almost impossible since it is hardcoded...?)
+		his.BatchLocks[char][bucket] <- struct{}{}
 		if err := db.Update(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
 		batchinsert:
-			for _, bo := range batch {
+			for _, bo := range batch1 {
 				puterr := b.Put([]byte(bo.key), bo.gobEncodedOffsets)
 				if puterr != nil {
 					err = puterr
@@ -821,29 +822,12 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 			return err
 		}); err != nil {
 			log.Printf("ERROR boltBucketPutBatch char=%s buk=%s err='%v'", char, bucket, err)
-			return false, err, closed
+			return inserted2, err, closed
 		}
+		his.returnBatchLock(char, bucket)
 	}
 
-	//queued := len(batchQueue)
-	/*
-		if forced && !looped {
-			for {
-				time.Sleep(time.Second / 100)
-				Q := len(batchQueue)
-				if Q == 0 {
-					logf(DEBUG9, "DONE FORCED SYNCING boltBucketPutBatch char=%s buk=%s", char, bucket)
-					return true, nil
-				}
-				logf(DEBUG, "FORCED SYNCING boltBucketPutBatch char=%s buk=%s Q=%d", char, bucket, Q)
-				//his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src+"+", true)
-			}
-		}*/
-
-	inserted := inserted1 + inserted2
-	if inserted > 0 {
-		retbool = true
-	}
+	inserted = inserted1 + inserted2
 	his.Sync_upcounterN("inserted1", inserted1)
 	his.Sync_upcounterN("inserted2", inserted2)
 	logf(DEBUG9, "BATCHED boltBucketPutBatch char=%s buk=%s i1=%d i2=%d Q=%d forced=%t (took %d ms) src=%s", char, bucket, inserted1, inserted2, len(batchQueue), forced, utils.UnixTimeMilliSec()-start, src)
@@ -1138,7 +1122,7 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string) error {
 		return fmt.Errorf("ERROR BoltSync db=nil")
 	}
 	his.lockBoltSync()
-	//logf(DEBUG9, "LOCKING BoltSync BatchLocks")
+	logf(DEBUG9, "LOCKING BoltSync BatchLocks")
 	for _, bucket := range HEXCHARS {
 		// locks every bucket in this char db for syncing
 		his.BatchLocks[char][bucket] <- struct{}{}
@@ -1162,18 +1146,12 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string) error {
 	return nil
 } // end func BoltSync
 
-func (his *HISTORY) returnBatchLocks(char string, buckets []string) {
-	for _, bucket := range buckets {
-		<-his.BatchLocks[char][bucket]
-	}
-} // end func returnBatchLocks
-
 func (his *HISTORY) returnBatchLock(char string, bucket string) {
 	select {
 	case _ = <-his.BatchLocks[char][bucket]:
 		// pass
 	default:
-		log.Printf("ERROR returnBatchLock %s%s BatchLocks empty!?", char, bucket)
+		log.Printf("ERROR returnBatchLock char=%s BatchLocks empty!?", char)
 		os.Exit(1)
 	}
 }
