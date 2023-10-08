@@ -43,7 +43,6 @@ var (
 	DEBUG9            bool   = false
 	LOCKHISTORY              = make(chan struct{}, 1)
 	NumQueueWriteChan int    = 16
-	BatchFlushEvery   int64  = 5000
 	HEXCHARS                 = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash           string = "EOF"
 )
