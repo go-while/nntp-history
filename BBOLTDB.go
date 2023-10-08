@@ -459,7 +459,7 @@ forever:
 		logf(DEBUG2, "FINAL-BATCH HDBZW [%s|%s]", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, his.BatchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:[%s|%s]", char, bucket), false, -1, -1)
 	}
-	logf(DEBUG, "Quit HDBZW char=%s added=%d passed=%d dupes=%d processed=%d searches=%d retry=%d", char, added, passed, dupes, processed, searches, retry)
+	logf(DEBUG2, "Quit HDBZW char=%s added=%d passed=%d dupes=%d processed=%d searches=%d retry=%d", char, added, passed, dupes, processed, searches, retry)
 	his.Sync_upcounterN("searches", searches)
 	historyfile.Close()
 	his.boltSyncClose(db, char)
@@ -921,7 +921,7 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 	if err := his.BoltSync(db, char); err != nil {
 		return err
 	}
-	his.GetBoltStats(char, true)
+	his.GetBoltStats(char, DEBUG2)
 	err := db.Close()
 	if err != nil {
 		log.Printf("ERROR boltSyncClose char=%s err='%v'", char, err)
