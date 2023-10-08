@@ -57,7 +57,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	var inserted1 uint64
 	if len(batch1) > 0 {
-		//start1 := utils.UnixTimeMicroSec()
+		start1 := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
@@ -76,9 +76,9 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 			return inserted1, err, closed
 		}
 
-		//if int(inserted1) != workerCharBucketBatchSize {
-		//	logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, utils.UnixTimeMicroSec() - start1, workerCharBucketBatchSize)
-		//}
+		if int(inserted1) != workerCharBucketBatchSize {
+			logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, utils.UnixTimeMicroSec() - start1, workerCharBucketBatchSize)
+		}
 	}
 
 	var inserted2 uint64
