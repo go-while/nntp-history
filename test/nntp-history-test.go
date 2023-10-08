@@ -63,8 +63,8 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BoltDB_MaxBatchSize = 16                      // 0 disables boltdb internal batching. default: 1000
-		history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
+		history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
+		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024          // default: 16 * 1024 * 1024
 		history.AdaptiveBatchSize = true        // adjusts CharBucketBatchSize automagically
 		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
