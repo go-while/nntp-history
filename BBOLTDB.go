@@ -2,13 +2,12 @@ package history
 
 import (
 	"fmt"
-	//"github.com/go-while/go-utils"
+	"github.com/go-while/go-utils"
+	bolt "go.etcd.io/bbolt"
 	"io"
 	"log"
 	"os"
 	"strings"
-	"github.com/go-while/go-utils"
-	bolt "go.etcd.io/bbolt"
 	"time"
 )
 
@@ -215,8 +214,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 
 	logf(DEBUG0, "HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	//if checked != 4096 {
-	if checked != tocheck /*|| created != tocheck */ {
-		log.Printf("ERROR HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	if checked != tocheck && created != tocheck {
+		log.Printf("ERROR HDBZW INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
 	}
 	his.setBoltHashOpen()
@@ -224,7 +223,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	timeout := 90
 	for {
 		if timeout <= 0 {
-			log.Printf("ERROR HDBZW char=%s open his.HF not found?!", char)
+			log.Printf("ERROR HDBZW [%s] open his.HF not found?!", char)
 			return
 		}
 		if utils.FileExists(his.HF) {
@@ -241,10 +240,11 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		cutHashlen = 2 + his.keylen
 	}
 
-	// opens history.dat for Fseeking
+	// char worker opens history.dat for Fseeking
+	// allows this char worker to search for offsets in history.dat
 	historyfile, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
 	if err != nil {
-		log.Printf("ERROR HDBZW os.OpenFile his.HF err='%v'", err)
+		log.Printf("ERROR HDBZW [%s] os.OpenFile his.HF err='%v'", err, char)
 		return
 	}
 
@@ -972,7 +972,7 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 
 		// Print the performance value
 		if performance > 0 {
-			log.Printf("BoltSpeed: %.2f tx/s", performance)
+			log.Printf("BoltSpeed: %.2f tx/s totalTX=%d", performance, tx)
 		}
 
 		// Update TX for future calculations
