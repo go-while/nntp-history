@@ -11,13 +11,14 @@ import (
 )
 
 var (
-	DBG_BS_LOG           bool               // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
-	DBG_FBQ1             bool               // debugs adaptive batchsize in boltBucketPutBatch
-	DBG_FBQ2             bool               // debugs adaptive batchsize forbatchqueue in boltDB_Worker
-	AdaptiveBatchSize    bool               // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically
-	BoltDB_MaxBatchDelay time.Duration      // default value from boltdb:db.go = 10 * time.Millisecond
-	BoltDB_MaxBatchSize  int           = 16 // default value from boltdb:db.go = 1000
-	CharBucketBatchSize  int           = 16 // default batchsize per *16 queues (buckets) in *16 char dbs = 4096 total hashes queued for writing
+	DBG_BS_LOG           bool                 // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
+	DBG_FBQ1             bool                 // debugs adaptive batchsize in boltBucketPutBatch
+	DBG_FBQ2             bool                 // debugs adaptive batchsize forbatchqueue in boltDB_Worker
+	AdaptiveBatchSize    bool                 // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically to match BatchFlushEvery
+	BatchFlushEvery      int64         = 5000 // flushes boltDB in batch every N milliseconds (500-5000)
+	BoltDB_MaxBatchDelay time.Duration        // default value from boltdb:db.go = 10 * time.Millisecond
+	BoltDB_MaxBatchSize  int           = 16   // default value from boltdb:db.go = 1000
+	CharBucketBatchSize  int           = 16   // default batchsize per *16 queues (buckets) in *16 char dbs = 4096 total hashes queued for writing
 )
 
 func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (uint64, error, bool) {
@@ -194,11 +195,11 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 		}
 	}
 
-	log.Printf("CrunchLogs: BatchSize=%05d:%05d t=%011d:%011d µs", ilo, ihi, tlo, thi)
+	log.Printf("CrunchLogs: inserted=%05d:%05d took=%010d:%010d µs", ilo, ihi, tlo, thi)
 
 	// Print specific percentiles
 	for _, percentile := range percentiles {
-		log.Printf("Percentile %03d%%: BatchSize=%05d:%05d t=%011d:%011d µs percSum=%d",
+		log.Printf("Percentile %03d%%: inserted=%05d:%05d took=%010d:%010d µs percSum=%d",
 			percentile, insertLo[percentile], insertHi[percentile], tookLo[percentile], tookHi[percentile],
 			percSums[percentile])
 	}
