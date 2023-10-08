@@ -261,7 +261,8 @@ func main() {
 	L2CACHE_Get := history.History.GetCounter("L2CACHE_Get")
 	L3CACHE_Get := history.History.GetCounter("L3CACHE_Get")
 	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
-	addmultioffsets := history.History.GetCounter("addmultioffsets")
+	addoffset := history.History.GetCounter("addoffset")
+	appoffset := history.History.GetCounter("appoffset")
 	trymultioffsets := history.History.GetCounter("trymultioffsets")
 	tryoffset := history.History.GetCounter("tryoffset")
 	searches := history.History.GetCounter("searches")
@@ -272,7 +273,7 @@ func main() {
 	wCBBSslept := history.History.GetCounter("wCBBSslept")
 	total := key_add + key_app
 
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addmultioffsets=%d trymultioffsets=%d tryoffset=%d searches=%d inserted=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addmultioffsets, trymultioffsets, tryoffset, searches, inserted1)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addoffset=%d appoffset=%d trymultioffsets=%d tryoffset=%d searches=%d inserted=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addoffset, appoffset, trymultioffsets, tryoffset, searches, inserted1)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d | wCBBS=~%d conti=%d slept=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get, wCBBS/256, wCBBSconti/256, wCBBSslept/256)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 
