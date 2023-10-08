@@ -997,28 +997,6 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 		OpenTxN += otx
 		TxN += tx
 	}
-	/*
-		if char != "" {
-			for _, bucket := range HEXCHARS {
-				if his.BoltDBsMap[char].BoltDB != nil {
-					stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
-
-					log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
-				}
-			}
-			return startedTx, committTx
-		}
-
-		for _, char := range HEXCHARS {
-			for _, bucket := range HEXCHARS {
-				if his.BoltDBsMap[char].BoltDB != nil {
-					stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
-
-					log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
-				}
-			}
-		}
-	*/
 	return OpenTxN, TxN
 } // end func GetBoltStats
 
