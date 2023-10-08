@@ -129,7 +129,7 @@ func (his *HISTORY) boltDB_Index() {
 						default:
 							his.IndexChan <- nil
 						}
-						logf(DEBUG, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, IndexParallel)
+						logf(DEBUG2, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, IndexParallel)
 						break forever
 					}
 					if hi.Offset == 0 {
@@ -607,7 +607,11 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", *char, *key, *hash, len_offsets, *offsets, *offset)
 			his.Sync_upcounter("addmultioffsets")
 		} else {
-			his.Sync_upcounter("trymultioffsets")
+			if len_offsets > 1 {
+				his.Sync_upcounter("trymultioffsets")
+			} else {
+				his.Sync_upcounter("tryoffset")
+			}
 		}
 	}
 	for _, check_offset := range *offsets {
