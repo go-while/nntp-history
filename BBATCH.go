@@ -12,7 +12,7 @@ import (
 
 var (
 	DBG_BS_LOG           bool               // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
-	DBG_FBQ              bool               // debugs adaptive batchsize in boltBucketPutBatch
+	DBG_FBQ1             bool               // debugs adaptive batchsize in boltBucketPutBatch
 	DBG_FBQ2             bool               // debugs adaptive batchsize forbatchqueue in boltDB_Worker
 	AdaptiveBatchSize    bool               // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically
 	BoltDB_MaxBatchDelay time.Duration      // default value from boltdb:db.go = 10 * time.Millisecond
@@ -85,7 +85,7 @@ fetchbatch:
 			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted1, t: insert1_took})
 		}
 		// debugs adaptive batchsize
-		logf(DBG_FBQ, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted1, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
+		logf(DBG_FBQ1, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted1, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 	}
 
 	/*
