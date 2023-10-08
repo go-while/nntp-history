@@ -37,15 +37,15 @@ func main() {
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
 		//history.IndexParallel = runtime.GOMAXPROCS(0)
 	}
 	history.History.SET_DEBUG(debugs)
-	history.DBG_BS_LOG = true
-	history.DBG_FBQ = true
+	history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
+	//history.DBG_FBQ = true  // prints adaptive batchsize
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
@@ -263,15 +263,16 @@ func main() {
 	BoltDB_decodedOffsets := history.History.GetCounter("BoltDB_decodedOffsets")
 	addmultioffsets := history.History.GetCounter("addmultioffsets")
 	trymultioffsets := history.History.GetCounter("trymultioffsets")
+	tryoffset := history.History.GetCounter("tryoffset")
 	searches := history.History.GetCounter("searches")
 	inserted1 := history.History.GetCounter("inserted1")
-	inserted2 := history.History.GetCounter("inserted2")
+	//inserted2 := history.History.GetCounter("inserted2")
 	wCBBS := history.History.GetCounter("wCBBS")
 	wCBBSconti := history.History.GetCounter("wCBBSconti")
 	wCBBSslept := history.History.GetCounter("wCBBSslept")
 	total := key_add + key_app
 
-	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addmultioffsets, trymultioffsets, searches, inserted1, inserted2)
+	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addmultioffsets=%d trymultioffsets=%d tryoffset=%d searches=%d inserted=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addmultioffsets, trymultioffsets, tryoffset, searches, inserted1)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d | wCBBS=~%d conti=%d slept=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get, wCBBS/256, wCBBSconti/256, wCBBSslept/256)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 
