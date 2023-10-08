@@ -170,12 +170,14 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 	insertLo := make(map[int]uint64)
 	tookHi := make(map[int]int64)
 	tookLo := make(map[int]int64)
+	percSums := make(map[int]int)
 
 	len_logs := len(his.BatchLogs.dat)
 	for j, dat := range his.BatchLogs.dat {
 
 		thispercentile := int(float64(j) / float64(len_logs) * 100)
 		percentile := getPercentileRound(thispercentile, percentiles)
+		percSums[percentile]++
 
 		// Update ihi and ilo
 		if dat.i > ihi {
@@ -226,8 +228,9 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 
 	// Print specific percentiles
 	for _, percentile := range percentiles {
-		log.Printf("Percentile %03d%%: BatchSize=%05d:%05d t=%011d:%011d µs",
-			percentile, insertLo[percentile], insertHi[percentile], tookLo[percentile], tookHi[percentile])
+		log.Printf("Percentile %03d%%: BatchSize=%05d:%05d t=%011d:%011d µs percSum=%d",
+			percentile, insertLo[percentile], insertHi[percentile], tookLo[percentile], tookHi[percentile],
+			percSums[percentile])
 	}
 } // end func CrunchBatchLogs
 
