@@ -17,14 +17,14 @@ const (
 	//TESTHASH1 string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
-	DefExpiresStr string = "----------" // never expires
-	DefaultCacheExpires int64 = 15 // seconds
-	DefaultCachePurge   int64 = 3  // seconds
-	CaseLock                  = 0xF0
-	CasePass                  = 0xF1
-	CaseDupes                 = 0xB1
-	CaseRetry                 = 0xB2
-	CaseAdded                 = 0xC1
+	DefExpiresStr       string = "----------" // never expires
+	DefaultCacheExpires int64  = 15           // seconds
+	DefaultCachePurge   int64  = 3            // seconds
+	CaseLock                   = 0xF0
+	CasePass                   = 0xF1
+	CaseDupes                  = 0xB1
+	CaseRetry                  = 0xB2
+	CaseAdded                  = 0xC1
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
