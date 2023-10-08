@@ -8,6 +8,8 @@ This module is suitable for building applications related to Usenet news servers
 
 ```sh
 go get github.com/go-while/nntp-history
+   # bbolt code and test with latest commits from github
+   # git glone https://github.com/etcd-io/bbolt in 'src/go.etcd.io/'
 ```
 
 - Test application: [test/nntp-history-test.go](https://github.com/go-while/nntp-history/blob/main/test/nntp-history-test.go)
