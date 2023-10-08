@@ -324,7 +324,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			var err error
 			//var timer, mintimer, maxtimer int64 = 500, 500, 500
 			var timer int64 = 500
-			//var decr, incr int
+			var decr, incr int = 4, 4
 			Q := 0
 		forbatchqueue:
 			for {
@@ -382,20 +382,25 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					lastflush = utils.UnixTimeMilliSec()
 					cont = true
 					// something got inserted
-					//logf(DEBUG, "forbatchqueue D0 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
 					//if forced && adaptBatch {
 					if adaptBatch {
+						/*
+						if int(inserted) == wCBBS {
+							// inserted exactly wCBBS
+							// pass, do nothing, batchsize looks fine
+							logf(DEBUG, "forbatchqueue D0## char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
+						} else */
 						if int(inserted) >= wCBBS {
-							// inserted exactly or more than wCBBS
-							if wCBBS < 65536 {
-								logf(DEBUG, "forbatchqueue D1++ char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
-								wCBBS += 1 // adaptive BatchSize incr
+							// inserted exactly or more than wCBBS, probably forced flush
+							if wCBBS < 65536+incr {
+								logf(DEBUG, "forbatchqueue D1++ char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, incr)
+								wCBBS += incr // adaptive BatchSize incr
 							}
 						} else {
 							// inserted less than wCBBS
-							if wCBBS > 16 {
-								logf(DEBUG, "forbatchqueue D2-- char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t decr", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
-								wCBBS -= 1 // adaptive BatchSize decr
+							if wCBBS > 16+decr {
+								logf(DEBUG, "forbatchqueue D2-- char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t decr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, decr)
+								wCBBS -= decr // adaptive BatchSize decr
 							}
 						}
 					} // end if forced
