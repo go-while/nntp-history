@@ -77,11 +77,12 @@ type GOBOFFSETS struct {
 type BatchLOGGER struct {
 	mux sync.Mutex
 	dat []*BatchLOG
+	did uint64 // counter
 }
 
 type BatchLOG struct {
-	char   *string
-	bucket *string
-	ins1   uint64
-	took   int64 // microseconds
+	c *string // char
+	b *string // bucket
+	i uint64  // inserted
+	t int64   // took microseconds
 }
