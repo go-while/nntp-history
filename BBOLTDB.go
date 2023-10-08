@@ -336,8 +336,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					slept++
 				}
 				lft := utils.UnixTimeMilliSec() - lastflush
-				src := fmt.Sprintf("gofunc:[%s|%s]:t=%d Q=%d lft=%d", char, bucket, timer, Q, lft)
-				inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src, true, lft, wCBBS)
+				//src := fmt.Sprintf("gofunc:[%s|%s]:t=%d Q=%d lft=%d", char, bucket, timer, Q, lft)
+				//src := fmt.Sprintf("gofunc:[%s|%s] Q=%d lft=%d", char, bucket, timer, Q, lft)
+				inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, "gofunc", true, lft, wCBBS)
 				//logf(DEBUG2, "INFO forbatchqueue [%s|%s] boltBucketPutBatch inserted=%d err='%v' closed=%t forced=%t Q=%d t=%d", char, bucket, inserted, err, closed, forced, Q, timer)
 
 				if closed { // received nil pointer
@@ -394,13 +395,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 						if int(inserted) >= wCBBS {
 							// inserted exactly or more than wCBBS: increase wCBBS
 							if wCBBS < 65536+incr {
-								logf(DEBUG, "forbatchqueue D1++ [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, incr)
+								logf(DEBUG, "forbatchqueue D1++ [%s|%s] Q=%05d inserted=%05d lft=%d wCBBS=%d incr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, incr, forced)
 								wCBBS += incr // adaptive BatchSize incr
 							}
 						} else {
 							// inserted less than wCBBS: decrease wCBBS
 							if wCBBS > 16+decr {
-								logf(DEBUG, "forbatchqueue D2-- [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t decr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, decr)
+								logf(DEBUG, "forbatchqueue D2-- [%s|%s] Q=%05d inserted=%05d lft=%d wCBBS=%d decr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, decr, forced)
 								wCBBS -= decr // adaptive BatchSize decr
 							}
 						}
