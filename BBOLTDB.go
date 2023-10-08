@@ -383,7 +383,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					cont = true
 					// something got inserted
 					//if forced && adaptBatch {
-					if adaptBatch {
+					if adaptBatch { // trys to adapt wCBBS to `BatchFlushEvery`
 						/*
 						if int(inserted) == wCBBS {
 							// inserted exactly wCBBS
@@ -391,13 +391,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 							logf(DEBUG, "forbatchqueue D0## char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
 						} else */
 						if int(inserted) >= wCBBS {
-							// inserted exactly or more than wCBBS, probably forced flush
+							// inserted exactly or more than wCBBS: increase wCBBS
 							if wCBBS < 65536+incr {
 								logf(DEBUG, "forbatchqueue D1++ char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, incr)
 								wCBBS += incr // adaptive BatchSize incr
 							}
 						} else {
-							// inserted less than wCBBS
+							// inserted less than wCBBS: decrease wCBBS
 							if wCBBS > 16+decr {
 								logf(DEBUG, "forbatchqueue D2-- char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t decr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, decr)
 								wCBBS -= decr // adaptive BatchSize decr
