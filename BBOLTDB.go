@@ -326,7 +326,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			var err error
 			//var timer, mintimer, maxtimer int64 = 500, 500, 500
 			var timer int64 = 500
-			var decr, incr int = 4, 4
+			var decr, incr int = 8, 8
 			Q := 0
 		forbatchqueue:
 			for {
@@ -395,14 +395,14 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 						if int(inserted) >= wCBBS {
 							// inserted exactly or more than wCBBS: increase wCBBS
 							if wCBBS < 65536+incr {
-								logf(DEBUG, "forbatchqueue D1++ [%s|%s] Queue=%05d Ins=%05d lft=%d wCBBS=%d incr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, incr, forced)
 								wCBBS += incr // adaptive BatchSize incr
+								logf(DEBUG, "forbatchqueue D1++ [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d incr=%d f=%d", char, bucket, Q, inserted, wCBBS, lft, incr, bool2int(forced))
 							}
 						} else {
 							// inserted less than wCBBS: decrease wCBBS
-							if wCBBS > 16+decr {
-								logf(DEBUG, "forbatchqueue D2-- [%s|%s] Queue=%05d Ins=%05d lft=%d wCBBS=%d decr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, decr, forced)
+							if wCBBS > 1+decr {
 								wCBBS -= decr // adaptive BatchSize decr
+								logf(DEBUG, "forbatchqueue D2-- [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d decr=%d f=%d", char, bucket, Q, inserted, wCBBS, lft, decr, bool2int(forced))
 							}
 						}
 					} // end if forced
