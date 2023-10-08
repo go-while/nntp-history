@@ -300,10 +300,16 @@ ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 |
 
 ## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb
 ```sh
-./nntp-history-test -todo=100000000
-...
-...
-...
+./nntp-history-test -todo 100000000
+ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+ useHashDB: true | IndexParallel=16
+ boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
+2023/10/08 18:01:29 History: new=true
+  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
+  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=4 BatchSize=1024 IndexParallel=16}
+2023/10/08 18:01:44 BoltSpeed: 44297.19 tx/s ( did=664453 in 15.0 sec ) totalTX=664453
+2023/10/08 18:01:59 BoltSpeed: 43363.11 tx/s ( did=650447 in 15.0 sec ) totalTX=1314900
 ...
 ```
 
