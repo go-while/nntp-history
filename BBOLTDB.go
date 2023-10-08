@@ -324,6 +324,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			}
 			// every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			wCBBS := CharBucketBatchSize // copy value allows each worker to play with it
+			if wCBBS < 0 {
+				wCBBS = 1
+			}
 			if !LOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted") {
 				return
 			}
@@ -974,12 +977,13 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 	if err := his.BoltSync(db, char); err != nil {
 		return err
 	}
+	his.GetBoltStats("", true)
 	err := db.Close()
 	if err != nil {
 		log.Printf("ERROR boltSyncClose char=%s err='%v'", char, err)
 		return err
 	}
-	his.BoltDBsMap[char].BoltDB = nil
+	//his.BoltDBsMap[char].BoltDB = nil
 	logf(DEBUG2, "BoltDB boltSyncClose char=%s", char)
 	return nil
 } // end func boltSyncClose
@@ -992,23 +996,56 @@ func (his *HISTORY) lockBoltSync() {
 	his.boltSyncChan <- struct{}{}
 } // end func lockBoltSync
 
-func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) {
+func (his *HISTORY) PrintGetBoltStatsEveryN(char string, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	for range ticker.C {
-		his.GetBoltStats("")
+		his.GetBoltStats("", false)
+	}
+} // end func PrintGetBoltStatsEveryN
+
+func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) {
+	var TX int
+	ticker := time.NewTicker(interval)
+	prevTimestamp := time.Now()
+
+	for range ticker.C {
+		// Get the current time
+		currentTimestamp := time.Now()
+
+		// Calculate the time passed since the last ticker
+		timePassed := currentTimestamp.Sub(prevTimestamp)
+
+		// Record the current time as the new previous timestamp
+		prevTimestamp = currentTimestamp
+
+		// Get the BoltStats
+		_, tx := his.GetBoltStats("", false)
+
+		// Calculate the performance value (tx per second)
+		performance := float64(tx-TX) / timePassed.Seconds()
+
+		// Print the performance value
+		log.Printf("BoltDB: %.2f tx/s", performance)
+
+		// Update TX for future calculations
+		TX = tx
 	}
 } // end func PrintGetBoltStatsEvery
 
-func (his *HISTORY) GetBoltStats(char string) (int, int) {
-	startedTx, committTx := 0, 0
+func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int) {
 	if char == "" {
 		for _, char := range HEXCHARS {
 			if his.BoltDBsMap[char].BoltDB != nil {
-				dbstats, _ := his.getDBStats(his.BoltDBsMap[char].BoltDB)
-				startedTx += dbstats.OpenTxN
-				committTx += dbstats.TxN
-				//log.Printf("BoltStats [%s] dbstats:'%+v' err='%#v' startedTx=%d committTx=%d", char, dbstats, err)
-				//log.Printf("BoltStats [%s] startedTx=%d committTx=%d err='%v'", char, dbstats.OpenTxN, dbstats.TxN, err)
+				dbstats, err := his.getDBStats(his.BoltDBsMap[char].BoltDB)
+				if err != nil {
+					log.Printf("ERROR BoltStats [%s] err='%v'", char, err)
+					continue
+				}
+				OpenTxN += dbstats.OpenTxN
+				TxN += dbstats.TxN
+				if print {
+					log.Printf("BoltStats [%s] OpenTxN=%d TxN=%d", char, dbstats.OpenTxN, dbstats.TxN)
+				}
 			}
 		}
 	}
@@ -1036,7 +1073,7 @@ func (his *HISTORY) GetBoltStats(char string) (int, int) {
 			}
 		}
 	*/
-	return startedTx, committTx
+	return OpenTxN, TxN
 } // end func GetBoltStats
 
 func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
