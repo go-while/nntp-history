@@ -12,7 +12,6 @@ import (
 	"io"
 	"log"
 	"os"
-	//"github.com/nutsdb/nutsdb"
 	//"strconv"
 	"strings"
 	//"sync"
@@ -33,12 +32,10 @@ const (
 )
 
 var (
-	AdaptiveBatchSize    bool             // adjusts workerCharBucketBatchSize automagically
-	BoltDB_MaxBatchSize  int    = 1000    // the default value from boltdb:db.go
-	CharBucketBatchSize  int    = 16      // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
 	NumQueueIndexChan    int    = BoltDBs // Main-indexchan can queue this
 	NumQueueIndexChans   int    = 1       // every sub-indexchans for a `char` can queue this
 	DefaultKeyLen        int    = 6
+	BoltDB_AllocSize     int    = 16 * 1024 * 1024             // default: 16 * 1024 * 1024
 	Bolt_SYNC_EVERYs     int64  = 5                            // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	Bolt_SYNC_EVERYn     uint64 = 100                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int    = BoltDBs                      // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
@@ -193,6 +190,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		return
 	}
 	db.MaxBatchSize = BoltDB_MaxBatchSize
+	db.MaxBatchDelay = BoltDB_MaxBatchDelay
 	logf(DEBUG2, "HDBZW: INIT HashDB char=%s db='%#v' db.MaxBatchSize=%d", char, db, db.MaxBatchSize)
 	his.BoltDBsMap[char].BoltDB = db
 	testkey := "1"
@@ -313,6 +311,10 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
 		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset) {
+			if batchQueue == nil {
+				log.Printf("ERROR boltDB_Worker batchQueue=nil")
+				return
+			}
 			// every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			wCBBS := CharBucketBatchSize // copy value allows each worker to play with it
 			if !LOCKfunc(his.BatchQueues.Booted, "his.BatchQueues.Booted") {
@@ -336,7 +338,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				lft := utils.UnixTimeMilliSec() - lastflush
 				src := fmt.Sprintf("gofunc:[%s|%s]:t=%d Q=%d lft=%d", char, bucket, timer, Q, lft)
 				inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, src, true, lft, wCBBS)
-
 				//logf(DEBUG2, "INFO forbatchqueue [%s|%s] boltBucketPutBatch inserted=%d err='%v' closed=%t forced=%t Q=%d t=%d", char, bucket, inserted, err, closed, forced, Q, timer)
 
 				if closed { // received nil pointer
