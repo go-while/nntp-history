@@ -2,9 +2,7 @@ package history
 
 import (
 	"bufio"
-	//"encoding/gob"
 	"fmt"
-	//"github.com/edsrzf/mmap-go"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"io"
@@ -12,8 +10,6 @@ import (
 	"os"
 	"runtime"
 	"strings"
-	//"github.com/dgraph-io/badger"
-	//"strconv"
 	"time"
 )
 
@@ -22,7 +18,6 @@ const (
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
-	//DefExpiresStr       string = "-" // never expires
 	DefaultCacheExpires int64 = 15 // seconds
 	DefaultCachePurge   int64 = 3  // seconds
 	CaseLock                  = 0xF0
