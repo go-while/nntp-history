@@ -814,26 +814,3 @@ func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int) (int, error)
 	}
 	return -999, fmt.Errorf("ERROR IndexQuery")
 } // end func IndexQuery
-
-func (his *HISTORY) Sync_upcounter(counter string) {
-	go func(counter string) {
-		his.cmux.Lock()
-		his.Counter[counter] += 1
-		his.cmux.Unlock()
-	}(counter)
-} // end func sync_upcounter
-
-func (his *HISTORY) Sync_upcounterN(counter string, value uint64) {
-	go func(counter string, value uint64) {
-		his.cmux.Lock()
-		his.Counter[counter] += value
-		his.cmux.Unlock()
-	}(counter, value)
-} // end func Sync_upcounterN
-
-func (his *HISTORY) GetCounter(counter string) uint64 {
-	his.cmux.Lock()
-	retval := his.Counter[counter]
-	his.cmux.Unlock()
-	return retval
-} // end func GetCounter
