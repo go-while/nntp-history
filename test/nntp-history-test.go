@@ -12,14 +12,14 @@ import (
 	"flag"
 	"os"
 	"runtime"
-	"runtime/debug"
+	//"runtime/debug"
 	_ "syscall"
 	"time"
 )
 
 func main() {
 	numCPU := runtime.NumCPU()
-	debug.SetGCPercent(200)
+	//debug.SetGCPercent(200)
 	var offset int64
 	var todo int // todo x parallelTest
 	var parallelTest int
@@ -35,16 +35,16 @@ func main() {
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
+	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
-		//history.IndexParallel = runtime.GOMAXPROCS(0)
 	}
 	history.History.SET_DEBUG(debugs)
-	history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
+	//history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
 	//history.DBG_FBQ1 = true   // prints adaptive batchsize
 	//history.DBG_FBQ2 = true   // prints adaptive batchsize
 	storageToken := "F" // storagetoken flatfile
@@ -78,6 +78,7 @@ func main() {
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
 		//history.NumQueueIndexChan = 1     // ( can be any value > 0 ) default: 16 [note: keep it low!]
 		history.NumQueueIndexChans = 4 // ( can be any value > 0 ) default: 1 [note: keep it low!]
+		//history.IndexParallel = 1 // default: 16
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
 			//ReadOnly: true,
@@ -277,6 +278,7 @@ func main() {
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d | wCBBS=~%d conti=%d slept=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get, wCBBS/256, wCBBSconti/256, wCBBSslept/256)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 
+	history.History.GetBoltStats("", true)
 	history.History.CrunchBatchLogs(true)
 
 	history.PrintMemoryStats()
