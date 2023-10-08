@@ -83,7 +83,7 @@ fetchbatch:
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
 		if DBG_BS_LOG {
-			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted, t: insert1_took})
+			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
 		}
 		// debugs adaptive batchsize
 		logf(DBG_FBQ1, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
@@ -129,6 +129,7 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 
 	var ihi, ilo uint64 = 0, math.MaxUint64 // Initialize to the maximum and minimum possible values reversed
 	var thi, tlo int64 = 0, math.MaxInt64   // Initialize to the maximum and minimum possible values reversed
+	var whi, wlo int = 0, math.MaxInt       // Initialize to the maximum and minimum possible values reversed
 
 	percentiles := []int{}
 	step := 5 // N percent
@@ -141,6 +142,8 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 	insertLo := make(map[int]uint64)
 	tookHi := make(map[int]int64)
 	tookLo := make(map[int]int64)
+	wCBBSHi := make(map[int]int)
+	wCBBSLo := make(map[int]int)
 	percSums := make(map[int]int)
 
 	len_logs := len(his.BatchLogs.dat)
@@ -166,6 +169,14 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 			tlo = dat.t
 		}
 
+		// Update whi and wlo
+		if dat.w > whi {
+			whi = dat.w
+		}
+		if dat.w < wlo {
+			wlo = dat.w
+		}
+
 		// set maps default min/max reversed
 		if _, exists := insertHi[percentile]; !exists {
 			insertHi[percentile] = 0
@@ -173,11 +184,19 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 		if _, exists := insertLo[percentile]; !exists {
 			insertLo[percentile] = math.MaxUint64
 		}
+		// set maps default min/max reversed
 		if _, exists := tookHi[percentile]; !exists {
 			tookHi[percentile] = 0
 		}
 		if _, exists := tookLo[percentile]; !exists {
 			tookLo[percentile] = math.MaxInt64
+		}
+		// set maps default min/max reversed
+		if _, exists := wCBBSHi[percentile]; !exists {
+			wCBBSHi[percentile] = 0
+		}
+		if _, exists := wCBBSLo[percentile]; !exists {
+			wCBBSLo[percentile] = math.MaxInt
 		}
 
 		// update hi/lo percentile maps
@@ -187,20 +206,33 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 		if dat.i < insertLo[percentile] {
 			insertLo[percentile] = dat.i
 		}
+		// update hi/lo percentile maps
 		if dat.t > tookHi[percentile] {
 			tookHi[percentile] = dat.t
 		}
 		if dat.t < tookLo[percentile] {
 			tookLo[percentile] = dat.t
 		}
+		// update hi/lo percentile maps
+		if dat.w > wCBBSHi[percentile] {
+			wCBBSHi[percentile] = dat.w
+		}
+		if dat.w < wCBBSLo[percentile] {
+			wCBBSLo[percentile] = dat.w
+		}
 	}
 
-	log.Printf("CrunchLogs: inserted=%05d:%05d took=%010d:%010d µs", ilo, ihi, tlo, thi)
+	log.Printf("CrunchLogs: inserted=%05d:%05d wCBBS=%05d:%05d µs=%010d:%010d", ilo, ihi, wlo, whi, tlo, thi)
 
 	// Print specific percentiles
 	for _, percentile := range percentiles {
-		log.Printf("Percentile %03d%%: inserted=%05d:%05d took=%010d:%010d µs percSum=%d",
-			percentile, insertLo[percentile], insertHi[percentile], tookLo[percentile], tookHi[percentile],
+		if percSums[percentile] == 0 {
+			continue
+		}
+		log.Printf("Range %03d%%: inserted=%05d:%05d wCBBS=%05d:%05d µs=%010d:%010d sum=%d", percentile,
+			insertLo[percentile], insertHi[percentile],
+			wCBBSLo[percentile], wCBBSHi[percentile],
+			tookLo[percentile], tookHi[percentile],
 			percSums[percentile])
 	}
 } // end func CrunchBatchLogs
