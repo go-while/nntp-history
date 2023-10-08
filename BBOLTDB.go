@@ -983,7 +983,9 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 		log.Printf("ERROR boltSyncClose char=%s err='%v'", char, err)
 		return err
 	}
-	//his.BoltDBsMap[char].BoltDB = nil
+	his.mux.Lock()
+	his.BoltDBsMap[char].BoltDB = nil
+	his.mux.Unlock()
 	logf(DEBUG2, "BoltDB boltSyncClose char=%s", char)
 	return nil
 } // end func boltSyncClose
@@ -1025,7 +1027,9 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 		performance := float64(tx-TX) / timePassed.Seconds()
 
 		// Print the performance value
-		log.Printf("BoltSpeed: %.2f tx/s", performance)
+		if performance > 0 {
+			log.Printf("BoltSpeed: %.2f tx/s", performance)
+		}
 
 		// Update TX for future calculations
 		TX = tx
@@ -1033,6 +1037,9 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 } // end func PrintGetBoltStatsEvery
 
 func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int) {
+	his.mux.Lock()
+	defer his.mux.Unlock()
+
 	if char == "" {
 		for _, char := range HEXCHARS {
 			if his.BoltDBsMap[char].BoltDB != nil {
