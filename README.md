@@ -311,6 +311,19 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 2023/10/08 18:01:44 BoltSpeed: 44297.19 tx/s ( did=664453 in 15.0 sec ) totalTX=664453
 2023/10/08 18:01:59 BoltSpeed: 43363.11 tx/s ( did=650447 in 15.0 sec ) totalTX=1314900
 ...
+2023/10/08 18:08:29 BoltSpeed: 28428.51 tx/s ( did=426429 in 15.0 sec ) totalTX=14539993
+2023/10/08 18:08:44 BoltSpeed: 28750.23 tx/s ( did=431270 in 15.0 sec ) totalTX=14971263
+...
+2023/10/08 18:12:00 RUN test p=3 nntp-history added=5006126 dupes=0 cachehits=7599269 addretry=0 retry=0 adddupes=0 cachedupes=7394605 cacheretry1=0 20000000/100000000
+2023/10/08 18:12:00 RUN test p=4 nntp-history added=4988108 dupes=0 cachehits=7590973 addretry=0 retry=0 adddupes=0 cachedupes=7420919 cacheretry1=0 20000000/100000000
+2023/10/08 18:12:00 RUN test p=1 nntp-history added=5007827 dupes=0 cachehits=7592780 addretry=0 retry=0 adddupes=0 cachedupes=7399393 cacheretry1=0 20000000/100000000
+2023/10/08 18:12:00 RUN test p=2 nntp-history added=4997939 dupes=0 cachehits=7589744 addretry=0 retry=0 adddupes=0 cachedupes=7412317 cacheretry1=0 20000000/100000000
+...
+2023/10/08 18:19:29 BoltSpeed: 18166.40 tx/s ( did=272511 in 15.0 sec ) totalTX=27857110
+2023/10/08 18:19:44 BoltSpeed: 13151.54 tx/s ( did=197255 in 15.0 sec ) totalTX=28054365
+...
+...
+...
 ```
 
 ## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
