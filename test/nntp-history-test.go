@@ -99,8 +99,8 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	//go history.PrintMemoryStatsEvery(30 * time.Second)
-	go history.History.PrintGetBoltStatsEvery("", 5*time.Second)
+	go history.PrintMemoryStatsEvery(30 * time.Second)
+	go history.History.PrintGetBoltStatsEvery("", 15 * time.Second)
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
@@ -126,8 +126,8 @@ func main() {
 				IndexRetChan = make(chan int, 1)
 			}
 			var spam, spammer, dupes, added, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, errors, locked uint64
-			//spammer = uint64(todo)/10
-			spammer = 1000000
+			spammer = uint64(todo)/10
+			//spammer = 1000000
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if spam >= spammer {
