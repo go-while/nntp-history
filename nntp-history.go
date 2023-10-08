@@ -17,29 +17,29 @@ const (
 	//TESTHASH1 string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
-	DefExpiresStr       string = "----------" // never expires
-	DefaultCacheExpires int64  = 15           // seconds
-	DefaultCachePurge   int64  = 3            // seconds
-	CaseLock                   = 0xF0
-	CasePass                   = 0xF1
-	CaseDupes                  = 0xB1
-	CaseRetry                  = 0xB2
-	CaseAdded                  = 0xC1
+	DefExpiresStr string = "----------" // never expires
+	CaseLock             = 0xF0
+	CasePass             = 0xF1
+	CaseDupes            = 0xB1
+	CaseRetry            = 0xB2
+	CaseAdded            = 0xC1
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
 
 var (
-	History           HISTORY
-	DEBUG             bool   = true
-	DEBUG0            bool   = false
-	DEBUG1            bool   = false
-	DEBUG2            bool   = false
-	DEBUG9            bool   = false
-	LOCKHISTORY              = make(chan struct{}, 1)
-	NumQueueWriteChan int    = 16
-	HEXCHARS                 = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash           string = "EOF"
+	History             HISTORY
+	DEBUG               bool   = true
+	DEBUG0              bool   = false
+	DEBUG1              bool   = false
+	DEBUG2              bool   = false
+	DEBUG9              bool   = false
+	LOCKHISTORY                = make(chan struct{}, 1)
+	NumQueueWriteChan   int    = 16
+	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash             string = "EOF"
+	DefaultCacheExpires int64  = 16 // seconds: should be at least 3 times higher than BatchFlushEvery !
+	DefaultCachePurge   int64  = 4  // seconds
 )
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -71,6 +71,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		BatchFlushEvery = 500
 	} else if BatchFlushEvery > 5000 {
 		BatchFlushEvery = 5000
+	}
+
+	if BatchFlushEvery*3 > DefaultCacheExpires*1000 {
+		DefaultCacheExpires = BatchFlushEvery*3/1000 + 1
 	}
 
 	if IndexParallel < 1 {
