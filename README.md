@@ -349,7 +349,13 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 2023/10/08 18:44:29 BoltSpeed: 11611.33 tx/s ( did=174149 in 15.0 sec ) totalTX=45049808
 2023/10/08 18:44:59 BoltSpeed: 11397.50 tx/s ( did=170961 in 15.0 sec ) totalTX=45311296
 ...
+2023/10/08 18:54:18 RUN test p=2 nntp-history added=12484775 dupes=0 cachehits=15895032 addretry=0 retry=0 adddupes=0 cachedupes=21620193 cacheretry1=0 50000000/100000000
+2023/10/08 18:54:18 RUN test p=4 nntp-history added=12472563 dupes=0 cachehits=15898842 addretry=0 retry=0 adddupes=0 cachedupes=21628595 cacheretry1=0 50000000/100000000
+2023/10/08 18:54:18 RUN test p=3 nntp-history added=12527524 dupes=0 cachehits=15913534 addretry=0 retry=0 adddupes=0 cachedupes=21558942 cacheretry1=0 50000000/100000000
+2023/10/08 18:54:18 RUN test p=1 nntp-history added=12515138 dupes=0 cachehits=15902903 addretry=0 retry=0 adddupes=0 cachedupes=21581959 cacheretry1=0 50000000/100000000
 ...
+2023/10/08 18:54:29 BoltSpeed: 7503.50 tx/s ( did=112085 in 14.9 sec ) totalTX=50063485
+2023/10/08 18:54:44 BoltSpeed: 6241.39 tx/s ( did=93632 in 15.0 sec ) totalTX=50157117
 ...
 ...
 ```
