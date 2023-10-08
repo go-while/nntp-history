@@ -85,4 +85,5 @@ type BatchLOG struct {
 	b *string // bucket
 	i uint64  // inserted
 	t int64   // took microseconds
+	w int     // workerCharBucketBatchSize
 }
