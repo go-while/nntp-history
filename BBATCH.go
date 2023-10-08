@@ -10,8 +10,8 @@ import (
 )
 
 var (
-	DBG_BS_LOG           bool          = true                  // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
-	DBG_FBQ              bool          = true                  // debugs forbatchqueue and adaptive batchsize
+	DBG_BS_LOG           bool          = false                 // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
+	DBG_FBQ              bool          = false                 // debugs forbatchqueue and adaptive batchsize
 	AdaptiveBatchSize    bool                                  // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically
 	BoltDB_MaxBatchSize  int           = 16                    // default value from boltdb:db.go = 1000
 	BoltDB_MaxBatchDelay time.Duration = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
