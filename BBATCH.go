@@ -5,6 +5,7 @@ import (
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"log"
+	"math"
 	"os"
 	"time"
 )
@@ -144,17 +145,37 @@ func (his *HISTORY) batchLog(log *BatchLOG) {
 
 func (his *HISTORY) CrunchBatchLogs(more bool) {
 	if !DBG_BS_LOG {
+		log.Printf("CrunchBatchLogs DBG_BS_LOG=%t", DBG_BS_LOG)
 		return
 	}
 	his.BatchLogs.mux.Lock()
 	defer his.BatchLogs.mux.Unlock()
-	log.Printf("CrunchLogs: did=%d dat=%d", his.BatchLogs.did, len(his.BatchLogs.dat))
+	log.Printf("CrunchBatchLogs: did=%d dat=%d", his.BatchLogs.did, len(his.BatchLogs.dat))
 	if !more {
 		return
 	}
-	var ihi, ilo uint64 // inserted
-	var thi, tlo int64  // took
-	for _, dat := range his.BatchLogs.dat {
+
+	var ihi, ilo uint64 = 0, math.MaxUint64 // Initialize to the maximum and minimum possible values reversed
+	var thi, tlo int64 = 0, math.MaxInt64   // Initialize to the maximum and minimum possible values reversed
+
+	percentiles := []int{}
+	step := 5 // N percent
+	for i := step; i <= 100; i += step {
+		percentiles = append(percentiles, i)
+	}
+
+	// Initialize maps to store high and low values for Insert and Took
+	insertHi := make(map[int]uint64)
+	insertLo := make(map[int]uint64)
+	tookHi := make(map[int]int64)
+	tookLo := make(map[int]int64)
+
+	len_logs := len(his.BatchLogs.dat)
+	for j, dat := range his.BatchLogs.dat {
+
+		thispercentile := int(float64(j) / float64(len_logs) * 100)
+		percentile := getPercentileRound(thispercentile, percentiles)
+
 		// Update ihi and ilo
 		if dat.i > ihi {
 			ihi = dat.i
@@ -170,9 +191,58 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 		if dat.t < tlo {
 			tlo = dat.t
 		}
+
+		// set maps default min/max reversed
+		if _, exists := insertHi[percentile]; !exists {
+			insertHi[percentile] = 0
+		}
+		if _, exists := insertLo[percentile]; !exists {
+			insertLo[percentile] = math.MaxUint64
+		}
+		if _, exists := tookHi[percentile]; !exists {
+			tookHi[percentile] = 0
+		}
+		if _, exists := tookLo[percentile]; !exists {
+			tookLo[percentile] = math.MaxInt64
+		}
+
+		// update hi/lo percentile maps
+		if dat.i > insertHi[percentile] {
+			insertHi[percentile] = dat.i
+		}
+		if dat.i < insertLo[percentile] {
+			insertLo[percentile] = dat.i
+		}
+		if dat.t > tookHi[percentile] {
+			tookHi[percentile] = dat.t
+		}
+		if dat.t < tookLo[percentile] {
+			tookLo[percentile] = dat.t
+		}
 	}
-	log.Printf("CrunchLogs i=%d:%d t=%d:%d", ilo, ihi, tlo, thi)
-} // end func CrunchLogs
+
+	log.Printf("CrunchLogs: BatchSize=%05d:%05d t=%011d:%011d µs", ilo, ihi, tlo, thi)
+
+	// Print specific percentiles
+	for _, percentile := range percentiles {
+		log.Printf("Percentile %03d%%: BatchSize=%05d:%05d t=%011d:%011d µs",
+			percentile, insertLo[percentile], insertHi[percentile], tookLo[percentile], tookHi[percentile])
+	}
+} // end func CrunchBatchLogs
+
+func getPercentileRound(inputperc int, percentiles []int) int {
+	for _, perc := range percentiles {
+		if inputperc > perc {
+			continue
+		}
+		if inputperc <= perc {
+			//log.Printf("getPercentileRound inputperc=%d ret=%d", inputperc, perc)
+			return perc
+		}
+	}
+	log.Printf("ERROR getPercentileRound inputperc=%d ret=-1", inputperc)
+	return -1
+} // end func getPercentileRound
 
 func bool2int(abool bool) int {
 	if abool {
