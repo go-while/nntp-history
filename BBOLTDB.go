@@ -388,16 +388,15 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 						if int(inserted) >= wCBBS {
 							// inserted exactly or more than wCBBS
 							if wCBBS < 65536 {
-								//logf(DEBUG, "forbatchqueue D1a char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch, incr)
+								logf(DEBUG, "forbatchqueue D1++ char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
 								wCBBS += 1 // adaptive BatchSize incr
 							}
-							//logf(DEBUG, "forbatchqueue D1 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t incr", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
 						} else {
 							// inserted less than wCBBS
 							if wCBBS > 16 {
+								logf(DEBUG, "forbatchqueue D2-- char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t decr", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
 								wCBBS -= 1 // adaptive BatchSize decr
 							}
-							//logf(DEBUG, "forbatchqueue D2 char=%s bucket=%s timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t decr", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
 						}
 					} // end if forced
 				} // end if inserted > 0
