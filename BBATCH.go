@@ -173,7 +173,7 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 		if dat.w > whi {
 			whi = dat.w
 		}
-		if dat.w < wlo {
+		if dat.w < wlo && dat.w > 0 { // dont count shutdown -1 value
 			wlo = dat.w
 		}
 
