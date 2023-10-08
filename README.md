@@ -357,6 +357,8 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 2023/10/08 18:54:29 BoltSpeed: 7503.50 tx/s ( did=112085 in 14.9 sec ) totalTX=50063485
 2023/10/08 18:54:44 BoltSpeed: 6241.39 tx/s ( did=93632 in 15.0 sec ) totalTX=50157117
 ...
+2023/10/08 18:56:29 BoltSpeed: 5856.39 tx/s ( did=87851 in 15.0 sec ) totalTX=51078718
+2023/10/08 18:56:44 BoltSpeed: 11830.49 tx/s ( did=177445 in 15.0 sec ) totalTX=51256163
 ...
 ```
 
