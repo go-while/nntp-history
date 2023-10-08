@@ -84,7 +84,7 @@ fetchbatch:
 		//if int(inserted1) != workerCharBucketBatchSize {
 		// debugs adaptive batchsize
 		//logf(DEBUG, "INFO bboltPutBatch [%s|%s] B=%05d inserted=%05d src='%s' ( took %d micros ) wCBBS=%d f=%t", char, bucket, len(batch1), inserted1, src, insert1_took, workerCharBucketBatchSize, forced)
-		logf(DEBUG, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d lft=%d wCBBS=%d ...... f=%t ( took %d micros ) ", char, bucket, len(batch1), inserted1, lastflush, workerCharBucketBatchSize, forced, insert1_took)
+		logf(DEBUG, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d wCBBS=%05d lft=%04d ...... f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted1, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 
 		//}
 	}
@@ -176,3 +176,10 @@ func (his *HISTORY) CrunchBatchLogs(more bool) {
 	}
 	log.Printf("CrunchLogs i=%d:%d t=%d:%d", ilo, ihi, tlo, thi)
 } // end func CrunchLogs
+
+func bool2int(abool bool) int {
+	if abool {
+		return 1
+	}
+	return 0
+} // end func bool2int
