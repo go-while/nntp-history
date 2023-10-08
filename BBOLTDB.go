@@ -35,7 +35,7 @@ var (
 	NumQueueIndexChan    int    = BoltDBs // Main-indexchan can queue this
 	NumQueueIndexChans   int    = 1       // every sub-indexchans for a `char` can queue this
 	DefaultKeyLen        int    = 6
-	BoltDB_AllocSize     int    = 16 * 1024 * 1024             // default: 16 * 1024 * 1024
+	BoltDB_AllocSize     int                                   // default: 16 * 1024 * 1024
 	Bolt_SYNC_EVERYs     int64  = 5                            // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	Bolt_SYNC_EVERYn     uint64 = 100                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int    = BoltDBs                      // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
@@ -189,9 +189,16 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		log.Printf("ERROR HashDB dbpath='%s' err='%v'", dbpath, err)
 		return
 	}
-	db.MaxBatchSize = BoltDB_MaxBatchSize
-	db.MaxBatchDelay = BoltDB_MaxBatchDelay
-	logf(DEBUG2, "HDBZW: INIT HashDB char=%s db='%#v' db.MaxBatchSize=%d", char, db, db.MaxBatchSize)
+	if BoltDB_MaxBatchSize > 0 {
+		db.MaxBatchSize = BoltDB_MaxBatchSize
+	}
+	if BoltDB_MaxBatchDelay > 0 {
+		db.MaxBatchDelay = BoltDB_MaxBatchDelay
+	}
+	if BoltDB_AllocSize > 1024*1024 {
+		db.AllocSize = BoltDB_AllocSize
+	}
+	logf(DEBUG2, "HDBZW: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
 	his.BoltDBsMap[char].BoltDB = db
 	testkey := "1"
 	testoffsets := []int64{1}
@@ -324,9 +331,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			var forced, closed, cont bool
 			var inserted, conti, slept uint64
 			var err error
-			//var timer, mintimer, maxtimer int64 = 500, 500, 500
 			var timer int64 = 500
-			var decr, incr int = 8, 8
+			var decr, incr int = 8, 8 // adaptive batchsize
 			Q := 0
 		forbatchqueue:
 			for {
@@ -352,59 +358,27 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				//time.Sleep(time.Nanosecond)
 				Q = len(batchQueue) // get remaining queued items after inserting
 
-				/*
-					//logf(DEBUG, "forbatchqueue A0 [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-					if Q == 0 {
-						timer += 10
-					} else
-					if Q > wCBBS { // more than 100% queued, yes because cap is *2
-						//logf(DEBUG, "forbatchqueue B0 [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-						timer -= 10
-					} else
-					if Q > wCBBS/2 { // more than 50% queued
-						//logf(DEBUG, "forbatchqueue B1 >50%% [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft/1000, inserted, wCBBS)
-						timer -= 1
-					} else if Q < wCBBS/2 { // less than 50% queued
-						//logf(DEBUG, "forbatchqueue B2 <50%% [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft/1000, inserted, wCBBS)
-						timer += 1
-					}
-
-					if timer < mintimer {
-						timer = mintimer
-						//if inserted > 0 {
-						//	logf(DEBUG, "forbatchqueue C1 [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-						//}
-					} else if timer > maxtimer {
-						timer = maxtimer
-						//logf(DEBUG, "forbatchqueue C2 [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d", char, bucket, timer, Q, forced, lft, inserted, wCBBS)
-					}
-				*/
-
 				if inserted > 0 {
+					// something got inserted
 					lastflush = utils.UnixTimeMilliSec()
 					cont = true
-					// something got inserted
-					//if forced && adaptBatch {
-					if adaptBatch { // trys to adapt wCBBS to `BatchFlushEvery`
-						/*
-							if int(inserted) == wCBBS {
-								// inserted exactly wCBBS
-								// pass, do nothing, batchsize looks fine
-								logf(DEBUG, "forbatchqueue D0## [%s|%s] timer=%d Q=%d forced=%t lft=%d inserted=%d wCBBS=%d adaptBatch=%t", char, bucket, timer, Q, forced, lft, inserted, wCBBS, adaptBatch)
-							} else */
+					if adaptBatch {
+						// try continuesly to adapt wCBBS to match `BatchFlushEvery`
+
 						if int(inserted) >= wCBBS {
 							// inserted exactly or more than wCBBS: increase wCBBS
 							if wCBBS < 65536+incr {
-								wCBBS += incr // adaptive BatchSize incr
-								//logf(DBG_FBQ, "forbatchqueue incr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
+								wCBBS += incr // adaptive BatchSize increase
+								logf(DBG_FBQ2, "forbatchqueue incr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
 							}
 						} else {
 							// inserted less than wCBBS: decrease wCBBS
 							if wCBBS > 1+decr {
-								wCBBS -= decr // adaptive BatchSize decr
-								//logf(DBG_FBQ, "forbatchqueue decr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
+								wCBBS -= decr // adaptive BatchSize decrease
+								logf(DBG_FBQ2, "forbatchqueue decr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
 							}
 						}
+
 					} // end if forced
 				} // end if inserted > 0
 
