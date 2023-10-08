@@ -61,9 +61,11 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BoltDB_MaxBatchSize = BatchSize // 0 disables boltdb internal batching. default: 1000
-		history.AdaptiveBatchSize = true        // adjusts CharBucketBatchSize automagically
-		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
+		history.BoltDB_MaxBatchSize = 16                      // 0 disables boltdb internal batching. default: 1000
+		history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
+		history.BoltDB_AllocSize = 128 * 1024 * 1024          // default: 16 * 1024 * 1024
+		history.AdaptiveBatchSize = true                      // adjusts CharBucketBatchSize automagically
+		history.CharBucketBatchSize = BatchSize               // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
 		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
@@ -270,6 +272,8 @@ func main() {
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addmultioffsets=%d trymultioffsets=%d searches=%d inserted1=%d inserted2=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addmultioffsets, trymultioffsets, searches, inserted1, inserted2)
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d | wCBBS=~%d conti=%d slept=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get, wCBBS/256, wCBBSconti/256, wCBBSslept/256)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
+
+	history.History.CrunchBatchLogs(true)
 
 	history.PrintMemoryStats()
 	log.Printf("runtime.GC()")
