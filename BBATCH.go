@@ -83,7 +83,9 @@ fetchbatch:
 		}
 		//if int(inserted1) != workerCharBucketBatchSize {
 		// debugs adaptive batchsize
-		logf(DEBUG, "INFO bboltPutBat [%s|%s] batch1=%d ins1=%d f=%t src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), inserted1, forced, src, insert1_took, workerCharBucketBatchSize)
+		//logf(DEBUG, "INFO bboltPutBatch [%s|%s] B=%05d inserted=%05d src='%s' ( took %d micros ) wCBBS=%d f=%t", char, bucket, len(batch1), inserted1, src, insert1_took, workerCharBucketBatchSize, forced)
+		logf(DEBUG, "INFO bboltPutBatch [%s|%s] B=%05d inserted=%05d lft=%d wCBBS=%d ( took %d micros ) f=%t", char, bucket, len(batch1), inserted1, lastflush, workerCharBucketBatchSize, insert1_took, forced)
+
 		//}
 	}
 
