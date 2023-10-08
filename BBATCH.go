@@ -6,15 +6,19 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"os"
-	//"time"
+	"time"
+)
+
+var (
+	DBG_BS_LOG           bool          = true                  // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
+	AdaptiveBatchSize    bool                                  // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically
+	BoltDB_MaxBatchSize  int           = 16                    // default value from boltdb:db.go = 1000
+	BoltDB_MaxBatchDelay time.Duration = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
+	CharBucketBatchSize  int           = 16                    // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
 )
 
 func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (inserted uint64, err error, closed bool) {
 
-	if batchQueue == nil {
-		log.Printf("ERROR boltBucketPutBatch batchQueue=nil")
-		return
-	}
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	if len(batchQueue) < workerCharBucketBatchSize && !forced {
 		return 0, nil, false
@@ -74,10 +78,13 @@ fetchbatch:
 			return inserted1, err, closed
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
-		if int(inserted1) != workerCharBucketBatchSize {
-			// debugs adaptive batchsize
-			logf(DEBUG, "INFO bboltPutBat =%s bucket=%s batch1=%d ins1=%d f=%t src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), inserted1, forced, src, insert1_took, workerCharBucketBatchSize)
+		if DBG_BS_LOG {
+			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted1, t: insert1_took})
 		}
+		//if int(inserted1) != workerCharBucketBatchSize {
+		// debugs adaptive batchsize
+		logf(DEBUG, "INFO bboltPutBat [%s|%s] batch1=%d ins1=%d f=%t src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), inserted1, forced, src, insert1_took, workerCharBucketBatchSize)
+		//}
 	}
 
 	/*
@@ -127,7 +134,43 @@ func (his *HISTORY) returnBatchLock(char string, bucket string) {
 } // end func returnBatchLock
 
 func (his *HISTORY) batchLog(log *BatchLOG) {
+	if !DBG_BS_LOG {
+		return
+	}
 	his.BatchLogs.mux.Lock()
 	his.BatchLogs.dat = append(his.BatchLogs.dat, log)
+	his.BatchLogs.did++
 	his.BatchLogs.mux.Unlock()
 } // end func batchLog
+
+func (his *HISTORY) CrunchBatchLogs(more bool) {
+	if !DBG_BS_LOG {
+		return
+	}
+	his.BatchLogs.mux.Lock()
+	defer his.BatchLogs.mux.Unlock()
+	log.Printf("CrunchLogs: did=%d dat=%d", his.BatchLogs.did, len(his.BatchLogs.dat))
+	if !more {
+		return
+	}
+	var ihi, ilo uint64 // inserted
+	var thi, tlo int64  // took
+	for _, dat := range his.BatchLogs.dat {
+		// Update ihi and ilo
+		if dat.i > ihi {
+			ihi = dat.i
+		}
+		if dat.i < ilo {
+			ilo = dat.i
+		}
+
+		// Update thi and tlo
+		if dat.t > thi {
+			thi = dat.t
+		}
+		if dat.t < tlo {
+			tlo = dat.t
+		}
+	}
+	log.Printf("CrunchLogs i=%d:%d t=%d:%d", ilo, ihi, tlo, thi)
+} // end func CrunchLogs
