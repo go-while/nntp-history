@@ -955,27 +955,16 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 	prevTimestamp := time.Now()
 
 	for range ticker.C {
-		// Get the current time
 		currentTimestamp := time.Now()
-
-		// Calculate the time passed since the last ticker
 		timePassed := currentTimestamp.Sub(prevTimestamp)
-
-		// Record the current time as the new previous timestamp
 		prevTimestamp = currentTimestamp
 
 		// Get the BoltStats
 		_, tx := his.GetBoltStats("", false)
-
-		// Calculate the performance value (tx per second)
 		performance := float64(tx-TX) / timePassed.Seconds()
-
-		// Print the performance value
 		if performance > 0 {
 			log.Printf("BoltSpeed: %.2f tx/s totalTX=%d", performance, tx)
 		}
-
-		// Update TX for future calculations
 		TX = tx
 	}
 } // end func PrintGetBoltStatsEvery
