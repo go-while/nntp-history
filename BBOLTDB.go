@@ -199,7 +199,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		db.AllocSize = BoltDB_AllocSize
 	}
 	logf(DEBUG2, "HDBZW: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
+	his.boltmux.Lock()
 	his.BoltDBsMap[char].BoltDB = db
+	his.boltmux.Unlock()
 	testkey := "1"
 	testoffsets := []int64{1}
 	testoffset := int64(1)
@@ -748,11 +750,9 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 		return err
 	}
 
-	//his.mux.Lock()
 	his.L1Cache.Set(hash, *char, CaseDupes) // offset of history entry added to key: hash is a duplicate in cached response now
 	his.L2Cache.SetOffsetHash(offset, hash)
 	his.L3Cache.SetOffsets(*char+*bucket+*key, *char, offsets)
-	//his.mux.Unlock()
 
 	if batchQueue != nil {
 		batchQueue <- &BatchOffset{bucket: *bucket, key: *key, gobEncodedOffsets: gobEncodedOffsets}
@@ -938,9 +938,11 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string) error {
 		return fmt.Errorf("ERROR BoltSync char=nil")
 	}
 	if db == nil && char != "" {
+		his.boltmux.Lock()
 		if his.BoltDBsMap[char].BoltDB != nil {
 			db = his.BoltDBsMap[char].BoltDB
 		}
+		his.boltmux.Unlock()
 	}
 	if db == nil {
 		return fmt.Errorf("ERROR BoltSync db=nil")
@@ -983,9 +985,9 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 		log.Printf("ERROR boltSyncClose char=%s err='%v'", char, err)
 		return err
 	}
-	his.mux.Lock()
+	his.boltmux.Lock()
 	his.BoltDBsMap[char].BoltDB = nil
-	his.mux.Unlock()
+	his.boltmux.Unlock()
 	logf(DEBUG2, "BoltDB boltSyncClose char=%s", char)
 	return nil
 } // end func boltSyncClose
@@ -1036,24 +1038,33 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 	}
 } // end func PrintGetBoltStatsEvery
 
-func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int) {
-	his.mux.Lock()
-	defer his.mux.Unlock()
+func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) {
+	his.boltmux.Lock()
+	defer his.boltmux.Unlock()
+	if his.BoltDBsMap[char].BoltDB != nil {
+		dbstats, err := his.getDBStats(his.BoltDBsMap[char].BoltDB)
+		if err != nil {
+			log.Printf("ERROR BoltStats [%s] err='%v'", char, err)
+			return
+		}
+		OpenTxN += dbstats.OpenTxN
+		TxN += dbstats.TxN
+		if print {
+			log.Printf("BoltStats [%s] OpenTxN=%d TxN=%d", char, dbstats.OpenTxN, dbstats.TxN)
+		}
+	}
+	return
+} // end func GetBoltStat
 
+func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int) {
+	if char != "" {
+		return his.GetBoltStat(char, print)
+	}
 	if char == "" {
 		for _, char := range HEXCHARS {
-			if his.BoltDBsMap[char].BoltDB != nil {
-				dbstats, err := his.getDBStats(his.BoltDBsMap[char].BoltDB)
-				if err != nil {
-					log.Printf("ERROR BoltStats [%s] err='%v'", char, err)
-					continue
-				}
-				OpenTxN += dbstats.OpenTxN
-				TxN += dbstats.TxN
-				if print {
-					log.Printf("BoltStats [%s] OpenTxN=%d TxN=%d", char, dbstats.OpenTxN, dbstats.TxN)
-				}
-			}
+			otx, tx := his.GetBoltStat(char, print)
+			OpenTxN += otx
+			TxN += tx
 		}
 	}
 	/*
