@@ -396,13 +396,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 							// inserted exactly or more than wCBBS: increase wCBBS
 							if wCBBS < 65536+incr {
 								wCBBS += incr // adaptive BatchSize incr
-								logf(DBG_FBQ, "forbatchqueue incr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
+								//logf(DBG_FBQ, "forbatchqueue incr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
 							}
 						} else {
 							// inserted less than wCBBS: decrease wCBBS
 							if wCBBS > 1+decr {
 								wCBBS -= decr // adaptive BatchSize decr
-								logf(DBG_FBQ, "forbatchqueue decr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
+								//logf(DBG_FBQ, "forbatchqueue decr [%s|%s] Queue=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d", char, bucket, Q, inserted, wCBBS, lft, bool2int(forced))
 							}
 						}
 					} // end if forced
