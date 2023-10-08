@@ -77,7 +77,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 		}
 
 		if int(inserted1) != workerCharBucketBatchSize {
-			logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d forced=%t inserted1=%d src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), forced, inserted1, src, utils.UnixTimeMicroSec() - start1, workerCharBucketBatchSize)
+			logf(DEBUG, "INFO bboltPutBat char=%s bucket=%s batch1=%d inserted1=%d f=%t src='%s' ( took %d micros ) wCBBS=%d", char, bucket, len(batch1), inserted1, forced, src, utils.UnixTimeMicroSec() - start1, workerCharBucketBatchSize)
 		}
 	}
 
