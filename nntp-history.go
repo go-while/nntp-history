@@ -23,7 +23,7 @@ const (
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
 	//DefExpiresStr       string = "-" // never expires
-	DefaultCacheExpires int64 = 9 // seconds
+	DefaultCacheExpires int64 = 15 // seconds
 	DefaultCachePurge   int64 = 3 // seconds
 	CaseLock                  = 0xF0
 	CasePass                  = 0xF1
