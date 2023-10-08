@@ -278,7 +278,6 @@ func main() {
 	log.Printf("L1LOCK=%d | Get: L2=%d L3=%d | wCBBS=~%d conti=%d slept=%d", L1CACHE_Lock, L2CACHE_Get, L3CACHE_Get, wCBBS/256, wCBBSconti/256, wCBBSslept/256)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 
-	history.History.GetBoltStats("", true)
 	history.History.CrunchBatchLogs(true)
 
 	history.PrintMemoryStats()
