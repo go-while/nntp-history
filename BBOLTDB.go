@@ -977,7 +977,7 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string) error {
 	if err := his.BoltSync(db, char); err != nil {
 		return err
 	}
-	his.GetBoltStats("", true)
+	his.GetBoltStats(char, true)
 	err := db.Close()
 	if err != nil {
 		log.Printf("ERROR boltSyncClose char=%s err='%v'", char, err)
@@ -1025,7 +1025,7 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 		performance := float64(tx-TX) / timePassed.Seconds()
 
 		// Print the performance value
-		log.Printf("BoltDB: %.2f tx/s", performance)
+		log.Printf("BoltSpeed: %.2f tx/s", performance)
 
 		// Update TX for future calculations
 		TX = tx
