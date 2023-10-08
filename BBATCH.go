@@ -11,12 +11,13 @@ import (
 )
 
 var (
-	DBG_BS_LOG           bool          = false                 // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
-	DBG_FBQ              bool          = false                 // debugs forbatchqueue and adaptive batchsize
-	AdaptiveBatchSize    bool                                  // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically
-	BoltDB_MaxBatchSize  int           = 16                    // default value from boltdb:db.go = 1000
-	BoltDB_MaxBatchDelay time.Duration = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
-	CharBucketBatchSize  int           = 16                    // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
+	DBG_BS_LOG           bool               // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
+	DBG_FBQ              bool               // debugs adaptive batchsize in boltBucketPutBatch
+	DBG_FBQ2             bool               // debugs adaptive batchsize forbatchqueue in boltDB_Worker
+	AdaptiveBatchSize    bool               // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically
+	BoltDB_MaxBatchDelay time.Duration      // default value from boltdb:db.go = 10 * time.Millisecond
+	BoltDB_MaxBatchSize  int           = 16 // default value from boltdb:db.go = 1000
+	CharBucketBatchSize  int           = 16 // default batchsize per 16 queues/buckets in 16 char dbs = 4096 total hashes queued for writing
 )
 
 func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (inserted uint64, err error, closed bool) {
