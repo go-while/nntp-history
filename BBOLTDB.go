@@ -186,7 +186,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	if BoltDB_MaxBatchDelay > 0 {
 		db.MaxBatchDelay = BoltDB_MaxBatchDelay
 	}
-	if BoltDB_AllocSize > 1024*1024 {
+	if BoltDB_AllocSize >= 1024*1024 {
 		db.AllocSize = BoltDB_AllocSize
 	}
 	logf(DEBUG2, "HDBZW: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
