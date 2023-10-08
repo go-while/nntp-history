@@ -196,37 +196,128 @@ CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4
 2023/09/29 15:45:52 done=4000000 took 6 seconds
 ```
 
-```sh
-./nntp-history-test -useHashDB=false -useGoCache=false
-CPU=4/12 | useHashDB: false | useGoCache: false | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:46:20 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='<nil>' HT=11 HL=6
-...
-2023/09/29 15:46:26 history_Writer closed fp='history/history.dat' wbt=408000000 offset=408000062 wroteLines=4000000
-2023/09/29 15:46:27 key_add=0 key_app=0 total=0
-2023/09/29 15:46:27 done=4000000 took 7 seconds
-```
-
-## Benchmark with hashDB: `i` hashes
+## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb + history.DBG_BS_LOG = true
 ```sh
 ./nntp-history-test
-CPU=4/12 | useHashDB: true | useGoCache: true | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:44:13 his.boltDB_Init() boltInitChan=4 boltSyncChan=1
-2023/09/29 15:44:13 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='&{0xc00010cf00}' HT=11 HL=6
-...
-2023/09/29 15:44:33 history_Writer closed fp='history/history.dat' wbt=102000000 offset=102000062 wroteLines=1000000
-2023/09/29 15:44:34 key_add=999886 key_app=114 total=1000000
-2023/09/29 15:44:34 done=4000000 took 21 seconds
+ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+ useHashDB: true | IndexParallel=16
+ boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
+2023/10/08 14:21:21 History: new=true
+  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
+  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=4 BatchSize=1024 IndexParallel=16}
+2023/10/08 14:21:43 End test p=4 nntp-history added=251227 dupes=0 cachehits=418534 addretry=0 retry=0 adddupes=0 cachedupes=330239 cacheretry1=0 sum=1000000/1000000 errors=0 locked=251227
+2023/10/08 14:21:43 End test p=1 nntp-history added=251137 dupes=0 cachehits=418103 addretry=0 retry=0 adddupes=0 cachedupes=330760 cacheretry1=0 sum=1000000/1000000 errors=0 locked=251137
+2023/10/08 14:21:43 End test p=3 nntp-history added=247685 dupes=0 cachehits=417019 addretry=0 retry=0 adddupes=0 cachedupes=335296 cacheretry1=0 sum=1000000/1000000 errors=0 locked=247685
+2023/10/08 14:21:43 End test p=2 nntp-history added=249951 dupes=0 cachehits=417742 addretry=0 retry=0 adddupes=0 cachedupes=332307 cacheretry1=0 sum=1000000/1000000 errors=0 locked=249951
+2023/10/08 14:21:43 CLOSE_HISTORY: his.WriterChan <- nil
+2023/10/08 14:21:43 WAIT CLOSE_HISTORY: lock1=true=1 lock2=true=1 lock3=true=16 lock4=true=16 lock5=true=256 batchQueued=true=54164 batchLocked=false=0
+2023/10/08 14:21:44 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=16 lock4=true=16 lock5=true=256 batchQueued=true=23874 batchLocked=true=16
+2023/10/08 14:21:44 Quit HDBZW char=f added=62371 passed=0 dupes=0 processed=62371 searches=62371 retry=0
+2023/10/08 14:21:44 Quit HDBZW char=3 added=62122 passed=0 dupes=0 processed=62122 searches=62122 retry=0
+2023/10/08 14:21:44 Quit HDBZW char=d added=62645 passed=0 dupes=0 processed=62645 searches=62645 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=7 added=62625 passed=0 dupes=0 processed=62625 searches=62625 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=6 added=62455 passed=0 dupes=0 processed=62455 searches=62455 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=b added=62471 passed=0 dupes=0 processed=62471 searches=62471 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=2 added=62530 passed=0 dupes=0 processed=62530 searches=62530 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=5 added=62388 passed=0 dupes=0 processed=62388 searches=62388 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=8 added=62452 passed=0 dupes=0 processed=62452 searches=62452 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=1 added=62477 passed=0 dupes=0 processed=62477 searches=62477 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=0 added=62326 passed=0 dupes=0 processed=62326 searches=62326 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=9 added=62851 passed=0 dupes=0 processed=62851 searches=62851 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=4 added=62322 passed=0 dupes=0 processed=62322 searches=62322 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=a added=62633 passed=0 dupes=0 processed=62633 searches=62633 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=c added=62497 passed=0 dupes=0 processed=62497 searches=62497 retry=0
+2023/10/08 14:21:45 Quit HDBZW char=e added=62835 passed=0 dupes=0 processed=62835 searches=62835 retry=0
+2023/10/08 14:21:45 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=false=0 lock4=false=0 lock5=true=256 batchQueued=true=256 batchLocked=false=0
+2023/10/08 14:21:46 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=false=0 lock4=false=0 lock5=true=256 batchQueued=true=256 batchLocked=false=0
+2023/10/08 14:21:47 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=false=0 lock4=false=0 lock5=true=144 batchQueued=true=144 batchLocked=false=0
+2023/10/08 14:21:48 CLOSE_HISTORY DONE
+2023/10/08 14:21:48 key_add=999886 key_app=114 total=1000000 fseeks=0 eof=0 BoltDB_decodedOffsets=0 addmultioffsets=114 trymultioffsets=0 tryoffset=114 searches=1000000 inserted=1000000
+2023/10/08 14:21:48 L1LOCK=1000000 | Get: L2=228 L3=1000114 | wCBBS=~992 conti=4 slept=50
+2023/10/08 14:21:48 done=4000000 (took 22 seconds) (closewait 5 seconds)
+2023/10/08 14:21:48 CrunchBatchLogs: did=1280 dat=1280
+2023/10/08 14:21:48 CrunchLogs: BatchSize=00126:01024 t=00000029360:00000788384 µs
+2023/10/08 14:21:48 Percentile 005%: BatchSize=00891:01024 t=00000029360:00000080867 µs
+2023/10/08 14:21:48 Percentile 010%: BatchSize=00902:01008 t=00000038559:00000127094 µs
+2023/10/08 14:21:48 Percentile 015%: BatchSize=00886:01024 t=00000041175:00000155500 µs
+2023/10/08 14:21:48 Percentile 020%: BatchSize=00885:01024 t=00000062375:00000315057 µs
+2023/10/08 14:21:48 Percentile 025%: BatchSize=00867:01016 t=00000062692:00000100756 µs
+2023/10/08 14:21:48 Percentile 030%: BatchSize=00836:01006 t=00000068475:00000775682 µs
+2023/10/08 14:21:48 Percentile 035%: BatchSize=00859:01016 t=00000108629:00000788384 µs
+2023/10/08 14:21:48 Percentile 040%: BatchSize=00718:01006 t=00000031893:00000777471 µs
+2023/10/08 14:21:48 Percentile 045%: BatchSize=00739:00884 t=00000032187:00000134806 µs
+2023/10/08 14:21:48 Percentile 050%: BatchSize=00770:00983 t=00000032450:00000139218 µs
+2023/10/08 14:21:48 Percentile 055%: BatchSize=00871:00983 t=00000036441:00000094281 µs
+2023/10/08 14:21:48 Percentile 060%: BatchSize=00869:01021 t=00000035521:00000111251 µs
+2023/10/08 14:21:48 Percentile 065%: BatchSize=00827:00976 t=00000039681:00000105287 µs
+2023/10/08 14:21:48 Percentile 070%: BatchSize=00868:01000 t=00000041798:00000138386 µs
+2023/10/08 14:21:48 Percentile 075%: BatchSize=00836:00975 t=00000041976:00000147046 µs
+2023/10/08 14:21:48 Percentile 080%: BatchSize=00154:00974 t=00000045212:00000167484 µs
+2023/10/08 14:21:48 Percentile 085%: BatchSize=00126:00342 t=00000101608:00000108787 µs
+2023/10/08 14:21:48 Percentile 090%: BatchSize=00128:00324 t=00000101732:00000108013 µs
+2023/10/08 14:21:48 Percentile 095%: BatchSize=00135:00331 t=00000101527:00000104882 µs
+2023/10/08 14:21:48 Percentile 100%: BatchSize=00135:00324 t=00000101400:00000105517 µs
 ```
 
+## Checking 4.000.000 `i` hashes (75% duplicates) vs hashdb
 ```sh
-./nntp-history-test -useGoCache=false
-CPU=4/12 | useHashDB: true | useGoCache: false | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:48:08 his.boltDB_Init() boltInitChan=4 boltSyncChan=1
-2023/09/29 15:48:08 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='<nil>' HT=11 HL=6
-...
-2023/09/29 15:48:58 history_Writer closed fp='history/history.dat' wbt=126904014 offset=126904076 wroteLines=1244157
-2023/09/29 15:48:59 key_add=1244033 key_app=124 total=1244157
-2023/09/29 15:48:59 done=4000000 took 51 seconds
+./nntp-history-test
+ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+ useHashDB: true | IndexParallel=16
+ boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
+2023/10/08 14:22:28 History: new=false
+  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
+  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=4 BatchSize=1024 IndexParallel=16}
+2023/10/08 14:22:52 End test p=1 nntp-history added=0 dupes=249713 cachehits=547175 addretry=0 retry=0 adddupes=0 cachedupes=203112 cacheretry1=0 sum=1000000/1000000 errors=0 locked=249713
+2023/10/08 14:22:52 End test p=2 nntp-history added=0 dupes=250392 cachehits=547410 addretry=0 retry=0 adddupes=0 cachedupes=202198 cacheretry1=0 sum=1000000/1000000 errors=0 locked=250392
+2023/10/08 14:22:52 End test p=4 nntp-history added=0 dupes=250461 cachehits=548165 addretry=0 retry=0 adddupes=0 cachedupes=201374 cacheretry1=0 sum=1000000/1000000 errors=0 locked=250461
+2023/10/08 14:22:52 End test p=3 nntp-history added=0 dupes=249434 cachehits=547102 addretry=0 retry=0 adddupes=0 cachedupes=203464 cacheretry1=0 sum=1000000/1000000 errors=0 locked=249434
+2023/10/08 14:22:52 CLOSE_HISTORY: his.WriterChan <- nil
+2023/10/08 14:22:52 WAIT CLOSE_HISTORY: lock1=true=1 lock2=true=1 lock3=true=16 lock4=true=16 lock5=true=256 batchQueued=false=0 batchLocked=false=0
+2023/10/08 14:22:53 Quit HDBZW char=f added=0 passed=0 dupes=0 processed=0 searches=62371 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=9 added=0 passed=0 dupes=0 processed=0 searches=62851 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=1 added=0 passed=0 dupes=0 processed=0 searches=62477 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=4 added=0 passed=0 dupes=0 processed=0 searches=62322 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=5 added=0 passed=0 dupes=0 processed=0 searches=62388 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=0 added=0 passed=0 dupes=0 processed=0 searches=62326 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=2 added=0 passed=0 dupes=0 processed=0 searches=62530 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=6 added=0 passed=0 dupes=0 processed=0 searches=62455 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=7 added=0 passed=0 dupes=0 processed=0 searches=62625 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=3 added=0 passed=0 dupes=0 processed=0 searches=62122 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=a added=0 passed=0 dupes=0 processed=0 searches=62633 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=b added=0 passed=0 dupes=0 processed=0 searches=62471 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=c added=0 passed=0 dupes=0 processed=0 searches=62497 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=8 added=0 passed=0 dupes=0 processed=0 searches=62452 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=d added=0 passed=0 dupes=0 processed=0 searches=62645 retry=0
+2023/10/08 14:22:53 Quit HDBZW char=e added=0 passed=0 dupes=0 processed=0 searches=62835 retry=0
+2023/10/08 14:22:53 CLOSE_HISTORY DONE
+2023/10/08 14:22:53 key_add=0 key_app=0 total=0 fseeks=1000000 eof=0 BoltDB_decodedOffsets=999886 addmultioffsets=0 trymultioffsets=228 tryoffset=999772 searches=1000000 inserted=0
+2023/10/08 14:22:53 L1LOCK=1000000 | Get: L2=114 L3=114 | wCBBS=~1024 conti=0 slept=50
+2023/10/08 14:22:53 done=4000000 (took 24 seconds) (closewait 1 seconds)
+2023/10/08 14:22:53 CrunchBatchLogs: did=0 dat=0
+2023/10/08 14:22:53 CrunchLogs: BatchSize=18446744073709551615:00000 t=9223372036854775807:00000000000 µs
+2023/10/08 14:22:53 Percentile 005%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 010%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 015%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 020%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 025%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 030%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 035%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 040%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 045%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 050%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 055%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 060%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 065%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 070%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 075%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 080%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 085%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 090%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 095%: BatchSize=00000:00000 t=00000000000:00000000000 µs
+2023/10/08 14:22:53 Percentile 100%: BatchSize=00000:00000 t=00000000000:00000000000 µs
 ```
 
 ## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb
@@ -243,7 +334,7 @@ ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | k
 2023/10/04 18:08:52 done=400000000 (took 6244 seconds) (closewait 5 seconds)
 ```
 
-## Checking 400.000.000 `i` hashes (75% duplicates)
+## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
 ```sh
 /nntp-history-test -todo=100000000
 ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
