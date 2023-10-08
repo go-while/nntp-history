@@ -24,7 +24,7 @@ const (
 	DefExpiresStr string = "----------" // never expires
 	//DefExpiresStr       string = "-" // never expires
 	DefaultCacheExpires int64 = 15 // seconds
-	DefaultCachePurge   int64 = 3 // seconds
+	DefaultCachePurge   int64 = 3  // seconds
 	CaseLock                  = 0xF0
 	CasePass                  = 0xF1
 	CaseDupes                 = 0xB1
