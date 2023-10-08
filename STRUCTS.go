@@ -23,6 +23,7 @@ type HISTORY struct {
 	WriterChan   chan *HistoryObject
 	IndexChan    chan *HistoryIndex
 	IndexChans   [16]chan *HistoryIndex
+	BatchLogs    BatchLOGGER
 	BatchLocks   map[string]map[string]chan struct{}
 	BoltDBsMap   map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
 	charsMap     map[string]int
@@ -71,4 +72,16 @@ type BatchOffset struct {
 
 type GOBOFFSETS struct {
 	Offsets []int64
+}
+
+type BatchLOGGER struct {
+	mux sync.Mutex
+	dat []*BatchLOG
+}
+
+type BatchLOG struct {
+	char   *string
+	bucket *string
+	ins1   uint64
+	took   int64
 }
