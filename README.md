@@ -298,7 +298,7 @@ ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 |
 2023/10/08 14:32:57 done=4000000 (took 24 seconds) (closewait 1 seconds)
 ```
 
-## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb
+## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb (adaptive batchsize)
 ```sh
 ./nntp-history-test -todo 100000000
 ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
