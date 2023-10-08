@@ -44,6 +44,8 @@ func main() {
 		//history.IndexParallel = runtime.GOMAXPROCS(0)
 	}
 	history.History.SET_DEBUG(debugs)
+	history.DBG_BS_LOG = true
+	history.DBG_FBQ = true
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
