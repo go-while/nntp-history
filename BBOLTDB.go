@@ -953,7 +953,6 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 	var tmpTX int
 	ticker := time.NewTicker(interval)
 	prevTimestamp := time.Now()
-
 	for range ticker.C {
 		currentTimestamp := time.Now()
 		timePassed := currentTimestamp.Sub(prevTimestamp)
@@ -993,20 +992,17 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 	if char != "" {
 		return his.GetBoltStat(char, print)
 	}
-	if char == "" {
-		for _, char := range HEXCHARS {
-			otx, tx := his.GetBoltStat(char, print)
-			OpenTxN += otx
-			TxN += tx
-		}
+	for _, char := range HEXCHARS {
+		otx, tx := his.GetBoltStat(char, print)
+		OpenTxN += otx
+		TxN += tx
 	}
 	/*
 		if char != "" {
 			for _, bucket := range HEXCHARS {
 				if his.BoltDBsMap[char].BoltDB != nil {
 					stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
-					//startedTx += stats.TxStats.Started
-					//committTx += stats.TxStats.Committed
+
 					log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
 				}
 			}
@@ -1017,8 +1013,7 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 			for _, bucket := range HEXCHARS {
 				if his.BoltDBsMap[char].BoltDB != nil {
 					stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
-					//startedTx += stats.TxStats.Started
-					//committTx += stats.TxStats.Committed
+
 					log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
 				}
 			}
@@ -1026,6 +1021,29 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 	*/
 	return OpenTxN, TxN
 } // end func GetBoltStats
+
+func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
+	if char != "" {
+		for _, bucket := range HEXCHARS {
+			if his.BoltDBsMap[char].BoltDB != nil {
+				stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
+				if print {
+					log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
+				}
+			}
+		}
+	}
+	for _, char := range HEXCHARS {
+		for _, bucket := range HEXCHARS {
+			if his.BoltDBsMap[char].BoltDB != nil {
+				stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
+				if print {
+					log.Printf("BucketStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
+				}
+			}
+		}
+	}
+} // end func GetBoltBucketStats
 
 func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
 	var stats bolt.Stats
