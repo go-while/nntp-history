@@ -395,13 +395,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 						if int(inserted) >= wCBBS {
 							// inserted exactly or more than wCBBS: increase wCBBS
 							if wCBBS < 65536+incr {
-								logf(DEBUG, "forbatchqueue D1++ [%s|%s] Q=%05d inserted=%05d lft=%d wCBBS=%d incr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, incr, forced)
+								logf(DEBUG, "forbatchqueue D1++ [%s|%s] Queue=%05d Ins=%05d lft=%d wCBBS=%d incr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, incr, forced)
 								wCBBS += incr // adaptive BatchSize incr
 							}
 						} else {
 							// inserted less than wCBBS: decrease wCBBS
 							if wCBBS > 16+decr {
-								logf(DEBUG, "forbatchqueue D2-- [%s|%s] Q=%05d inserted=%05d lft=%d wCBBS=%d decr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, decr, forced)
+								logf(DEBUG, "forbatchqueue D2-- [%s|%s] Queue=%05d Ins=%05d lft=%d wCBBS=%d decr=%d f=%t", char, bucket, Q, inserted, lft, wCBBS, decr, forced)
 								wCBBS -= decr // adaptive BatchSize decr
 							}
 						}
