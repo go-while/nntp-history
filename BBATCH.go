@@ -20,7 +20,7 @@ var (
 	CharBucketBatchSize  int           = 16 // default batchsize per *16 queues (buckets) in *16 char dbs = 4096 total hashes queued for writing
 )
 
-func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (inserted uint64, err error, closed bool) {
+func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (uint64, error, bool) {
 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	if len(batchQueue) < workerCharBucketBatchSize && !forced {
@@ -29,9 +29,10 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	his.BatchLocks[char][bucket] <- struct{}{}
 	defer his.returnBatchLock(char, bucket)
-
+	var err error
+	var closed bool
 	batch1 := []*BatchOffset{}
-	start := utils.UnixTimeMicroSec()
+	//start := utils.UnixTimeMicroSec()
 
 fetchbatch:
 	for {
