@@ -950,7 +950,7 @@ func (his *HISTORY) PrintGetBoltStatsEveryN(char string, interval time.Duration)
 } // end func PrintGetBoltStatsEveryN
 
 func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) {
-	var TX int
+	var tmpTX int
 	ticker := time.NewTicker(interval)
 	prevTimestamp := time.Now()
 
@@ -961,11 +961,13 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 
 		// Get the BoltStats
 		_, tx := his.GetBoltStats("", false)
-		performance := float64(tx-TX) / timePassed.Seconds()
+		did := tx - tmpTX
+		passed := timePassed.Seconds()
+		performance := float64(did) / passed
 		if performance > 0 {
-			log.Printf("BoltSpeed: %.2f tx/s totalTX=%d", performance, tx)
+			log.Printf("BoltSpeed: %.2f tx/s ( did=%d in %.1f sec ) totalTX=%d", performance, did, passed, tx)
 		}
-		TX = tx
+		tmpTX = tx
 	}
 } // end func PrintGetBoltStatsEvery
 
