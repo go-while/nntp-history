@@ -311,6 +311,11 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 2023/10/08 18:01:44 BoltSpeed: 44297.19 tx/s ( did=664453 in 15.0 sec ) totalTX=664453
 2023/10/08 18:01:59 BoltSpeed: 43363.11 tx/s ( did=650447 in 15.0 sec ) totalTX=1314900
 ...
+2023/10/08 18:06:00 RUN test p=4 nntp-history added=2492416 dupes=0 cachehits=4021442 addretry=0 retry=0 adddupes=0 cachedupes=3486142 cacheretry1=0 10000000/100000000
+2023/10/08 18:06:00 RUN test p=3 nntp-history added=2502228 dupes=0 cachehits=4025283 addretry=0 retry=0 adddupes=0 cachedupes=3472489 cacheretry1=0 10000000/100000000
+2023/10/08 18:06:00 RUN test p=1 nntp-history added=2501394 dupes=0 cachehits=4021422 addretry=0 retry=0 adddupes=0 cachedupes=3477184 cacheretry1=0 10000000/100000000
+2023/10/08 18:06:00 RUN test p=2 nntp-history added=2503962 dupes=0 cachehits=4020087 addretry=0 retry=0 adddupes=0 cachedupes=3475951 cacheretry1=0 10000000/100000000
+...
 2023/10/08 18:08:29 BoltSpeed: 28428.51 tx/s ( did=426429 in 15.0 sec ) totalTX=14539993
 2023/10/08 18:08:44 BoltSpeed: 28750.23 tx/s ( did=431270 in 15.0 sec ) totalTX=14971263
 ...
@@ -321,6 +326,11 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 ...
 2023/10/08 18:19:29 BoltSpeed: 18166.40 tx/s ( did=272511 in 15.0 sec ) totalTX=27857110
 2023/10/08 18:19:44 BoltSpeed: 13151.54 tx/s ( did=197255 in 15.0 sec ) totalTX=28054365
+...
+2023/10/08 18:22:12 RUN test p=4 nntp-history added=7475027 dupes=0 cachehits=10624599 addretry=0 retry=0 adddupes=0 cachedupes=11900374 cacheretry1=0 30000000/100000000
+2023/10/08 18:22:12 RUN test p=2 nntp-history added=7488813 dupes=0 cachehits=10623678 addretry=0 retry=0 adddupes=0 cachedupes=11887509 cacheretry1=0 30000000/100000000
+2023/10/08 18:22:12 RUN test p=3 nntp-history added=7513602 dupes=0 cachehits=10636308 addretry=0 retry=0 adddupes=0 cachedupes=11850090 cacheretry1=0 30000000/100000000
+2023/10/08 18:22:12 RUN test p=1 nntp-history added=7522558 dupes=0 cachehits=10629385 addretry=0 retry=0 adddupes=0 cachedupes=11848057 cacheretry1=0 30000000/100000000
 ...
 2023/10/08 18:22:44 BoltSpeed: 14160.60 tx/s ( did=212199 in 15.0 sec ) totalTX=30427951
 2023/10/08 18:22:59 BoltSpeed: 14050.44 tx/s ( did=210745 in 15.0 sec ) totalTX=30638696
