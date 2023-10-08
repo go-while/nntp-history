@@ -37,7 +37,7 @@ func main() {
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
@@ -61,7 +61,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BoltDB_MaxBatchSize = 16        // 0 disables boltdb internal batching. default: 1000
+		history.BoltDB_MaxBatchSize = BatchSize // 0 disables boltdb internal batching. default: 1000
 		history.AdaptiveBatchSize = true        // adjusts CharBucketBatchSize automagically
 		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
