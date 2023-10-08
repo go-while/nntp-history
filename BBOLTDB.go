@@ -202,11 +202,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	his.boltmux.Lock()
 	his.BoltDBsMap[char].BoltDB = db
 	his.boltmux.Unlock()
-	tocheck := 16
-	checked, created := 0, 0
+	tocheck, checked, created := 16, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
-
 	for _, bucket := range HEXCHARS {
 		retbool, err := boltCreateBucket(db, &char, &bucket)
 		if err != nil || !retbool {
@@ -222,6 +220,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tcheck)
 	} // end for c1
 	<-his.boltInitChan
+
 	logf(DEBUG0, "HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	//if checked != 4096 {
 	if checked != tocheck /*|| created != tocheck */ {
