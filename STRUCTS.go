@@ -12,6 +12,7 @@ var (
 type HISTORY struct {
 	mux          sync.Mutex
 	cmux         sync.Mutex // sync counter
+	boltmux      sync.Mutex // locks boltdb to protect BoltDBsMap
 	L1Cache      L1CACHE
 	L2Cache      L2CACHE
 	L3Cache      L3CACHE
