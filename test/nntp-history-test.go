@@ -45,7 +45,8 @@ func main() {
 	}
 	history.History.SET_DEBUG(debugs)
 	history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
-	//history.DBG_FBQ = true  // prints adaptive batchsize
+	//history.DBG_FBQ1 = true   // prints adaptive batchsize
+	//history.DBG_FBQ2 = true   // prints adaptive batchsize
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
