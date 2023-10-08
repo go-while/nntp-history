@@ -83,5 +83,5 @@ type BatchLOG struct {
 	char   *string
 	bucket *string
 	ins1   uint64
-	took   int64
+	took   int64 // microseconds
 }
