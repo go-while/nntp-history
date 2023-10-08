@@ -1,20 +1,12 @@
 package history
 
 import (
-	//"bufio"
-	//"bytes"
-	//"encoding/base64"
-	//"encoding/gob"
 	"fmt"
 	//"github.com/go-while/go-utils"
-	//"github.com/edsrzf/mmap-go"
-	//"hash/fnv"
 	"io"
 	"log"
 	"os"
-	//"strconv"
 	"strings"
-	//"sync"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"time"
