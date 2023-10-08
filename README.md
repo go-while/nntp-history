@@ -301,28 +301,16 @@ ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 |
 ## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb
 ```sh
 ./nntp-history-test -todo=100000000
-ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/10/04 16:24:43 History: new=true
-  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
-  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
-  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=16}
 ...
-2023/10/04 18:08:52 key_add=98845096 key_app=1154904 total=100000000 fseeks=1158418 eof=0 BoltDB_decodedOffsets=1149297 appoffset=9084 trymultioffsets=9084 searches=100000000 inserted1=100000000 inserted2=0
-2023/10/04 18:08:52 L1LOCK=100000000 | Get: L2=1169656 L3=1160511
-2023/10/04 18:08:52 done=400000000 (took 6244 seconds) (closewait 5 seconds)
+...
+...
+...
 ```
 
 ## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
 ```sh
-/nntp-history-test -todo=100000000
-ARGS: CPU=4/12 | useHashDB: true | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/10/04 18:16:33 History: new=false
-  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
-  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
-  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=16}
 ...
-2023/10/04 18:51:03 key_add=0 key_app=102 total=102 fseeks=101151631 eof=0 BoltDB_decodedOffsets=99987676 appoffset=1 trymultioffsets=2300824 searches=100000000 inserted1=102 inserted2=0
-2023/10/04 18:51:03 L1LOCK=100000000 | Get: L2=12509 L3=12426
-2023/10/04 18:51:03 done=400000000 (took 2063 seconds) (closewait 7 seconds)
+...
+...
+...
 ```
-^^ something is buggy ^^ the second run should not add or app anything ... but appended key_app=102 ?! ....
