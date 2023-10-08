@@ -360,6 +360,9 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 2023/10/08 18:56:29 BoltSpeed: 5856.39 tx/s ( did=87851 in 15.0 sec ) totalTX=51078718
 2023/10/08 18:56:44 BoltSpeed: 11830.49 tx/s ( did=177445 in 15.0 sec ) totalTX=51256163
 ...
+2023/10/08 19:05:14 BoltSpeed: 5877.14 tx/s ( did=88158 in 15.0 sec ) totalTX=55384061
+2023/10/08 19:05:29 BoltSpeed: 8024.26 tx/s ( did=120365 in 15.0 sec ) totalTX=55504426
+...
 ```
 
 ## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
