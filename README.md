@@ -572,4 +572,7 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
 2023/10/09 03:18:44 Range 085%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011191:0000011191 sum=1
 2023/10/09 03:18:44 Range 095%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011352:0000011352 sum=1
 ...
+...
+check should not add / app anything. problem exists in caching algo.
+cache evicts before we've fully written the data of key:offset(s) tuple to disk.
 ```
