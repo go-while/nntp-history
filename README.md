@@ -465,8 +465,111 @@ Alloc: 692 MiB, TotalAlloc: 6007858 MiB, Sys: 2953 MiB, NumGC: 9237
 
 ## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
 ```sh
+./nntp-history-test -todo 100000000
+ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=1024
+ useHashDB: true | IndexParallel=16
+ boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
+2023/10/09 02:31:15 History: new=false
+  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
+  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=4 BatchSize=1024 IndexParallel=16}
 ...
+2023/10/09 02:31:30 BoltSpeed: 38398.86 tx/s ( did=575984 in 15.0 sec ) totalTX=575984
 ...
+2023/10/09 02:31:45 BoltSpeed: 39050.04 tx/s ( did=585750 in 15.0 sec ) totalTX=1161734
 ...
+2023/10/09 02:33:30 BoltSpeed: 37048.84 tx/s ( did=555620 in 15.0 sec ) totalTX=5077207
+...
+2023/10/09 02:35:41 RUN test p=4 nntp-history added=0 dupes=2500220 cachehits=5161855 addretry=0 retry=0 adddupes=0 cachedupes=2337925 cacheretry1=0 10000000/100000000
+2023/10/09 02:35:41 RUN test p=1 nntp-history added=0 dupes=2504373 cachehits=5163754 addretry=0 retry=0 adddupes=0 cachedupes=2331873 cacheretry1=0 10000000/100000000
+2023/10/09 02:35:41 RUN test p=3 nntp-history added=0 dupes=2498858 cachehits=5160476 addretry=0 retry=0 adddupes=0 cachedupes=2340666 cacheretry1=0 10000000/100000000
+2023/10/09 02:35:41 RUN test p=2 nntp-history added=0 dupes=2496549 cachehits=5158810 addretry=0 retry=0 adddupes=0 cachedupes=2344641 cacheretry1=0 10000000/100000000
+...
+2023/10/09 02:38:00 BoltSpeed: 39187.61 tx/s ( did=587800 in 15.0 sec ) totalTX=15272713
+...
+2023/10/09 02:40:04 RUN test p=3 nntp-history added=0 dupes=4995440 cachehits=10327604 addretry=0 retry=0 adddupes=0 cachedupes=4676956 cacheretry1=0 20000000/100000000
+2023/10/09 02:40:04 RUN test p=1 nntp-history added=0 dupes=5004269 cachehits=10330855 addretry=0 retry=0 adddupes=0 cachedupes=4664876 cacheretry1=0 20000000/100000000
+2023/10/09 02:40:04 RUN test p=4 nntp-history added=0 dupes=5003142 cachehits=10336423 addretry=0 retry=0 adddupes=0 cachedupes=4660435 cacheretry1=0 20000000/100000000
+2023/10/09 02:40:04 RUN test p=2 nntp-history added=0 dupes=4997149 cachehits=10329422 addretry=0 retry=0 adddupes=0 cachedupes=4673429 cacheretry1=0 20000000/100000000
+...
+2023/10/09 02:40:15 BoltSpeed: 37070.41 tx/s ( did=556056 in 15.0 sec ) totalTX=20380275
+...
+2023/10/09 02:44:27 RUN test p=3 nntp-history added=0 dupes=7494001 cachehits=15483389 addretry=0 retry=0 adddupes=0 cachedupes=7022610 cacheretry1=0 30000000/100000000
+2023/10/09 02:44:27 RUN test p=1 nntp-history added=0 dupes=7509512 cachehits=15492433 addretry=0 retry=0 adddupes=0 cachedupes=6998055 cacheretry1=0 30000000/100000000
+2023/10/09 02:44:27 RUN test p=4 nntp-history added=0 dupes=7503162 cachehits=15495167 addretry=0 retry=0 adddupes=0 cachedupes=7001671 cacheretry1=0 30000000/100000000
+2023/10/09 02:44:27 RUN test p=2 nntp-history added=0 dupes=7493325 cachehits=15481820 addretry=0 retry=0 adddupes=0 cachedupes=7024855 cacheretry1=0 30000000/100000000
+...
+2023/10/09 02:44:15 BoltSpeed: 38679.74 tx/s ( did=580025 in 15.0 sec ) totalTX=29503922
+...
+2023/10/09 02:49:03 RUN test p=1 nntp-history added=0 dupes=10009601 cachehits=20563519 addretry=0 retry=0 adddupes=0 cachedupes=9426880 cacheretry1=0 40000000/100000000
+2023/10/09 02:49:03 RUN test p=3 nntp-history added=0 dupes=9993411 cachehits=20556675 addretry=0 retry=0 adddupes=0 cachedupes=9449914 cacheretry1=0 40000000/100000000
+2023/10/09 02:49:03 RUN test p=4 nntp-history added=0 dupes=10003554 cachehits=20565264 addretry=0 retry=0 adddupes=0 cachedupes=9431182 cacheretry1=0 40000000/100000000
+2023/10/09 02:49:03 RUN test p=2 nntp-history added=0 dupes=9993434 cachehits=20553001 addretry=0 retry=0 adddupes=0 cachedupes=9453565 cacheretry1=0 40000000/100000000
+...
+2023/10/09 02:49:15 BoltSpeed: 34267.44 tx/s ( did=514011 in 15.0 sec ) totalTX=40416626
+...
+2023/10/09 02:53:56 RUN test p=4 nntp-history added=0 dupes=12500732 cachehits=25480212 addretry=0 retry=0 adddupes=0 cachedupes=12019056 cacheretry1=0 50000000/100000000
+2023/10/09 02:53:56 RUN test p=1 nntp-history added=0 dupes=12513541 cachehits=25483340 addretry=0 retry=0 adddupes=0 cachedupes=12003119 cacheretry1=0 50000000/100000000
+2023/10/09 02:53:56 RUN test p=3 nntp-history added=0 dupes=12493422 cachehits=25470240 addretry=0 retry=0 adddupes=0 cachedupes=12036338 cacheretry1=0 50000000/100000000
+2023/10/09 02:53:56 RUN test p=2 nntp-history added=0 dupes=12492305 cachehits=25466755 addretry=0 retry=0 adddupes=0 cachedupes=12040940 cacheretry1=0 50000000/100000000
+...
+2023/10/09 02:54:00 BoltSpeed: 34718.26 tx/s ( did=520775 in 15.0 sec ) totalTX=50123238
+...
+2023/10/09 02:58:51 RUN test p=4 nntp-history added=0 dupes=15000597 cachehits=30421370 addretry=0 retry=0 adddupes=0 cachedupes=14578033 cacheretry1=0 60000000/100000000
+2023/10/09 02:58:51 RUN test p=1 nntp-history added=1 dupes=15014607 cachehits=30425258 addretry=0 retry=0 adddupes=0 cachedupes=14560134 cacheretry1=0 60000000/100000000
+2023/10/09 02:58:51 RUN test p=3 nntp-history added=0 dupes=14992857 cachehits=30411517 addretry=0 retry=0 adddupes=0 cachedupes=14595626 cacheretry1=0 60000000/100000000
+2023/10/09 02:58:51 RUN test p=2 nntp-history added=0 dupes=14991938 cachehits=30407522 addretry=0 retry=0 adddupes=0 cachedupes=14600540 cacheretry1=0 60000000/100000000
+...
+2023/10/09 02:59:00 BoltSpeed: 33578.42 tx/s ( did=503676 in 15.0 sec ) totalTX=60293960
+...
+2023/10/09 03:03:49 RUN test p=4 nntp-history added=2 dupes=17500874 cachehits=35331502 addretry=0 retry=0 adddupes=0 cachedupes=17167622 cacheretry1=0 70000000/100000000
+2023/10/09 03:03:49 RUN test p=1 nntp-history added=1 dupes=17517141 cachehits=35334683 addretry=0 retry=0 adddupes=0 cachedupes=17148175 cacheretry1=0 70000000/100000000
+2023/10/09 03:03:49 RUN test p=3 nntp-history added=0 dupes=17494729 cachehits=35321535 addretry=0 retry=0 adddupes=0 cachedupes=17183736 cacheretry1=0 70000000/100000000
+2023/10/09 03:03:49 RUN test p=2 nntp-history added=0 dupes=17487253 cachehits=35309511 addretry=0 retry=0 adddupes=0 cachedupes=17203236 cacheretry1=0 70000000/100000000
+...
+2023/10/09 03:04:00 BoltSpeed: 33668.33 tx/s ( did=505023 in 15.0 sec ) totalTX=70375329
+...
+2023/10/09 03:08:47 RUN test p=3 nntp-history added=2 dupes=19993428 cachehits=40180863 addretry=0 retry=0 adddupes=0 cachedupes=19825707 cacheretry1=0 80000000/100000000
+2023/10/09 03:08:47 RUN test p=4 nntp-history added=3 dupes=20004183 cachehits=40196668 addretry=0 retry=0 adddupes=0 cachedupes=19799146 cacheretry1=0 80000000/100000000
+2023/10/09 03:08:47 RUN test p=1 nntp-history added=3 dupes=20018259 cachehits=40198062 addretry=0 retry=0 adddupes=0 cachedupes=19783676 cacheretry1=0 80000000/100000000
+2023/10/09 03:08:47 RUN test p=2 nntp-history added=0 dupes=19984122 cachehits=40166480 addretry=0 retry=0 adddupes=0 cachedupes=19849398 cacheretry1=0 80000000/100000000
+...
+2023/10/09 03:09:00 BoltSpeed: 33418.85 tx/s ( did=501281 in 15.0 sec ) totalTX=80440580
+...
+2023/10/09 03:13:44 RUN test p=3 nntp-history added=2 dupes=22490655 cachehits=45035827 addretry=0 retry=0 adddupes=0 cachedupes=22473516 cacheretry1=0 90000000/100000000
+2023/10/09 03:13:44 RUN test p=4 nntp-history added=5 dupes=22504722 cachehits=45056242 addretry=0 retry=0 adddupes=0 cachedupes=22439031 cacheretry1=0 90000000/100000000
+2023/10/09 03:13:44 RUN test p=2 nntp-history added=0 dupes=22485767 cachehits=45023503 addretry=0 retry=0 adddupes=0 cachedupes=22490730 cacheretry1=0 90000000/100000000
+2023/10/09 03:13:44 RUN test p=1 nntp-history added=3 dupes=22518846 cachehits=45053591 addretry=0 retry=0 adddupes=0 cachedupes=22427560 cacheretry1=0 90000000/100000000
+...
+2023/10/09 03:13:45 BoltSpeed: 32758.63 tx/s ( did=491480 in 15.0 sec ) totalTX=90021765
+...
+2023/10/09 03:18:30 BoltSpeed: 33427.87 tx/s ( did=501419 in 15.0 sec ) totalTX=99594153
+...
+2023/10/09 03:18:42 End test p=3 nntp-history added=2 dupes=24986842 cachehits=49896315 addretry=0 retry=0 adddupes=0 cachedupes=25116841 cacheretry1=0 sum=100000000/100000000 errors=0 locked=24986844
+2023/10/09 03:18:42 End test p=2 nntp-history added=0 dupes=24983443 cachehits=49883607 addretry=0 retry=0 adddupes=0 cachedupes=25132950 cacheretry1=0 sum=100000000/100000000 errors=0 locked=24983443
+2023/10/09 03:18:42 End test p=4 nntp-history added=6 dupes=25003874 cachehits=49921016 addretry=0 retry=0 adddupes=0 cachedupes=25075104 cacheretry1=0 sum=100000000/100000000 errors=0 locked=25003880
+2023/10/09 03:18:42 End test p=1 nntp-history added=4 dupes=25025829 cachehits=49922364 addretry=0 retry=0 adddupes=0 cachedupes=25051803 cacheretry1=0 sum=100000000/100000000 errors=0 locked=25025833
+...
+2023/10/09 03:18:42 CLOSE_HISTORY: his.WriterChan <- nil
+2023/10/09 03:18:42 WAIT CLOSE_HISTORY: lock1=true=1 lock2=true=1 lock3=true=16 lock4=true=16 lock5=true=256 batchQueued=false=0 batchLocked=false=0
+2023/10/09 03:18:43 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=9 lock4=true=9 lock5=true=117 batchQueued=true=117 batchLocked=false=0
+2023/10/09 03:18:44 CLOSE_HISTORY DONE
+2023/10/09 03:18:44 key_add=0 key_app=12 total=12 fseeks=101148923 eof=0 BoltDB_decodedOffsets=99984932 addoffset=0 appoffset=12 trymultioffsets=2300913 tryoffset=97699087 searches=100000000 inserted=12
+2023/10/09 03:18:44 L1LOCK=100000000 | Get: L2=15216 L3=15080 | wCBBS=~1023 conti=0 slept=5678
+2023/10/09 03:18:44 done=400000000 (took 2847 seconds) (closewait 2 seconds)
+2023/10/09 03:18:44 CrunchBatchLogs: did=12 dat=12
+2023/10/09 03:18:44 CrunchLogs: inserted=00001:00001 wCBBS=01016:01024 µs=0000010894:0000012400
+2023/10/09 03:18:44 Range 005%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011029:0000011029 sum=1
+2023/10/09 03:18:44 Range 010%: inserted=00001:00001 wCBBS=01024:01024 µs=0000012400:0000012400 sum=1
+2023/10/09 03:18:44 Range 020%: inserted=00001:00001 wCBBS=01024:01024 µs=0000010916:0000010916 sum=1
+2023/10/09 03:18:44 Range 025%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011607:0000011607 sum=1
+2023/10/09 03:18:44 Range 035%: inserted=00001:00001 wCBBS=01024:01024 µs=0000010895:0000010895 sum=1
+2023/10/09 03:18:44 Range 045%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011353:0000011353 sum=1
+2023/10/09 03:18:44 Range 050%: inserted=00001:00001 wCBBS=01016:01016 µs=0000011087:0000011087 sum=1
+2023/10/09 03:18:44 Range 060%: inserted=00001:00001 wCBBS=01024:01024 µs=0000010978:0000010978 sum=1
+2023/10/09 03:18:44 Range 070%: inserted=00001:00001 wCBBS=01024:01024 µs=0000010894:0000010894 sum=1
+2023/10/09 03:18:44 Range 075%: inserted=00001:00001 wCBBS=01024:01024 µs=0000012136:0000012136 sum=1
+2023/10/09 03:18:44 Range 085%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011191:0000011191 sum=1
+2023/10/09 03:18:44 Range 095%: inserted=00001:00001 wCBBS=01024:01024 µs=0000011352:0000011352 sum=1
 ...
 ```
