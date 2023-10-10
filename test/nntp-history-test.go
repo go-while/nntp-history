@@ -34,6 +34,7 @@ func main() {
 	var BatchSize int
 	var RebuildHashDB bool
 	var PprofAddr string
+	var isleep int
 	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
@@ -45,6 +46,7 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
+	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in for loop below")
 	flag.StringVar(&PprofAddr, "pprof", "localhost:1234", "listen address:port")
 	flag.Parse()
 	if numCPU > 0 {
@@ -165,7 +167,9 @@ func main() {
 					spam = 0
 				}
 				spam++
-				//time.Sleep(time.Nanosecond)
+				if isleep > 0 {
+					time.Sleep(time.Duration(isleep) * time.Millisecond)
+				}
 				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
