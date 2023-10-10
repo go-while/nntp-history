@@ -9,10 +9,11 @@ import (
 )
 
 var (
-	DEBUGL1               bool
-	DefaultL1CacheExpires int64 = DefaultCacheExpires
-	L1Purge               int64 = DefaultCachePurge
-	L1InitSize            int   = 64
+	DEBUGL1         bool
+	L1CacheExpires  int64 = DefaultCacheExpires
+	L1ExtendExpires int64 = DefaultCacheExtend
+	L1Purge         int64 = DefaultCachePurge
+	L1InitSize      int   = 64
 )
 
 type L1CACHE struct {
@@ -88,7 +89,7 @@ func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
 		l1.muxers[char].mux.Unlock()
 		return retval
 	}
-	l1.Caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + DefaultL1CacheExpires}
+	l1.Caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
 	return CasePass
 } // end func LockL1Cache
@@ -201,13 +202,13 @@ func (l1 *L1CACHE) shrinkMap(char *string, newmax int, maplen int) bool {
 
 // The Set method is used to set a value in the cache.
 // If the cache size is close to its maximum, it grows the cache.
-func (l1 *L1CACHE) Set(hash *string, char string, value int, flagexpires bool) {
-	if hash == nil || len(*hash) < 32 { // at least md5
+func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
+	if len(hash) < 32 { // at least md5
 		log.Printf("ERROR L1CACHESet hash=nil")
 		return
 	}
 	if char == "" {
-		char = string(string(*hash)[0])
+		char = string(hash[0])
 	}
 	start := utils.UnixTimeMilliSec()
 	l1.muxers[char].mux.Lock()
@@ -228,11 +229,11 @@ func (l1 *L1CACHE) Set(hash *string, char string, value int, flagexpires bool) {
 	expires := NoExpiresVal
 	if flagexpires {
 		l1.Counter[char]["Count_FlagEx"] += 1
-		expires = utils.UnixTimeSec() + DefaultL1CacheExpires
+		expires = utils.UnixTimeSec() + L1CacheExpires
 	} else if !flagexpires && value == CaseWrite {
-		l1.Counter[char]["Count_Insert"] += 1
+		l1.Counter[char]["Count_Set"] += 1
 	}
-	l1.Caches[char].cache[*hash] = &L1ITEM{value: value, expires: expires}
+	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
 	l1.muxers[char].mux.Unlock()
 } // end func Set
 
@@ -291,7 +292,8 @@ func (l1 *L1CACHE) DeleteL1batch(char *string, tmpHash *[]*ClearCache) {
 			if _, exists := l1.Caches[*char].cache[*item.hash]; exists {
 				//delete(l1.Caches[*char].cache, *item.hash)
 				// dont delete from cache but extend expiry time
-				l1.Caches[*char].cache[*item.hash].expires = now + DefaultL1CacheExpires
+				l1.Caches[*char].cache[*item.hash].expires = now + L1ExtendExpires
+				// has been written to boltDB and is now a Duplicate in response
 				l1.Caches[*char].cache[*item.hash].value = CaseDupes
 				l1.Counter[*char]["Count_BatchD"] += 1
 			}
@@ -299,3 +301,26 @@ func (l1 *L1CACHE) DeleteL1batch(char *string, tmpHash *[]*ClearCache) {
 	}
 	l1.muxers[*char].mux.Unlock()
 } // end func DeleteL1batch
+
+func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64) {
+	if key == "" {
+		retmap = make(map[string]uint64)
+	}
+	for _, char := range HEXCHARS {
+		l1.muxers[char].mux.Lock()
+		switch key {
+		case "":
+			// key is empty, get all key=>stats to retmap
+			for k, v := range l1.Counter[char] {
+				retmap[k] += v
+			}
+		default:
+			// key is set
+			if _, exists := l1.Counter[char][key]; exists {
+				retval += l1.Counter[char][key]
+			}
+		}
+		l1.muxers[char].mux.Unlock()
+	}
+	return
+} // end func L1Stats
