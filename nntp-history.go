@@ -18,29 +18,26 @@ const (
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
-	CaseLock             = 0xFF
-	CasePass             = 0xF1
-	CaseDupes            = 0x1C
-	CaseRetry            = 0x2C
-	CaseAdded            = 0x3C
-	CaseWrite            = 0x4C
+	CaseLock             = 0xFF         // internal cache state. reply with CaseRetry while CaseLock
+	CasePass             = 0xF1         // is a reply to L1Lock and IndexQuery
+	CaseDupes            = 0x1C         // is a reply and cache state
+	CaseRetry            = 0x2C         // is a reply to if CaseLock or CaseWrite or if history.dat returns EOF
+	CaseAdded            = 0x3C         // is a reply to WriterChan:responseChan
+	CaseWrite            = 0x4C         // internal cache state. is not a reply. reply with CaseRetry while CaseWrite is happening
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
 
 var (
-	History             HISTORY
-	DEBUG               bool   = true
-	DEBUG0              bool   = false
-	DEBUG1              bool   = false
-	DEBUG2              bool   = false
-	DEBUG9              bool   = false
-	LOCKHISTORY                = make(chan struct{}, 1)
-	NumQueueWriteChan   int    = 16
-	HEXCHARS                   = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash             string = "EOF"
-	DefaultCacheExpires int64  = 16 // seconds: should be at least 3 times higher than BatchFlushEvery !
-	DefaultCachePurge   int64  = 4  // seconds
+	History     HISTORY
+	DEBUG       bool   = true
+	DEBUG0      bool   = false
+	DEBUG1      bool   = false
+	DEBUG2      bool   = false
+	DEBUG9      bool   = false
+	LOCKHISTORY        = make(chan struct{}, 1)
+	HEXCHARS           = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash     string = "EOF"
 )
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -120,10 +117,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			history_dir = history_dir[:len(history_dir)-1] // remove final slash
 		}
 	}
-	his.HF = history_dir + useSlash + "history.dat"
+	his.hisDat = history_dir + useSlash + "history.dat"
 
 	if hashdb_dir == "" {
-		his.HF_hash = his.HF + ".hash"
+		his.hisDatDB = his.hisDat + ".hash"
 	} else {
 		delslash := false // detect windows if hashdb_dir ends with a winSlash
 		if hashdb_dir[len(hashdb_dir)-1] == winSlashB {
@@ -134,7 +131,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		if delslash {
 			hashdb_dir = hashdb_dir[:len(hashdb_dir)-1] // remove final slash
 		}
-		his.HF_hash = hashdb_dir + useSlash + "history.dat.hash" // + ".a-f0-9"
+		his.hisDatDB = hashdb_dir + useSlash + "history.dat.hash" // + ".a-f0-9"
 	}
 	if !utils.DirExists(history_dir) && !utils.Mkdir(history_dir) {
 		log.Printf("ERROR creating history_dir='%s'", history_dir)
@@ -172,10 +169,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	// opens history.dat
 	var fh *os.File
 	new := false
-	if !utils.FileExists(his.HF) {
+	if !utils.FileExists(his.hisDat) {
 		new = true
 	}
-	fh, err := os.OpenFile(his.HF, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	fh, err := os.OpenFile(his.hisDat, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Printf("ERROR History_Boot os.OpenFile err='%v'", err)
 		os.Exit(1)
@@ -232,10 +229,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if useHashDB {
 		his.useHashDB = true
 		his.boltDB_Init(boltOpts)
-		HashDBlogstr = fmt.Sprintf("KeyAlgo=%d KeyLen=%d NumQueueIndexChan=%d NumQueueIndexChans=%d BatchSize=%d IndexParallel=%d", his.keyalgo, his.keylen, NumQueueIndexChan, NumQueueIndexChans, CharBucketBatchSize, IndexParallel)
+		HashDBlogstr = fmt.Sprintf("KeyAlgo=%d KeyLen=%d NumQueueIndexChan=%d NumQueueindexChans=%d BatchSize=%d IndexParallel=%d", his.keyalgo, his.keylen, NumQueueIndexChan, NumQueueindexChans, CharBucketBatchSize, IndexParallel)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.HF, his.HF_hash, NumQueueWriteChan, DefaultCacheExpires)
+	log.Printf("History: new=%t\n  hisDat='%s' DB='%s.[0-9a-f]' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, his.hisDatDB, NumQueueWriteChan, DefaultCacheExpires)
 	if his.useHashDB {
 		log.Printf("  HashDB:{%s}", HashDBlogstr)
 	}
@@ -282,7 +279,7 @@ func (his *HISTORY) history_Writer(fh *os.File, dw *bufio.Writer) {
 		os.Exit(1)
 	}
 	his.Offset = fileInfo.Size()
-	logf(DEBUG2, "history_Writer opened fp='%s' filesize=%d", his.HF, his.Offset)
+	logf(DEBUG2, "history_Writer opened fp='%s' filesize=%d", his.hisDat, his.Offset)
 	flush := false // false: will flush when bufio gets full
 	var wbt uint64
 	var wroteLines uint64
@@ -385,7 +382,7 @@ forever:
 	if err := fh.Close(); err != nil {
 		log.Printf("ERROR history_Writer fh.Close err='%v'", err)
 	}
-	logf(DEBUG1, "history_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.HF, wbt, his.Offset, wroteLines)
+	logf(DEBUG1, "history_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.hisDat, wbt, his.Offset, wroteLines)
 } // end func history_Writer
 
 func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flush bool, wbt *uint64) error {
@@ -412,6 +409,77 @@ func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flus
 	}
 	return nil
 } // end func writeHistoryLine
+
+func (his *HISTORY) RebuildHashDB() error {
+	// Open the history.dat file for reading
+	file, err := os.Open(his.hisDat)
+	if err != nil {
+		log.Printf("Error opening file:", err)
+		return err
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		log.Printf("ERROR RebuildHashDB fh open Stat err='%v'", err)
+		os.Exit(1)
+	}
+	filesize := fileInfo.Size()
+	// Create a scanner to read the file line by line
+	scanner := bufio.NewScanner(file)
+	var offset, added, passed, skipped, dupes, retry, did, total int64
+	IndexRetChan := make(chan int, 1)
+	estimate := filesize / 102
+	log.Printf("RebuildHashDB: his.hisDat='%s' filesize=%d estimate=%d", his.hisDat, filesize, estimate)
+	// assume ~103 bytes per line
+	for scanner.Scan() {
+		line := scanner.Text()
+		ll := len(line) + 1                // +1 accounts for LF
+		parts := strings.Split(line, "\t") // Split the line at the first tab character
+		if len(parts) < 3 || len(parts[0]) < 32+2 || parts[0][0] != '{' || parts[0][len(parts[0])-1] != '}' {
+			// Skip lines that don't have correct fields or not { } character in first
+			skipped++
+			offset += int64(ll)
+			continue
+		}
+		hash := string(parts[0][1 : len(parts[0])-1])
+		if len(hash) < 32 { // at least md5
+			skipped++
+			continue
+		}
+		//log.Printf("RebuildHashDB hash='%s' @offset=%d", hash, offset)
+		// pass hash:offset to IndexChan
+
+		isDup, err := his.IndexQuery(&hash, IndexRetChan, offset)
+		if err != nil {
+			log.Printf("ERROR RebuildHashDB IndexQuery hash='%s' err='%v'", hash, err)
+			return err
+		}
+		switch isDup {
+		case CasePass:
+			passed++
+		case CaseAdded:
+			added++
+		case CaseDupes:
+			dupes++
+		case CaseRetry:
+			retry++
+		default:
+			log.Printf("main: ERROR in RebuildHashDB response from IndexQuery unknown switch isDup=%x", isDup)
+			os.Exit(1)
+		}
+		offset += int64(ll)
+		if did >= 100000 {
+			perc1 := int(float64(offset) / float64(filesize) * 100)
+			perc2 := int(float64(total) / float64(estimate) * 100)
+			log.Printf("RebuildHashDB did=%d offset=%d (%d%%) estimate=%d%%", total, offset, perc1, perc2)
+			did = 0
+		}
+		did++
+		total++
+	}
+	log.Printf("RebuildHashDB: his.hisDat='%s' added=%d passed=%d skipped=%d dupes=%d retry=%d", his.hisDat, added, passed, skipped, dupes, retry)
+	return err
+} // end func RebuildHashDB
 
 func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush bool) error {
 	if dw == nil {
@@ -451,7 +519,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	}
 	if file == nil {
 		var err error
-		file, err = os.OpenFile(his.HF, os.O_RDONLY, 0666)
+		file, err = os.OpenFile(his.hisDat, os.O_RDONLY, 0666)
 		if err != nil {
 			return nil, err
 		}
@@ -459,14 +527,14 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	}
 
 	if hash := his.L2Cache.GetHashFromOffset(offset); hash != nil {
-		his.Sync_upcounter("L2CACHE_Get")
+		//his.Sync_upcounter("L2CACHE_Get")
 		return hash, nil
 	}
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(*offset, 0)
 	if seekErr != nil {
-		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.HF)
+		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
 		return nil, seekErr
 	}
 
@@ -501,7 +569,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 } // end func FseekHistoryMessageHash
 
 func (his *HISTORY) FseekHistoryHeader() (*[]byte, error) {
-	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
+	file, err := os.OpenFile(his.hisDat, os.O_RDONLY, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +590,7 @@ func (his *HISTORY) FseekHistoryHeader() (*[]byte, error) {
 } // end func FseekHistoryHeader
 
 func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
-	file, err := os.OpenFile(his.HF, os.O_RDONLY, 0666)
+	file, err := os.OpenFile(his.hisDat, os.O_RDONLY, 0666)
 	if err != nil {
 		return nil, err
 	}
@@ -582,12 +650,12 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
 		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
-		lock5, v5 := len(his.BatchQueues.Booted) > 0, len(his.BatchQueues.Booted)
+		lock5, v5 := len(his.batchQueues.Booted) > 0, len(his.batchQueues.Booted)
 
 		batchQ, batchLOCKS := 0, 0
 		for _, char := range HEXCHARS {
 			for _, bucket := range HEXCHARS {
-				batchQ += len(his.BatchQueues.Maps[char][bucket])
+				batchQ += len(his.batchQueues.Maps[char][bucket])
 				batchLOCKS += len(his.BatchLocks[char][bucket])
 			}
 		}
