@@ -20,6 +20,8 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 	ticker := time.NewTicker(interval)
 	prevTimestamp := time.Now()
 	for range ticker.C {
+		his.PrintCacheStats()
+
 		currentTimestamp := time.Now()
 		timePassed := currentTimestamp.Sub(prevTimestamp)
 		prevTimestamp = currentTimestamp
