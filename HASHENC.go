@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	DBG_GOB_TEST bool = true  // costly check: test decodes gob encoded data after encoding
+	DBG_GOB_TEST bool = false // costly check: test decodes gob encoded data after encoding
 	DBG_B64_SIZE bool = false // spams every b64 encoded input:output size
 	B64GOB       bool = false
 )
