@@ -51,7 +51,7 @@ func createGobDecoder(encodedData []byte) (*gob.Decoder, error) {
 	return decoder, nil
 }
 
-func gobEncodeOffsets(offsets []int64, char *string, bucket *string, key *string, src string, his *HISTORY) ([]byte, error) {
+func gobEncodeOffsets(offsets []int64, char string, bucket string, key string, src string, his *HISTORY) ([]byte, error) {
 	//err = his.GobDecoder[*char].GobDecoder.Decode(&decodedOffsets) //gob.NewDecoder(bytes.NewBuffer(encodedData))
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
@@ -59,13 +59,13 @@ func gobEncodeOffsets(offsets []int64, char *string, bucket *string, key *string
 	//gobOffsets := GOBOFFSETS{Offsets: offsets}
 	err := encoder.Encode(offsets)
 	if err != nil {
-		log.Printf("ERROR gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", *char, *bucket, *key, offsets, err)
+		log.Printf("ERROR gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", char, bucket, key, offsets, err)
 		return nil, err
 	}
 	if DBG_GOB_TEST {
 		// test costly check retry decode gob encodedData
 		if _, err := gobDecodeOffsets(buf.Bytes(), char, bucket, key, src+":test:gobEncodeOffsets", his); err != nil {
-			log.Printf("ERROR TEST gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", *char, *bucket, *key, offsets, err)
+			log.Printf("ERROR TEST gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", char, bucket, key, offsets, err)
 			return nil, err
 		}
 	}
@@ -81,7 +81,7 @@ func gobEncodeOffsets(offsets []int64, char *string, bucket *string, key *string
 	return ret, nil
 } // end func gobEncodeOffsets
 
-func gobDecodeOffsets(encodedData []byte, char *string, bucket *string, key *string, src string, his *HISTORY) (*[]int64, error) {
+func gobDecodeOffsets(encodedData []byte, char string, bucket string, key string, src string, his *HISTORY) (*[]int64, error) {
 	var decodedOffsets []int64
 	//var decoder *gob.Decoder
 	var err error
@@ -89,17 +89,17 @@ func gobDecodeOffsets(encodedData []byte, char *string, bucket *string, key *str
 	if B64GOB {
 		len_enc := len(encodedData)
 		if encodedData[len_enc-1] != '.' {
-			err := fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E0 encodedData='%s'", *char, *bucket, *key, encodedData)
+			err := fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E0 encodedData='%s'", char, bucket, key, encodedData)
 			return nil, err
 		}
 		b64decoded, err = base64.StdEncoding.DecodeString(string(encodedData[:len_enc-1]))
 		len_b64 := len(b64decoded)
 		if err != nil {
-			log.Printf("ERROR gobDecodeOffsets [%s|%s] key='%s' base64decode E1 b64decoded=%d='%s' err='%v'", *char, *bucket, *key, len_b64, b64decoded, err)
+			log.Printf("ERROR gobDecodeOffsets [%s|%s] key='%s' base64decode E1 b64decoded=%d='%s' err='%v'", char, bucket, key, len_b64, b64decoded, err)
 			return nil, err
 		}
 		if len_b64 <= 1 {
-			err = fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E2 b64decoded=%d='%s' encodedData=%d='%s'", *char, *bucket, *key, len_b64, b64decoded, len(encodedData), string(encodedData))
+			err = fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E2 b64decoded=%d='%s' encodedData=%d='%s'", char, bucket, key, len_b64, b64decoded, len(encodedData), string(encodedData))
 			return nil, err
 		}
 		buf := bytes.NewBuffer(b64decoded)
@@ -112,7 +112,7 @@ func gobDecodeOffsets(encodedData []byte, char *string, bucket *string, key *str
 	}
 	if err != nil {
 		log.Printf("ERROR E9 gobDecodeOffsets [%s|%s] key='%s' b64decoded='%s' encodedData='%#v' len=%d gobOffsets='%#v' err='%v' src=%s",
-			*char, *bucket, *key, b64decoded, encodedData, len(encodedData), decodedOffsets, err, src)
+			char, bucket, key, b64decoded, encodedData, len(encodedData), decodedOffsets, err, src)
 		//if err == io.EOF {
 		// TODO something is bugging with unexpected EOF, sometimes. 1 in 500M maybe, or not.
 		//	//continue
