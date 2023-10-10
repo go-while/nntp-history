@@ -14,11 +14,12 @@ var (
 	DBG_BS_LOG           bool                 // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
 	DBG_FBQ1             bool                 // debugs adaptive batchsize in boltBucketPutBatch
 	DBG_FBQ2             bool                 // debugs adaptive batchsize forbatchqueue in boltDB_Worker
-	AdaptiveBatchSize    bool                 // adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize automagically to match BatchFlushEvery
+	AdaptiveBatchSize    bool                 // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
 	BatchFlushEvery      int64         = 5000 // flushes boltDB in batch every N milliseconds (500-5000)
 	BoltDB_MaxBatchDelay time.Duration        // default value from boltdb:db.go = 10 * time.Millisecond
 	BoltDB_MaxBatchSize  int           = 16   // default value from boltdb:db.go = 1000
 	CharBucketBatchSize  int           = 16   // default batchsize per *16 queues (buckets) in *16 char dbs = 4096 total hashes queued for writing
+	emptyStr             string               // used as pointer
 )
 
 func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (uint64, error, bool) {
@@ -38,18 +39,35 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 fetchbatch:
 	for {
 		select {
-		case bo, ok := <-batchQueue:
+		case bo, ok := <-batchQueue: // channel receives a BatchOffset struct from boltBucketKeyPutOffsets()
 			if !ok || bo == nil {
 				closed = true
 				logf(DEBUG2, "boltBucketPutBatch received nil pointer [%s|%s]", char, bucket)
 				break fetchbatch
 			}
-			if bo.bucket == "" {
-				log.Printf("ERROR boltBucketPutBatch bo.bucket empty!")
+			if bo.bucket == nil || *bo.bucket == "" {
+				log.Printf("ERROR boltBucketPutBatch bo.bucket nil or empty!")
 				continue fetchbatch
 			}
-			if bo.bucket != bucket {
-				err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
+			if bo.key == nil || *bo.key == "" {
+				log.Printf("ERROR boltBucketPutBatch bo.key nil or empty!")
+				continue fetchbatch
+			}
+			if bo.hash == nil || *bo.hash == "" {
+				log.Printf("ERROR boltBucketPutBatch bo.hash nil or empty!")
+				continue fetchbatch
+			}
+			if bo.char == nil || *bo.char == "" {
+				log.Printf("ERROR boltBucketPutBatch bo.char nil or empty!")
+				continue fetchbatch
+			}
+			if bo.gobEncodedOffsets == nil || len(*bo.gobEncodedOffsets) == 0 {
+				log.Printf("ERROR boltBucketPutBatch bo.gobEncodedOffsets nil or empty!")
+				continue fetchbatch
+			}
+
+			if *bo.bucket != bucket {
+				err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", *bo.bucket, bucket)
 				return 0, err, closed
 			}
 			batch1 = append(batch1, bo)
@@ -69,7 +87,7 @@ fetchbatch:
 			b := tx.Bucket([]byte(bucket))
 		batch1insert:
 			for _, bo := range batch1 {
-				puterr := b.Put([]byte(bo.key), bo.gobEncodedOffsets)
+				puterr := b.Put([]byte(*bo.key), *bo.gobEncodedOffsets)
 				if puterr != nil {
 					err = puterr
 					break batch1insert
@@ -80,6 +98,18 @@ fetchbatch:
 		}); err != nil {
 			log.Printf("ERROR boltBucketPutBatch [%s|%s] err='%v'", char, bucket, err)
 			return inserted, err, closed
+		}
+		// batch insert to boltDB done
+		for _, bo := range batch1 {
+			if bo.offsets == nil || len(*bo.offsets) == 0 {
+				log.Printf("ERROR boltBucketPutBatch pre-evict bo.offsets=nil")
+				continue
+			}
+			logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
+			his.DoCacheEvict(*bo.char, *bo.hash, 0, *bo.char+*bo.bucket+*bo.key)
+			for _, offset := range *bo.offsets {
+				his.DoCacheEvict(*bo.char, emptyStr, offset, emptyStr)
+			}
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
 		if DBG_BS_LOG {
