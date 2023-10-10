@@ -197,7 +197,7 @@ CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4
 ```
 
 ## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb
-- + history.DBG_BS_LOG = true
+- + history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
 - + history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data
 ```sh
 ./nntp-history-test
