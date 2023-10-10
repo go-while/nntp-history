@@ -197,8 +197,6 @@ CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4
 ```
 
 ## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb
-- + history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
-- + history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data
 ```sh
 ./nntp-history-test
 ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
@@ -302,6 +300,9 @@ ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 |
 
 ## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb (adaptive batchsize)
 ```sh
+# history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
+# history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data
+#
 ./nntp-history-test -todo 100000000
 ...
 header lost in terminal
@@ -592,6 +593,8 @@ Alloc: 62 MiB, TotalAlloc: 11095566 MiB, Sys: 2095 MiB, NumGC: 26836
 
 ## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
 ```sh
+# history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
+#
 ./nntp-history-test -todo=100000000
 ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=64
  useHashDB: true | IndexParallel=16
