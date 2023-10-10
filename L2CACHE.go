@@ -9,23 +9,19 @@ import (
 )
 
 var (
-	DEBUGL2               bool
-	DefaultL2CacheExpires int64 = DefaultCacheExpires
-	L2Purge               int64 = DefaultCachePurge
-	L2InitSize            int   = 64
+	DEBUGL2         bool
+	L2CacheExpires  int64 = DefaultCacheExpires
+	L2ExtendExpires int64 = DefaultCacheExtend
+	L2Purge         int64 = DefaultCachePurge
+	L2InitSize      int   = 64
 )
 
 type L2CACHE struct {
-	Caches       map[string]*L2CACHEMAP
-	muxers       map[string]*L2MUXER
-	mapsizes     map[string]*MAPSIZES
-	mux          sync.Mutex
-	Counter      map[string]map[string]uint64
-	Count_BatchD map[string]uint64
-	Count_Delete map[string]uint64
-	Count_Insert map[string]uint64
-	Count_Growup map[string]uint64
-	Count_Shrink map[string]uint64
+	Caches   map[string]*L2CACHEMAP
+	muxers   map[string]*L2MUXER
+	mapsizes map[string]*MAPSIZES
+	mux      sync.Mutex
+	Counter  map[string]map[string]uint64
 }
 
 type L2CACHEMAP struct {
@@ -187,10 +183,10 @@ func (l2 *L2CACHE) SetOffsetHash(offset *int64, hash *string, flagexpires bool) 
 	}
 	expires := NoExpiresVal
 	if flagexpires {
-		expires = utils.UnixTimeSec() + DefaultL2CacheExpires
+		expires = utils.UnixTimeSec() + L2CacheExpires
 		l2.Counter[*char]["Count_FlagEx"] += 1
 	} else {
-		l2.Counter[*char]["Count_Insert"] += 1
+		l2.Counter[*char]["Count_Set"] += 1
 	}
 	l2.Caches[*char].cache[*offset] = &L2ITEM{hash: *hash, expires: expires}
 	l2.muxers[*char].mux.Unlock()
@@ -208,9 +204,13 @@ func (l2 *L2CACHE) GetHashFromOffset(offset *int64) (hash *string) {
 	}
 	l2.muxers[*char].mux.Lock()
 	if l2.Caches[*char].cache[*offset] != nil {
+		l2.Counter[*char]["Count_Get"] += 1
 		item := l2.Caches[*char].cache[*offset]
 		hash = &item.hash
+		l2.muxers[*char].mux.Unlock()
+		return
 	}
+	l2.Counter[*char]["Count_GetMiss"] += 1
 	l2.muxers[*char].mux.Unlock()
 	return
 } // end func GetHashFromOffset
@@ -244,7 +244,7 @@ func (l2 *L2CACHE) DeleteL2batch(tmpOffset *[]*ClearCache) {
 			if _, exists := l2.Caches[*char].cache[*item.offset]; exists {
 				//delete(l2.Caches[*char].cache, *item.offset)
 				// dont delete from cache but extend expiry time
-				l2.Caches[*char].cache[*item.offset].expires = now + DefaultL2CacheExpires
+				l2.Caches[*char].cache[*item.offset].expires = now + L2ExtendExpires
 				l2.Counter[*char]["Count_BatchD"] += 1
 			}
 			l2.muxers[*char].mux.Unlock()
@@ -267,3 +267,26 @@ func OffsetToChar(offset *int64) *string {
 	//log.Printf("OffsetToChar = %s", char)
 	return &char
 } // end func OffsetToChar
+
+func (l2 *L2CACHE) L2Stats(key string) (retval uint64, retmap map[string]uint64) {
+	if key == "" {
+		retmap = make(map[string]uint64)
+	}
+	for _, char := range HEXCHARS {
+		l2.muxers[char].mux.Lock()
+		switch key {
+		case "":
+			// key is empty, get all key=>stats to retmap
+			for k, v := range l2.Counter[char] {
+				retmap[k] += v
+			}
+		default:
+			// key is set
+			if _, exists := l2.Counter[char][key]; exists {
+				retval += l2.Counter[char][key]
+			}
+		}
+		l2.muxers[char].mux.Unlock()
+	}
+	return
+} // end func L2Stats
