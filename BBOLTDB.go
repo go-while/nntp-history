@@ -434,7 +434,7 @@ forever:
 			if hi.Offset > 0 {
 				logf(DEBUG2, "WORKER HDBZW [%s|%s] key=%s hash=%s @0x%010x|%d|%x", char, bucket, *key, *hi.Hash, hi.Offset, hi.Offset, hi.Offset)
 			}
-			isDup, err := his.DupeCheck(db, &char, &bucket, key, hi.Hash, &hi.Offset, false, historyfile, his.batchQueues.Maps[char][bucket])
+			isDup, err := his.DupeCheck(db, char, bucket, *key, *hi.Hash, hi.Offset, false, historyfile, his.batchQueues.Maps[char][bucket])
 			if err != nil {
 				if err != io.EOF {
 					if hi.IndexRetChan != nil {
@@ -501,30 +501,31 @@ forever:
 // It manages offsets associated with message hashes and handles duplicates, ensuring the integrity of the historical data.
 // If a hash is a duplicate, it returns 1, otherwise, it returns 0.
 // It also handles the creation of new hash entries in the bucket when needed.
-func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, setempty bool, file *os.File, batchQueue chan *BatchOffset) (int, error) {
+func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key string, hash string, offset int64, setempty bool, file *os.File, batchQueue chan *BatchOffset) (int, error) {
 	// return -999 with err only
 	if db == nil {
 		return -999, fmt.Errorf("ERROR DupeCheck db=nil")
 	}
-	if char == nil {
-		return -999, fmt.Errorf("ERROR DupeCheck char=nil")
-	}
-	if bucket == nil {
-		return -999, fmt.Errorf("ERROR DupeCheck char=%s bucket=nil", *char)
-	}
-	if key == nil {
-		return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=nil", *char, *bucket)
-	}
-	if hash == nil {
-		return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=nil", *char, *bucket, *key)
-	}
-	if offset == nil {
-		return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
-	}
-
+	/*
+		if char == nil {
+			return -999, fmt.Errorf("ERROR DupeCheck char=nil")
+		}
+		if bucket == nil {
+			return -999, fmt.Errorf("ERROR DupeCheck char=%s bucket=nil", *char)
+		}
+		if key == nil {
+			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=nil", *char, *bucket)
+		}
+		if hash == nil {
+			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=nil", *char, *bucket, *key)
+		}
+		if offset == nil {
+			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
+		}
+	*/
 	offsets, err := his.boltBucketGetOffsets(db, char, bucket, key)
 	if err != nil {
-		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets [%s|%s] key=%s hash='%s' err='%v'", *char, *bucket, *key, *hash, err)
+		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets [%s|%s] key=%s hash='%s' err='%v'", char, bucket, key, hash, err)
 		return -999, err
 	}
 	len_offsets := 0
@@ -532,15 +533,15 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 		len_offsets = len(*offsets)
 	}
 	if offsets == nil || (offsets != nil && len_offsets == 0) { // no offsets stored for numhash
-		if *offset == -1 { // search only
+		if offset == -1 { // search only
 			//his.L1Cache.Set(hash, *char, -2)
 			//his.L3Cache.SetOffsets(*char+*bucket+*key, *char, &empty_offsets)
 			return CasePass, nil // pass, not a duplicate
 		}
-		newoffsets := []int64{*offset}
+		newoffsets := []int64{offset}
 		// add hash=>key:offset to db
 		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, hash, offset, &newoffsets, setempty, batchQueue); err != nil {
-			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketKeyPutOffsets bucket=%s err='%v'", *char, *bucket, err)
+			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketKeyPutOffsets bucket=%s err='%v'", char, bucket, err)
 			return -999, err
 		}
 		//logf(DEBUG2, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
@@ -554,8 +555,8 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 
 	// got offset(s) stored for numhash
 	if len_offsets > 0 {
-		if *offset > 0 { // is not a search
-			logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", *char, *key, *hash, len_offsets, *offsets, *offset)
+		if offset > 0 { // is not a search
+			logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", char, key, hash, len_offsets, offsets, offset)
 			if len_offsets > 0 {
 				his.Sync_upcounter("appoffset")
 			} else {
@@ -572,14 +573,14 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 	}
 	for _, check_offset := range *offsets {
 		// check history for duplicate hash / evades collissions
-		logf(DEBUG2, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", *char, *key, len_offsets, check_offset)
+		logf(DEBUG2, "HDBZW char=%s CHECK DUP key=%s lo=%d offset=%d", char, key, len_offsets, check_offset)
 		historyHash, err := his.FseekHistoryMessageHash(file, check_offset)
 		if historyHash == nil && err == nil {
-			log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", *char, *bucket, err, *hash)
-			return -999, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, *offset)
+			log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", char, bucket, err, hash)
+			return -999, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", *historyHash, check_offset, offset)
 		}
 		if err != nil {
-			log.Printf("ERROR HDBZW char=%s FseekHistoryMessageHash bucket=%s err='%v' offset=%d", *char, *bucket, err, check_offset)
+			log.Printf("ERROR HDBZW char=%s FseekHistoryMessageHash bucket=%s err='%v' offset=%d", char, bucket, err, check_offset)
 			return -999, err
 		}
 		if historyHash != nil {
@@ -587,77 +588,78 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char *string, bucket *string, key *st
 			if len(*historyHash) == 3 && *historyHash == eofhash {
 				log.Printf("EOF history.dat offset=%d", check_offset)
 				// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
-				his.L1Cache.Set(*hash, *char, CaseRetry, FlagExpires)
+				his.L1Cache.Set(hash, char, CaseRetry, FlagExpires)
 				return CaseRetry, nil
 
-			} else if string(*historyHash) == string(*hash) {
+			} else if string(*historyHash) == string(hash) {
 				// hash is a duplicate in history.dat
-				if *offset > 0 { // not a search
-					logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d +offset='%d'", *historyHash, check_offset, *offset)
+				if offset > 0 { // not a search
+					logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d +offset='%d'", *historyHash, check_offset, offset)
 				} else { // is a search
 					logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d", *historyHash, check_offset)
 				}
-				his.L1Cache.Set(*hash, *char, CaseDupes, FlagExpires)
+				his.L1Cache.Set(hash, char, CaseDupes, FlagExpires)
 				return CaseDupes, nil
 			}
 		} else {
 			return -999, fmt.Errorf("ERROR DupeCheck historyHash=nil check_offset=%d", check_offset)
 		}
 	}
-	if *offset == -1 {
+	if offset == -1 {
 		// search did not find a match in check_offset over range *offsets
 		return CasePass, nil // pass, not a duplicate
 	}
 
-	if *offset > 0 {
-		logf(DEBUG1, "HDBZW [%s|%s] APPEND key=%s hash=%s +offset=%d offsets=%d='%#v'", *char, *bucket, *key, *hash, *offset, len(*offsets), *offsets)
+	if offset > 0 {
+		logf(DEBUG1, "HDBZW [%s|%s] APPEND key=%s hash=%s +offset=%d offsets=%d='%#v'", char, bucket, key, hash, offset, len(*offsets), offsets)
 		if err := AppendOffset(offsets, offset); err != nil {
 			return -999, err
 		}
 		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, hash, offset, offsets, setempty, batchQueue); err != nil {
-			log.Printf("ERROR HDBZW APPEND boltBucketKeyPutOffsets [%s|%s] err='%v'", *char, *bucket, err)
+			log.Printf("ERROR HDBZW APPEND boltBucketKeyPutOffsets [%s|%s] err='%v'", char, bucket, err)
 			return -999, err
 		}
-		logf(DEBUG1, "HDBZW [%s|%s] APPENDED key=%s hash=%s offset=%d offsets=%d='%#v'", *char, *bucket, *key, *hash, *offset, len(*offsets), *offsets)
-		his.L1Cache.Set(*hash, *char, CaseWrite, FlagNeverExpires) // was CaseDupes before // offset of history entry added to key: hash is a duplicate in cached response now
+		logf(DEBUG1, "HDBZW [%s|%s] APPENDED key=%s hash=%s offset=%d offsets=%d='%#v'", char, bucket, key, hash, offset, len(*offsets), *offsets)
+		his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires) // was CaseDupes before // offset of history entry added to key: hash is a duplicate in cached response now
 		if len(*offsets) > 1 {
 			his.Sync_upcounter("key_app")
 		}
 		return CaseAdded, nil
 	}
 
-	return -999, fmt.Errorf("ERROR DupeCheck returned unknown error. [%s|%s] key=%s hash=%s offset=%d offsets=%#v", *char, *bucket, *key, *hash, *offset, *offsets)
+	return -999, fmt.Errorf("ERROR DupeCheck returned unknown error. [%s|%s] key=%s hash=%s offset=%d offsets=%#v", char, bucket, key, hash, offset, *offsets)
 } // end func DupeCheck
 
-func AppendOffset(offsets *[]int64, offset *int64) error {
-	if offsets == nil || offset == nil || *offset <= 0 {
+func AppendOffset(offsets *[]int64, offset int64) error {
+	if offsets == nil || offset <= 0 {
 		return fmt.Errorf("ERROR AppendOffset i/o=nil")
 	}
-	*offsets = append(*offsets, *offset)
+	*offsets = append(*offsets, offset)
 	return nil
 } // end func AppendOffset
 
-func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *string, key *string, hash *string, offset *int64, offsets *[]int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
+func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket string, key string, hash string, offset int64, offsets *[]int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
 	if db == nil {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s db=nil", *char)
+		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s db=nil", char)
 	}
-	if char == nil {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=nil")
-	}
-	if bucket == nil || *bucket == "" {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=nil", *char)
-	}
-	if key == nil || *key == "" {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] key=nil", *char, *bucket)
-	}
+	/*
+		if char == nil {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=nil")
+		}
+		if bucket == nil || *bucket == "" {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=nil", *char)
+		}
+		if key == nil || *key == "" {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] key=nil", *char, *bucket)
+		}*/
 	if offsets == nil {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsets=nil", *char, *bucket)
+		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsets=nil", char, bucket)
 	}
 	if !setempty && len(*offsets) == 0 {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsetsN=0 setempty=%t", *char, *bucket, setempty)
+		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsetsN=0 setempty=%t", char, bucket, setempty)
 	}
 	if setempty && len(*offsets) != 0 {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsetsN=%d setempty=%t", *char, *bucket, len(*offsets), setempty)
+		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsetsN=%d setempty=%t", char, bucket, len(*offsets), setempty)
 	}
 	gobEncodedOffsets, err := gobEncodeOffsets(*offsets, char, bucket, key, "boltBucketKeyPutOffsets", his)
 	if err != nil {
@@ -666,30 +668,30 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char *string, bucket *s
 	}
 
 	// offset of history entry added to key: hash is a temporary duplicate+retry in cached response now
-	his.L1Cache.Set(*hash, *char, CaseWrite, FlagNeverExpires)                    // was CaseDupes before // boltBucketKeyPutOffsets
-	his.L2Cache.SetOffsetHash(*offset, *hash, FlagNeverExpires)                   // boltBucketKeyPutOffsets
-	his.L3Cache.SetOffsets(*char+*bucket+*key, *char, *offsets, FlagNeverExpires) // boltBucketKeyPutOffsets
+	his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires)                 // was CaseDupes before // boltBucketKeyPutOffsets
+	his.L2Cache.SetOffsetHash(offset, hash, FlagNeverExpires)                // boltBucketKeyPutOffsets
+	his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagNeverExpires) // boltBucketKeyPutOffsets
 
 	// puts offset into batchQ
-	batchQueue <- &BatchOffset{bucket: bucket, key: key, gobEncodedOffsets: &gobEncodedOffsets, hash: hash, char: char, offsets: offsets}
+	batchQueue <- &BatchOffset{bucket: &bucket, key: &key, gobEncodedOffsets: &gobEncodedOffsets, hash: &hash, char: &char, offsets: offsets}
 	return
 } // end func boltBucketKeyPutOffsets
 
-func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *string, key *string) (offsets *[]int64, err error) {
+func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string) (offsets *[]int64, err error) {
 	if db == nil {
-		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", *char)
-	}
-	if char == nil {
-		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=nil")
-	}
-	if bucket == nil || *bucket == "" {
-		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=nil", *char)
-	}
-	if key == nil || *key == "" {
-		return nil, fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key=nil", *char, *bucket)
-	}
+		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
+	} /*
+		if char == nil {
+			return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=nil")
+		}
+		if bucket == nil || *bucket == "" {
+			return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=nil", *char)
+		}
+		if key == nil || *key == "" {
+			return nil, fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key=nil", *char, *bucket)
+		}*/
 
-	offsets = his.L3Cache.GetOffsets(*char+*bucket+*key, *char)
+	offsets = his.L3Cache.GetOffsets(char+bucket+key, char)
 	if offsets != nil && len(*offsets) >= 0 {
 		//his.Sync_upcounter("L3CACHE_Get")
 		//logf(DEBUG1,"boltBucketGetOffsets: get CACHED [%s|%s] key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
@@ -698,31 +700,31 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char *string, bucket *stri
 
 	var gobEncodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(*bucket))
-		v := b.Get([]byte(*key))
+		b := tx.Bucket([]byte(bucket))
+		v := b.Get([]byte(key))
 		if v == nil {
-			logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", *char, *bucket, *key)
-			his.L3Cache.SetOffsets(*char+*bucket+*key, *char, empty_offsets, FlagExpires) // boltBucketGetOffsets
+			logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
+			his.L3Cache.SetOffsets(char+bucket+key, char, &empty_offsets, FlagExpires) // boltBucketGetOffsets
 			return nil
 		}
 		//logf(DEBUG2, "GOT boltBucketGetOffsets [%s|%s] key=%s bytes=%d", *char, *bucket, *key, len(v))
 		gobEncodedOffsets = v
 		return nil
 	}); err != nil {
-		log.Printf("ERROR boltBucketGetOffsets [%s|%s] key=%s err='%v'", *char, *bucket, *key, err)
+		log.Printf("ERROR boltBucketGetOffsets [%s|%s] key=%s err='%v'", char, bucket, key, err)
 		return nil, err
 	}
 	if len(gobEncodedOffsets) > 0 {
 		decodedOffsets, err := gobDecodeOffsets(gobEncodedOffsets, char, bucket, key, "boltBucketGetOffsets:boltDB", his)
 		if err != nil || decodedOffsets == nil {
-			log.Printf("ERROR boltBucketGetOffsets gobDecodeOffsets [%s|%s] key=%s err='%v'", *char, *bucket, *key, err)
+			log.Printf("ERROR boltBucketGetOffsets gobDecodeOffsets [%s|%s] key=%s err='%v'", char, bucket, key, err)
 			return nil, err
 		}
 		his.Sync_upcounter("BoltDB_decodedOffsets")
 		offsets = decodedOffsets
 
 		if offsets != nil {
-			his.L3Cache.SetOffsets(*char+*bucket+*key, *char, *offsets, FlagExpires) // boltBucketGetOffsets
+			his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagExpires) // boltBucketGetOffsets
 		}
 	}
 	//if offsets != nil {
