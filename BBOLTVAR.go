@@ -1,10 +1,13 @@
 package history
 
 import (
+	"bufio"
 	"fmt"
 	//"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"log"
+	"os"
+	"strings"
 )
 
 func (his *HISTORY) RebuildHashDB() error {
@@ -67,7 +70,7 @@ func (his *HISTORY) RebuildHashDB() error {
 		offset += int64(ll)
 
 		if did >= 100000 {
-			perc := int(float64(offset) / float64(filesize) * 100)
+			perc1 := int(float64(offset) / float64(filesize) * 100)
 			perc2 := int(float64(total) / float64(estimate) * 100)
 			log.Printf("RebuildHashDB did=%d offset=%d (%d%%) estimate=%d%%", total, offset, perc1, perc2)
 			did = 0
