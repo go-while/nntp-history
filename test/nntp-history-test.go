@@ -114,6 +114,7 @@ func main() {
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	// check command line arguments to execute commands
 	if RebuildHashDB {
+		defer history.History.CLOSE_HISTORY()
 		err := history.History.RebuildHashDB()
 		if err != nil {
 			os.Exit(1)
