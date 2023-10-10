@@ -196,7 +196,9 @@ CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4
 2023/09/29 15:45:52 done=4000000 took 6 seconds
 ```
 
-## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb + history.DBG_BS_LOG = true
+## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb
+- + history.DBG_BS_LOG = true
+- + history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data
 ```sh
 ./nntp-history-test
 ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
