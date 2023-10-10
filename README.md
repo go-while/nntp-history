@@ -95,6 +95,7 @@ The remaining portion of the hash (after the first two characters) is used as th
 - However, a lower `KeyLen` also result in more frequent file seeks when accessing data.
 - The default `KeyLen` is 6. The minimum recommended `KeyLen` is 4.
 - Reasonable values for `KeyLen` typically range from 5 to 8.
+- Test with 100M inserts (`i` hashes) shows 1.2% stored multioffsets with `KeyLen` = 6.
 
 ## FNV KeyAlgos
 
