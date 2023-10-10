@@ -38,12 +38,18 @@ func main() {
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 1024, "You no mess with Lo Wang!")
+	flag.IntVar(&BatchSize, "BatchSize", 64, "You no mess with Lo Wang!")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
 	}
+	if todo <= 0 {
+		log.Printf("??? todo=0")
+		os.Exit(1)
+	}
 	history.History.SET_DEBUG(debugs)
+	//history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data after encoding
+	//history.DBG_CGS = true // prints cache grow/shrink
 	//history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
 	//history.DBG_FBQ1 = true   // prints adaptive batchsize
 	//history.DBG_FBQ2 = true   // prints adaptive batchsize
@@ -54,8 +60,8 @@ func main() {
 	// KeyLen is only used with `HashShort`. FNV hashes have predefined length.
 	// a shorter hash stores more offsets per key
 	// a dupecheck checks all offsets per key to match a hash and shorter keys produce more Fseeks to history file.
-	// a server with very little messages can go as low as HashLen: 3.
-	// one can use debugs to see if keys got added or appended ort if retrieved key has more than 1 offset stored.
+	// a server with very little messages can go as low as HashLen: 4.
+	// one can use debugs to see if keys got added or appended or if retrieved key has more than 1 offset stored.
 	// meaningful range for KeyLen is 5-8. much longer is not better but bloats up the hashdb.
 	// KeyLen max 32 with md5
 	// KeyLen max 40 with sha1
@@ -67,17 +73,17 @@ func main() {
 		history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
 		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024          // default: 16 * 1024 * 1024
-		history.AdaptiveBatchSize = true        // adjusts CharBucketBatchSize automagically
+		//history.AdaptiveBatchSize = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
-		history.Bolt_SYNC_EVERYs = 60    // only used with 'boltopts.NoSync: true'
-		history.Bolt_SYNC_EVERYn = 50000 // only used with 'boltopts.NoSync: true'
+		history.BoltSyncEveryS = 60    // only used with 'boltopts.NoSync: true'
+		history.BoltSyncEveryN = 50000 // only used with 'boltopts.NoSync: true'
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16 // used when booting and initalizing bolt databases
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
-		//history.NumQueueIndexChan = 1     // ( can be any value > 0 ) default: 16 [note: keep it low!]
-		history.NumQueueIndexChans = 4 // ( can be any value > 0 ) default: 1 [note: keep it low!]
+		//history.NumQueueIndexChan = 1     // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
+		history.NumQueueIndexChans = 16 // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
 		//history.IndexParallel = 1 // default: 16
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
@@ -125,14 +131,18 @@ func main() {
 				responseChan = make(chan int, 1)
 				IndexRetChan = make(chan int, 1)
 			}
-			var spam, spammer, dupes, added, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, errors, locked uint64
-			//spammer = uint64(todo) / 10
-			spammer = 10000000
+			var spam, spammer, dupes, added, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, errors, locked uint64
+			spammer = 1000 * 1000      // default: spam every 1m done
+			if todo >= 100*1000*1000 { // todo 100m
+				spammer = 10 * 1000 * 1000 // spam every 10m done
+			} else if todo < 1000*1000 { // todo less than 1m
+				spammer = uint64(todo) / 10 // spams every 10%
+			}
 		fortodo:
 			for i := 1; i <= todo; i++ {
 				if spam >= spammer {
-					sum := added + dupes + cachehits + addretry + retry + adddupes + cachedupes + cacheretry1
-					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cachehits=%d addretry=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d %d/%d", p, added, dupes, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, sum, todo)
+					sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
+					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d %d/%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo)
 					spam = 0
 				}
 				spam++
@@ -152,16 +162,19 @@ func main() {
 					// pass
 				case history.CaseLock:
 					// cache hits, already in processing
-					cachehits++
+					cLock++
 					continue fortodo
 				case history.CaseDupes:
-					cachedupes++
+					cdupes++
+					continue fortodo
+				case history.CaseWrite:
+					cretry1++
 					continue fortodo
 				case history.CaseRetry:
-					cacheretry1++
+					cretry2++
 					continue fortodo
 				default:
-					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%x=%#v", retval, retval, retval)
+					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
 					break fortodo
 				}
 				//locktime := utils.UnixTimeNanoSec()
@@ -234,8 +247,8 @@ func main() {
 				} // end responseChan
 			} // end for i todo
 			P_donechan <- struct{}{}
-			sum := added + dupes + cachehits + addretry + retry + adddupes + cachedupes + cacheretry1
-			log.Printf("End test p=%d nntp-history added=%d dupes=%d cachehits=%d addretry=%d retry=%d adddupes=%d cachedupes=%d cacheretry1=%d sum=%d/%d errors=%d locked=%d", p, added, dupes, cachehits, addretry, retry, adddupes, cachedupes, cacheretry1, sum, todo, errors, locked)
+			sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
+			log.Printf("End test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d sum=%d/%d errors=%d locked=%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo, errors, locked)
 		}(p) // end go func parallel
 	} // end for parallelTest
 
@@ -282,22 +295,11 @@ func main() {
 		history.History.CrunchBatchLogs(true)
 	}
 
-	history.PrintMemoryStats()
-	log.Printf("runtime.GC()")
-	runtime.GC()
-	history.PrintMemoryStats()
-	time.Sleep(30 * time.Second)
-
-	history.PrintMemoryStats()
-	log.Printf("runtime.GC()")
-	runtime.GC()
-	history.PrintMemoryStats()
-	time.Sleep(30 * time.Second)
-
-	history.PrintMemoryStats()
-	log.Printf("runtime.GC()")
-	runtime.GC()
-	history.PrintMemoryStats()
-	time.Sleep(30 * time.Second)
-
+	tmax := 2
+	for t := 1; t <= tmax; t++ {
+		history.PrintMemoryStats()
+		log.Printf("runtime.GC() [ %d / %d ] sleep 30 sec", t, tmax)
+		runtime.GC()
+		time.Sleep(30 * time.Second)
+	}
 } // end func main
