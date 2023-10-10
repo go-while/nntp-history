@@ -7,6 +7,78 @@ import (
 	"log"
 )
 
+func (his *HISTORY) RebuildHashDB() error {
+	// Open the history.dat file for reading
+	file, err := os.Open(his.hisDat)
+	if err != nil {
+		log.Printf("Error opening file:", err)
+		return err
+	}
+	defer file.Close()
+	fileInfo, err := file.Stat()
+	if err != nil {
+		log.Printf("ERROR RebuildHashDB fh open Stat err='%v'", err)
+		os.Exit(1)
+	}
+	filesize := fileInfo.Size()
+	// assume 102 bytes per line
+	estimate := filesize / 102
+	log.Printf("RebuildHashDB: his.hisDat='%s' filesize=%d estimate=%d", his.hisDat, filesize, estimate)
+	var offset, added, passed, skipped, dupes, retry, did, total int64
+	// Create a scanner to read the file line by line
+	scanner := bufio.NewScanner(file)
+	IndexRetChan := make(chan int, 1)
+	for scanner.Scan() {
+		line := scanner.Text()
+		ll := len(line) + 1                // +1 accounts for LF
+		parts := strings.Split(line, "\t") // Split the line at the first tab character
+		if len(parts) < 3 || len(parts[0]) < 32+2 || parts[0][0] != '{' || parts[0][len(parts[0])-1] != '}' {
+			// Skip lines that don't have correct fields or not { } character in first
+			skipped++
+			offset += int64(ll)
+			continue
+		}
+		hash := string(parts[0][1 : len(parts[0])-1])
+		if len(hash) < 32 { // at least md5
+			skipped++
+			continue
+		}
+		//log.Printf("RebuildHashDB hash='%s' @offset=%d", hash, offset)
+		// pass hash:offset to IndexChan
+
+		isDup, err := his.IndexQuery(&hash, IndexRetChan, offset)
+		if err != nil {
+			log.Printf("ERROR RebuildHashDB IndexQuery hash='%s' err='%v'", hash, err)
+			return err
+		}
+		switch isDup {
+		case CasePass:
+			passed++
+		case CaseAdded:
+			added++
+		case CaseDupes:
+			dupes++
+		case CaseRetry:
+			retry++
+		default:
+			log.Printf("main: ERROR in RebuildHashDB response from IndexQuery unknown switch isDup=%x", isDup)
+			os.Exit(1)
+		}
+		offset += int64(ll)
+
+		if did >= 100000 {
+			perc := int(float64(offset) / float64(filesize) * 100)
+			perc2 := int(float64(total) / float64(estimate) * 100)
+			log.Printf("RebuildHashDB did=%d offset=%d (%d%%) estimate=%d%%", total, offset, perc1, perc2)
+			did = 0
+		}
+		did++
+		total++
+	}
+	log.Printf("RebuildHashDB: his.hisDat='%s' added=%d passed=%d skipped=%d dupes=%d retry=%d", his.hisDat, added, passed, skipped, dupes, retry)
+	return err
+} // end func RebuildHashDB
+
 func boltCreateBucket(db *bolt.DB, char *string, bucket *string) (retbool bool, err error) {
 	if char == nil {
 		return false, fmt.Errorf("ERROR boltCreateBucket char=nil")
