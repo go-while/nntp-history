@@ -592,6 +592,30 @@ Alloc: 62 MiB, TotalAlloc: 11095566 MiB, Sys: 2095 MiB, NumGC: 26836
 2023/10/10 00:37:02 L3: [fex=1150896/set:100000000] [del:99995891/bat:100000000] [g/s:147/201] cached:0 (~0/char)
 ```
 
+
+## Inserting 400.000.000 `i` hashes (75% duplicates) to history and hashdb (NO adaptive batchsize)
+```sh
+# history.DBG_BS_LOG = false // debugs BatchLOG for every batch insert!
+# history.DBG_GOB_TEST = false // costly check: test decodes gob encoded data
+#
+./nntp-history-test -todo=100000000
+ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=256
+ useHashDB: true | IndexParallel=16
+ boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
+2023/10/10 21:55:30 his.boltDB_Init() AdaptiveBatchSizeON=false
+2023/10/10 21:55:30 History: new=true
+  hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=15
+2023/10/10 21:55:30   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueindexChans=16 BatchSize=256 IndexParallel=16}
+2023/10/10 21:56:00 L2: [fex=0/set:1255738] [del:0/bat:1212416] [g/s:48/0] cached:1255738 (~78483/char)
+2023/10/10 21:56:00 L3: [fex=0/set:1255738] [del:0/bat:1212416] [g/s:96/0] cached:1255538 (~78471/char)
+2023/10/10 21:56:00 BoltSpeed: 38862.47 tx/s ( did=576795 in 14.8 sec ) totalTX=1255571
+Alloc: 1665 MiB, TotalAlloc: 7645 MiB, Sys: 1731 MiB, NumGC: 60
+...
+...
+...
+```
+
+
 ## Checking 400.000.000 `i` hashes (75% duplicates) vs hashdb
 ```sh
 # history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
