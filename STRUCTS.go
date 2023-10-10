@@ -6,27 +6,32 @@ import (
 )
 
 var (
-	IndexParallel int = 16
+	IndexParallel     int = 16
+	NumQueueWriteChan int = 16
 )
 
 type HISTORY struct {
-	mux          sync.Mutex
-	cmux         sync.Mutex // sync counter
+	/*   it is mostly NOT safe to change any values or read maps from outside! *
+	 *   set, change, update values only inside (his *HISTORY) functions and
+	 *   don't forget mutex where needed or run into race conditions.
+	 */
+	mux          sync.Mutex // global history mutex used to boot
+	cmux         sync.Mutex // sync counter mutex
 	boltmux      sync.Mutex // locks boltdb to protect BoltDBsMap
 	L1Cache      L1CACHE
 	L2Cache      L2CACHE
 	L3Cache      L3CACHE
-	boltInitChan chan struct{}
-	boltSyncChan chan struct{}
-	Offset       int64
-	HF           string // = "history/history.dat"
-	HF_hash      string // = "hashdb/history.dat.hash[0-9a-f]"
-	WriterChan   chan *HistoryObject
-	IndexChan    chan *HistoryIndex
-	IndexChans   [16]chan *HistoryIndex
+	boltInitChan chan struct{}          // used to lock bolt booting to N in parallel
+	boltSyncChan chan struct{}          // used to lock bolt syncing to N in parallel
+	Offset       int64                  // the actual offset for history.dat
+	hisDat       string                 // = "history/history.dat"
+	hisDatDB     string                 // = "hashdb/history.dat.hash[0-9a-f]"
+	WriterChan   chan *HistoryObject    // history.dat writer channel
+	IndexChan    chan *HistoryIndex     // main index query channel
+	indexChans   [16]chan *HistoryIndex // sub-index channels
 	BatchLogs    BatchLOGGER
-	BatchLocks   map[string]map[string]chan struct{}
-	BoltDBsMap   map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
+	BatchLocks   map[string]map[string]chan struct{} // used to lock char:bucket in BoltSync and boltBucketPutBatch
+	BoltDBsMap   map[string]*BOLTDB_PTR              // using a ptr to a struct in the map allows updating the struct values without updating the map
 	//GobDecoder   map[string]GOBDEC
 	//GobEncoder   map[string]GOBENC
 	charsMap    map[string]int
@@ -35,8 +40,9 @@ type HISTORY struct {
 	keylen      int
 	win         bool
 	Counter     map[string]uint64
-	BatchQueues *BQ
-	CacheEvicts map[string]chan *ClearCache
+	batchQueues *BQ
+	cacheEvicts map[string]chan *ClearCache
+	adaptBatch  bool // AdaptiveBatchSize
 }
 
 /* builds the history.dat header */
