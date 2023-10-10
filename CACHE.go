@@ -113,7 +113,7 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 		return
 	}
 	// pass ClearCache object to evictChan in CacheEvictThread()
-	his.cacheEvicts[char] <- &ClearCache{char: &char, offset: &offset, hash: &hash, key: &key}
+	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
 
 func (his *HISTORY) CacheEvictThread() {
@@ -144,7 +144,6 @@ func (his *HISTORY) CacheEvictThread() {
 					select {
 					case <-timer.C:
 						timeout = true
-						timer.Reset(2500 * time.Millisecond)
 						Q := len(evictChan)
 						if Q > 0 {
 							logf(DEBUG, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
@@ -155,19 +154,19 @@ func (his *HISTORY) CacheEvictThread() {
 							log.Printf("evictChan [%s] closed", char)
 							break forever
 						}
-						if item.char == nil || *item.char != char {
+						if item.char != char {
 							log.Printf("ERROR evictChan [%s] item.char='%#v' != char", char, item.char)
 							break forever
 						}
 
 						logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
-						if item.hash != nil { // l1 key
+						if item.hash != "" { // l1 key
 							tmpHash = append(tmpHash, item)
 						}
-						if item.offset != nil { // l2key
+						if item.offset > 0 { // l2key
 							tmpOffset = append(tmpOffset, item)
 						}
-						if item.key != nil { // l3key
+						if item.key != "" { // l3key
 							tmpKey = append(tmpKey, item)
 						}
 						if len(tmpHash) >= clearEveryN || len(tmpOffset) >= clearEveryN || len(tmpKey) >= clearEveryN {
@@ -178,16 +177,20 @@ func (his *HISTORY) CacheEvictThread() {
 					} // end select
 				} // end for fetchdel
 				if timeout || len(tmpHash) >= clearEveryN {
-					his.L1Cache.DeleteL1batch(&char, &tmpHash)
+					his.L1Cache.DeleteL1batch(char, tmpHash)
 					tmpHash = nil
 				}
 				if timeout || len(tmpOffset) >= clearEveryN {
-					his.L2Cache.DeleteL2batch(&tmpOffset)
+					his.L2Cache.DeleteL2batch(tmpOffset)
 					tmpOffset = nil
 				}
 				if timeout || len(tmpKey) >= clearEveryN {
-					his.L3Cache.DeleteL3batch(&char, &tmpKey)
+					his.L3Cache.DeleteL3batch(char, tmpKey)
 					tmpKey = nil
+				}
+				if timeout {
+					timeout = false
+					timer.Reset(2500 * time.Millisecond)
 				}
 				continue forever
 			} // end forever
