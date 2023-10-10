@@ -18,11 +18,12 @@ const (
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
-	CaseLock             = 0xF0
+	CaseLock             = 0xFF
 	CasePass             = 0xF1
-	CaseDupes            = 0xB1
-	CaseRetry            = 0xB2
-	CaseAdded            = 0xC1
+	CaseDupes            = 0x1C
+	CaseRetry            = 0x2C
+	CaseAdded            = 0x3C
+	CaseWrite            = 0x4C
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
@@ -73,6 +74,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		BatchFlushEvery = 5000
 	}
 
+	// TODO BUGFIX: this does not work as intended
+	// whenever writes need longer the cache evicts and lost the cached info before writing it....
+	// any next requests adding offsets will result in problems
 	if BatchFlushEvery*3 > DefaultCacheExpires*1000 {
 		DefaultCacheExpires = BatchFlushEvery*3/1000 + 1
 	}
@@ -222,27 +226,19 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 
 	his.L1Cache.L1CACHE_Boot()
+	his.CacheEvictThread()
 
-	HashDBQueues := ""
+	HashDBlogstr := ""
 	if useHashDB {
 		his.useHashDB = true
-		his.L2Cache.L2CACHE_Boot()
-		his.L3Cache.L3CACHE_Boot()
-		his.BatchQueues = &BQ{}
-		his.BatchQueues.Booted = make(chan struct{}, 16*16)                  // char [0-9a-f] * bucket [0-9a-f]
-		his.BatchQueues.Maps = make(map[string]map[string]chan *BatchOffset) // maps char : bucket => chan
-		his.BoltDBsMap = make(map[string]*BOLTDB_PTR)
-		for _, char := range HEXCHARS {
-			his.BatchQueues.Maps[char] = make(map[string]chan *BatchOffset) // maps bucket => chan
-			his.BoltDBsMap[char] = &BOLTDB_PTR{BoltDB: nil}
-		}
-		his.IndexChan = make(chan *HistoryIndex, NumQueueIndexChan)
-		his.charsMap = make(map[string]int, BoltDBs)
 		his.boltDB_Init(boltOpts)
-		HashDBQueues = fmt.Sprintf("NumQueueIndexChan=%d NumQueueIndexChans=%d BatchSize=%d IndexParallel=%d", NumQueueIndexChan, NumQueueIndexChans, CharBucketBatchSize, IndexParallel)
+		HashDBlogstr = fmt.Sprintf("KeyAlgo=%d KeyLen=%d NumQueueIndexChan=%d NumQueueIndexChans=%d BatchSize=%d IndexParallel=%d", his.keyalgo, his.keylen, NumQueueIndexChan, NumQueueIndexChans, CharBucketBatchSize, IndexParallel)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]'\n  KeyAlgo=%d KeyLen=%d NumQueueWriteChan=%d\n  HashDBQueues:{%s}", new, his.HF, his.HF_hash, his.keyalgo, his.keylen, NumQueueWriteChan, HashDBQueues)
+	log.Printf("History: new=%t\n  HF='%s' DB='%s.[0-9a-f]' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.HF, his.HF_hash, NumQueueWriteChan, DefaultCacheExpires)
+	if his.useHashDB {
+		log.Printf("  HashDB:{%s}", HashDBlogstr)
+	}
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
@@ -497,7 +493,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
-			his.L2Cache.SetOffsetHash(offset, &hash)
+			his.L2Cache.SetOffsetHash(offset, &hash, FlagExpires)
 			return &hash, nil
 		}
 	}
