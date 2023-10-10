@@ -442,9 +442,9 @@ func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush boo
 // It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
 // If a valid hash is found, it returns the hash as a string without curly braces.
 // If the end of the file (EOF) is reached, it returns a special EOF marker.
-func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*string, error) {
-	if offset == nil {
-		return nil, fmt.Errorf("ERROR FseekHistoryMessageHash offset=nil")
+func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64) (*string, error) {
+	if offset <= 0 {
+		return nil, fmt.Errorf("ERROR FseekHistoryMessageHash offset<=0")
 	}
 	if file == nil {
 		var err error
@@ -461,7 +461,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	}
 
 	// Seek to the specified offset
-	_, seekErr := file.Seek(*offset, 0)
+	_, seekErr := file.Seek(offset, 0)
 	if seekErr != nil {
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
 		return nil, seekErr
@@ -485,12 +485,12 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset *int64) (*stri
 	result = strings.TrimSuffix(result, "\t")
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
-			return nil, fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", *offset, result)
+			return nil, fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", offset, result)
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
 			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
-			his.L2Cache.SetOffsetHash(offset, &hash, FlagExpires)
+			his.L2Cache.SetOffsetHash(offset, hash, FlagExpires)
 			return &hash, nil
 		}
 	}
