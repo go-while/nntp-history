@@ -190,7 +190,7 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 ```sh
 ./nntp-history-test -useHashDB=false -useGoCache=true
 CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:45:46 History: HF='history/history.dat' DB='hashdb/history.dat.hash' C='&{0xc000104f00}' HT=11 HL=6
+2023/09/29 15:45:46 History: hisDat='history/history.dat' DB='hashdb/history.dat.hash' C='&{0xc000104f00}' HT=11 HL=6
 ...
 2023/09/29 15:45:52 history_Writer closed fp='history/history.dat' wbt=108148560 offset=108148622 wroteLines=1060280
 2023/09/29 15:45:52 key_add=0 key_app=0 total=0
@@ -204,9 +204,9 @@ ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 |
  useHashDB: true | IndexParallel=16
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
 2023/10/08 14:31:30 History: new=true
-  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
   KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
-  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=4 BatchSize=1024 IndexParallel=16}
+  HashDBQueues:{NumQueueIndexChan=16 NumQueueindexChans=4 BatchSize=1024 IndexParallel=16}
 2023/10/08 14:31:52 End test p=4 nntp-history added=250339 dupes=0 cLock=423214 addretry=0 retry=0 adddupes=0 cdupes=326447 cretry1=0 sum=1000000/1000000 errors=0 locked=250339
 2023/10/08 14:31:52 End test p=3 nntp-history added=249431 dupes=0 cLock=423462 addretry=0 retry=0 adddupes=0 cdupes=327107 cretry1=0 sum=1000000/1000000 errors=0 locked=249431
 2023/10/08 14:31:52 End test p=1 nntp-history added=251125 dupes=0 cLock=423355 addretry=0 retry=0 adddupes=0 cdupes=325520 cretry1=0 sum=1000000/1000000 errors=0 locked=251125
@@ -268,9 +268,9 @@ ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 |
  useHashDB: true | IndexParallel=16
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
 2023/10/08 14:32:32 History: new=false
-  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
+  hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]'
   KeyAlgo=11 KeyLen=6 NumQueueWriteChan=16
-  HashDBQueues:{NumQueueIndexChan=16 NumQueueIndexChans=4 BatchSize=1024 IndexParallel=16}
+  HashDBQueues:{NumQueueIndexChan=16 NumQueueindexChans=4 BatchSize=1024 IndexParallel=16}
 2023/10/08 14:32:56 End test p=2 nntp-history added=0 dupes=249482 cLock=547547 addretry=0 retry=0 adddupes=0 cdupes=202971 cretry1=0 sum=1000000/1000000 errors=0 locked=249482
 2023/10/08 14:32:56 End test p=3 nntp-history added=0 dupes=250551 cLock=548727 addretry=0 retry=0 adddupes=0 cdupes=200722 cretry1=0 sum=1000000/1000000 errors=0 locked=250551
 2023/10/08 14:32:56 End test p=4 nntp-history added=0 dupes=249623 cLock=547928 addretry=0 retry=0 adddupes=0 cdupes=202449 cretry1=0 sum=1000000/1000000 errors=0 locked=249623
@@ -601,8 +601,8 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
  useHashDB: true | IndexParallel=16
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
 2023/10/10 01:07:56 History: new=false
-  HF='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=16
-2023/10/10 01:07:56   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueIndexChans=16 BatchSize=64 IndexParallel=16}
+  hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=16
+2023/10/10 01:07:56   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueindexChans=16 BatchSize=64 IndexParallel=16}
 2023/10/10 01:08:11 L1: [fex=515785/set:0] [del:0/bat:0] [g/s:80/0] cached:515789 (~32236/char)
 2023/10/10 01:08:11 L2: [fex=515792/set:0] [del:0/bat:0] [g/s:48/0] cached:515792 (~32237/char)
 2023/10/10 01:08:11 L3: [fex=515758/set:0] [del:0/bat:0] [g/s:80/0] cached:515758 (~32234/char)
