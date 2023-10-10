@@ -424,13 +424,13 @@ func (his *HISTORY) RebuildHashDB() error {
 		os.Exit(1)
 	}
 	filesize := fileInfo.Size()
-	// Create a scanner to read the file line by line
-	scanner := bufio.NewScanner(file)
-	var offset, added, passed, skipped, dupes, retry, did, total int64
-	IndexRetChan := make(chan int, 1)
+	// assume 102 bytes per line
 	estimate := filesize / 102
 	log.Printf("RebuildHashDB: his.hisDat='%s' filesize=%d estimate=%d", his.hisDat, filesize, estimate)
-	// assume ~103 bytes per line
+	var offset, added, passed, skipped, dupes, retry, did, total int64
+	// Create a scanner to read the file line by line
+	scanner := bufio.NewScanner(file)
+	IndexRetChan := make(chan int, 1)
 	for scanner.Scan() {
 		line := scanner.Text()
 		ll := len(line) + 1                // +1 accounts for LF
