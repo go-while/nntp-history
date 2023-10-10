@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"github.com/go-while/go-utils"
 	"github.com/go-while/nntp-history"
+	"github.com/gorilla/mux"
 	//"github.com/go-while/nntp-overview"
 	//"github.com/patrickmn/go-cache"
 	bolt "go.etcd.io/bbolt"
 	"log"
+	"net/http"
+	"net/http/pprof"
 	//"strings"
 	"flag"
 	"os"
@@ -30,6 +33,7 @@ func main() {
 	var debugs int
 	var BatchSize int
 	var RebuildHashDB bool
+	var PprofAddr string
 	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
@@ -41,6 +45,7 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
+	flag.StringVar(&PprofAddr, "pprof", "localhost:1234", "listen address:port")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
@@ -48,6 +53,9 @@ func main() {
 	if todo <= 0 {
 		log.Printf("??? todo=0")
 		os.Exit(1)
+	}
+	if PprofAddr != "" {
+		go debug_pprof(PprofAddr)
 	}
 	history.History.SET_DEBUG(debugs)
 	//history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data after encoding
@@ -165,7 +173,7 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 				char := string(hash[0])
-				retval := history.History.L1Cache.LockL1Cache(&hash, char, history.CaseLock) // checks and locks hash for processing
+				retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock) // checks and locks hash for processing
 				switch retval {
 				case history.CasePass:
 					//history.History.Sync_upcounter("L1CACHE_Lock")
@@ -319,3 +327,23 @@ func main() {
 		time.Sleep(30 * time.Second)
 	}
 } // end func main
+
+func debug_pprof(addr string) {
+	router := mux.NewRouter()
+	router.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
+	router.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
+	router.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
+	router.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
+	router.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
+	router.Handle("/debug/pprof/{cmd}", http.HandlerFunc(pprof.Index)) // special handling for Gorilla mux
+	server := &http.Server{Addr: addr, Handler: router}
+
+	// go launch debug http
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			// handle err
+			log.Printf("debug_pprof ERROR server.ListenAndServe err='%v'", err)
+			os.Exit(1)
+		}
+	}()
+} // end func debug_pprof
