@@ -47,7 +47,7 @@ func main() {
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in for loop below")
-	flag.StringVar(&PprofAddr, "pprof", "localhost:1234", "listen address:port")
+	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
