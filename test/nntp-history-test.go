@@ -41,7 +41,7 @@ func main() {
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
-	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false")
+	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
 	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
