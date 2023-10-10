@@ -75,21 +75,21 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 //	CaseDupes == is a duplicate
 //	CaseRetry == retry later
 //	CasePass == not a duplicate // locked article for processing
-func (l1 *L1CACHE) LockL1Cache(hash *string, char string, value int) int {
-	if hash == nil || *hash == "" {
+func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int) int {
+	if hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
 		return -999
 	}
 	if char == "" {
-		char = string(string(*hash)[0])
+		char = string(hash[0])
 	}
 	l1.muxers[char].mux.Lock()
-	if l1.Caches[char].cache[*hash] != nil {
-		retval := l1.Caches[char].cache[*hash].value
+	if l1.Caches[char].cache[hash] != nil {
+		retval := l1.Caches[char].cache[hash].value
 		l1.muxers[char].mux.Unlock()
 		return retval
 	}
-	l1.Caches[char].cache[*hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
+	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
 	return CasePass
 } // end func LockL1Cache
@@ -173,30 +173,30 @@ func (l1 *L1CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 			// dont shrink lower than this
 			return true
 		}
-		return l1.shrinkMap(&char, newmax, maplen)
+		return l1.shrinkMap(char, newmax, maplen)
 	}
 	return false
 } // end func shrinkMapIfNeeded
 
-func (l1 *L1CACHE) shrinkMap(char *string, newmax int, maplen int) bool {
-	if char == nil {
+func (l1 *L1CACHE) shrinkMap(char string, newmax int, maplen int) bool {
+	if char == "" {
 		log.Printf("ERROR L1CACHE shrinkMap char=nil")
 		return false
 	}
 	newmap := make(map[string]*L1ITEM, newmax)
-	l1.muxers[*char].mux.Lock()
+	l1.muxers[char].mux.Lock()
 	if maplen > 0 {
-		for k, v := range l1.Caches[*char].cache {
+		for k, v := range l1.Caches[char].cache {
 			newmap[k] = v
 		}
 	}
-	clear(l1.Caches[*char].cache)
-	l1.Caches[*char].cache = nil
-	l1.Caches[*char].cache = newmap
-	l1.mapsizes[*char].maxmapsize = newmax
-	l1.Counter[*char]["Count_Shrink"] += 1
-	l1.muxers[*char].mux.Unlock()
-	logf(DBG_CGS, "L1Cache_Thread [%s] shrink size to %d maplen=%d", *char, newmax, maplen)
+	clear(l1.Caches[char].cache)
+	l1.Caches[char].cache = nil
+	l1.Caches[char].cache = newmap
+	l1.mapsizes[char].maxmapsize = newmax
+	l1.Counter[char]["Count_Shrink"] += 1
+	l1.muxers[char].mux.Unlock()
+	logf(DBG_CGS, "L1Cache_Thread [%s] shrink size to %d maplen=%d", char, newmax, maplen)
 	return true
 } // end func shrinkMap
 
@@ -277,29 +277,30 @@ func (l1 *L1CACHE) DeleteL1(char *string, hash *string) {
 */
 
 // The DeleteL1batch method deletes multiple cache items from the L1 cache.
-func (l1 *L1CACHE) DeleteL1batch(char *string, tmpHash *[]*ClearCache) {
-	if char == nil {
+func (l1 *L1CACHE) DeleteL1batch(char string, tmpHash []*ClearCache) {
+	if char == "" {
 		log.Printf("ERROR DeleteL1batch char=nil")
 		return
 	}
-	if tmpHash == nil {
-		log.Printf("ERROR DeleteL1batch [%s] tmpHash=nil", *char)
+	if len(tmpHash) == 0 {
+		//log.Printf("DeleteL1batch [%s] tmpHash empty", char)
+		return
 	}
 	now := utils.UnixTimeSec()
-	l1.muxers[*char].mux.Lock()
-	for _, item := range *tmpHash {
-		if item.hash != nil {
-			if _, exists := l1.Caches[*char].cache[*item.hash]; exists {
+	l1.muxers[char].mux.Lock()
+	for _, item := range tmpHash {
+		if item.hash != "" {
+			if _, exists := l1.Caches[char].cache[item.hash]; exists {
 				//delete(l1.Caches[*char].cache, *item.hash)
 				// dont delete from cache but extend expiry time
-				l1.Caches[*char].cache[*item.hash].expires = now + L1ExtendExpires
+				l1.Caches[char].cache[item.hash].expires = now + L1ExtendExpires
 				// has been written to boltDB and is now a Duplicate in response
-				l1.Caches[*char].cache[*item.hash].value = CaseDupes
-				l1.Counter[*char]["Count_BatchD"] += 1
+				l1.Caches[char].cache[item.hash].value = CaseDupes
+				l1.Counter[char]["Count_BatchD"] += 1
 			}
 		}
 	}
-	l1.muxers[*char].mux.Unlock()
+	l1.muxers[char].mux.Unlock()
 } // end func DeleteL1batch
 
 func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64) {
