@@ -8,23 +8,19 @@ import (
 )
 
 var (
-	DEBUGL3               bool
-	DefaultL3CacheExpires int64 = DefaultCacheExpires
-	L3Purge               int64 = DefaultCachePurge
-	L3InitSize            int   = 64
+	DEBUGL3         bool
+	L3CacheExpires  int64 = DefaultCacheExpires
+	L3ExtendExpires int64 = DefaultCacheExtend
+	L3Purge         int64 = DefaultCachePurge
+	L3InitSize      int   = 64
 )
 
 type L3CACHE struct {
-	Caches       map[string]*L3CACHEMAP
-	muxers       map[string]*L3MUXER
-	mapsizes     map[string]*MAPSIZES
-	mux          sync.Mutex
-	Counter      map[string]map[string]uint64
-	Count_BatchD uint64
-	Count_Delete uint64
-	Count_Insert uint64
-	Count_Growup uint64
-	Count_Shrink uint64
+	Caches   map[string]*L3CACHEMAP
+	muxers   map[string]*L3MUXER
+	mapsizes map[string]*MAPSIZES
+	mux      sync.Mutex
+	Counter  map[string]map[string]uint64
 }
 
 type L3CACHEMAP struct {
@@ -187,9 +183,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexp
 		if len(*offsets) > 0 {
 			l3.Counter[char]["Count_FlagEx"] += 1
 		}
-		expires = utils.UnixTimeSec() + DefaultL3CacheExpires
+		expires = utils.UnixTimeSec() + L3CacheExpires
 	} else {
-		l3.Counter[char]["Count_Insert"] += 1
+		l3.Counter[char]["Count_Set"] += 1
 	}
 	l3.Caches[char].cache[key] = &L3ITEM{offsets: *offsets, expires: expires}
 	l3.muxers[char].mux.Unlock()
@@ -206,9 +202,13 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets *[]int64) {
 	}
 	l3.muxers[char].mux.Lock()
 	if l3.Caches[char].cache[key] != nil {
+		l3.Counter[char]["Count_Get"] += 1
 		item := l3.Caches[char].cache[key]
 		offsets = &item.offsets
+		l3.muxers[char].mux.Unlock()
+		return
 	}
+	l3.Counter[char]["Count_GetMiss"] += 1
 	l3.muxers[char].mux.Unlock()
 	return
 } // end func GetOffsets
@@ -248,10 +248,33 @@ func (l3 *L3CACHE) DeleteL3batch(char *string, tmpKey *[]*ClearCache) {
 			if _, exists := l3.Caches[*char].cache[*item.key]; exists {
 				//delete(l3.Caches[*char].cache, *item.key)
 				// dont delete from cache but extend expiry time
-				l3.Caches[*char].cache[*item.key].expires = now + DefaultL3CacheExpires
+				l3.Caches[*char].cache[*item.key].expires = now + L1ExtendExpires
 				l3.Counter[*char]["Count_BatchD"] += 1
 			}
 		}
 	}
 	l3.muxers[*char].mux.Unlock()
 } // end func DeleteL3batch
+
+func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64) {
+	if key == "" {
+		retmap = make(map[string]uint64)
+	}
+	for _, char := range HEXCHARS {
+		l3.muxers[char].mux.Lock()
+		switch key {
+		case "":
+			// key is empty, get all key=>stats to retmap
+			for k, v := range l3.Counter[char] {
+				retmap[k] += v
+			}
+		default:
+			// key is set
+			if _, exists := l3.Counter[char][key]; exists {
+				retval += l3.Counter[char][key]
+			}
+		}
+		l3.muxers[char].mux.Unlock()
+	}
+	return
+} // end func L1Stats
