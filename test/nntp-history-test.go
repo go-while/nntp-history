@@ -101,7 +101,7 @@ func main() {
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16 // used when booting and initalizing bolt databases
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
 		//history.NumQueueIndexChan = 1     // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
-		history.NumQueueindexChans = 16 // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
+		//history.NumQueueindexChans = 1 // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
 		//history.IndexParallel = 1 // default: 16
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
