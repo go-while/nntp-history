@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// never change this
 	FlagExpires         bool  = true
 	FlagNeverExpires    bool  = false
 	NoExpiresVal        int64 = -1
