@@ -147,7 +147,7 @@ forever:
 				//extends = nil
 				if int64(lenExt) >= mapsize {
 					mapsize = int64(lenExt) * 3
-					log.Printf("INFO L3 [%s] grow extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
+					logf(DEBUGL3, "INFO L3 [%s] grow extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
 				}
 				extends = make(map[string]bool, mapsize)
 			}
