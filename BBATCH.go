@@ -133,8 +133,8 @@ func (his *HISTORY) WatchBatchInsert() {
 		if insertednow > inserted {
 			diff := insertednow - inserted
 			pps := diff / 15
+			log.Printf("WatchBatchInsert: %d / sec (inserted %d in 15 sec)", pps, diff)
 			inserted = insertednow
-			log.Printf("WatchBatchInsert: %d / sec (inserted %d in 15 sec)", pps, inserted)
 		}
 	}
 } // end func WatchBatchInsert
