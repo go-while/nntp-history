@@ -118,26 +118,36 @@ fetchbatch:
 		// debugs adaptive batchsize
 		logf(DBG_FBQ1, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 	}
-
-	his.Sync_upcounterN("inserted", inserted)
+	if inserted > 0 {
+		his.Sync_upcounterN("inserted", inserted) // +N
+		his.Sync_upcounter("batchins")            // ++
+	}
 	//took := utils.UnixTimeMicroSec() - start
 	//logf(DEBUG9, "BATCHED boltBucketPutBatch [%s|%s] ins=%d Q=%d f=%t src=%s (took %d micros) ", char, bucket, inserted, len(batchQueue), forced, src, took)
 	return inserted, err, closed
 } // end func boltBucketPutBatch
 
-func (his *HISTORY) WatchBatchInsert() {
+func (his *HISTORY) WatchBoltBatch() {
 	var inserted uint64
+	var batchins uint64
 	ticker := time.NewTicker(15 * time.Second)
 	for range ticker.C {
 		insertednow := his.GetCounter("inserted")
+		batchinsnow := his.GetCounter("batchins")
 		if insertednow > inserted {
 			diff := insertednow - inserted
 			pps := diff / 15
-			log.Printf("WatchBatchInsert: %d / sec (inserted %d in 15 sec)", pps, diff)
+			log.Printf("WatchBoltBatch: inserted %d / sec (inserted %d in 15 sec)", pps, diff)
 			inserted = insertednow
 		}
+		if batchinsnow > batchins {
+			diff := batchinsnow - batchins
+			pps := diff / 15
+			log.Printf("WatchBoltBatch: batchins %d / sec (batchins %d in 15 sec)", pps, diff)
+			batchins = batchinsnow
+		}
 	}
-} // end func WatchBatchInsert
+} // end func WatchBoltBatch
 
 func (his *HISTORY) returnBatchLock(char string, bucket string) {
 	select {
