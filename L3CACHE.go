@@ -348,4 +348,4 @@ func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64)
 		l3.muxers[char].mux.Unlock()
 	}
 	return
-} // end func L1Stats
+} // end func L3Stats
