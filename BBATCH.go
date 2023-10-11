@@ -129,11 +129,13 @@ fetchbatch:
 
 func (his *HISTORY) WatchBolt() {
 	his.mux.Lock()
-	defer his.mux.Lock()
 	if his.WBR {
+		his.mux.Unlock()
 		return
 	}
 	his.WBR = true
+	his.mux.Unlock()
+
 	var inserted uint64
 	var batchins uint64
 	var searches uint64
