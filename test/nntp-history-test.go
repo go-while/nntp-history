@@ -35,6 +35,7 @@ func main() {
 	var RebuildHashDB bool
 	var PprofAddr string
 	var isleep int
+	var useL1Cache bool
 	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
@@ -42,6 +43,7 @@ func main() {
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
+	flag.BoolVar(&useL1Cache, "useL1Cache", true, "[true | false] (works only with useHashDB=false)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false")
 	flag.BoolVar(&history.AdaptiveBatchSizeON, "adaptBatch", false, "true | false")
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
@@ -178,51 +180,55 @@ func main() {
 				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 				char := string(hash[0])
-				retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock) // checks and locks hash for processing
-				switch retval {
-				case history.CasePass:
-					//history.History.Sync_upcounter("L1CACHE_Lock")
-					locked++
-					// pass
-				case history.CaseLock:
-					// cache hits, already in processing
-					cLock++
-					continue fortodo
-				case history.CaseDupes:
-					cdupes++
-					continue fortodo
-				case history.CaseWrite:
-					cretry1++
-					continue fortodo
-				case history.CaseRetry:
-					cretry2++
-					continue fortodo
-				default:
-					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
-					break fortodo
+				if useHashDB || useL1Cache {
+					retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
+					switch retval {
+					case history.CasePass:
+						//history.History.Sync_upcounter("L1CACHE_Lock")
+						locked++
+						// pass
+					case history.CaseLock:
+						// cache hits, already in processing
+						cLock++
+						continue fortodo
+					case history.CaseDupes:
+						cdupes++
+						continue fortodo
+					case history.CaseWrite:
+						cretry1++
+						continue fortodo
+					case history.CaseRetry:
+						cretry2++
+						continue fortodo
+					default:
+						log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
+						break fortodo
+					}
 				}
-				//locktime := utils.UnixTimeNanoSec()
-				isDup, err := history.History.IndexQuery(&hash, IndexRetChan, -1)
-				if err != nil {
-					log.Printf("FALSE IndexQuery hash=%s", hash)
-					break fortodo
-				}
-				switch isDup {
-				case history.CasePass:
-					// pass
-				//case history.CaseAdded:
-				//	// is not a possible response here
-				//	break fortodo
-				case history.CaseDupes:
-					dupes++
-					continue fortodo
-				case history.CaseRetry:
-					retry++
-					continue fortodo
-				default:
-					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
-					break fortodo
-				}
+
+				if useHashDB {
+					isDup, err := history.History.IndexQuery(&hash, IndexRetChan, -1)
+					if err != nil {
+						log.Printf("FALSE IndexQuery hash=%s", hash)
+						break fortodo
+					}
+					switch isDup {
+					case history.CasePass:
+						// pass
+					//case history.CaseAdded:
+					//	// is not a possible response here
+					//	break fortodo
+					case history.CaseDupes:
+						dupes++
+						continue fortodo
+					case history.CaseRetry:
+						retry++
+						continue fortodo
+					default:
+						log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
+						break fortodo
+					}
+				} // end if useHashDB
 
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
@@ -244,7 +250,7 @@ func main() {
 				}
 				history.History.WriterChan <- hobj
 
-				if useHashDB && responseChan != nil {
+				if (useHashDB || useL1Cache) && responseChan != nil {
 					select {
 					case isDup, ok := <-responseChan:
 						if !ok {
