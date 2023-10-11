@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	BoltDBs                 int = 16 // never change this!
+	// never change this!
+	BoltDBs                 int = 16
 	DefaultBoltINITParallel     = BoltDBs
 	DefaultBoltSYNCParallel     = BoltDBs
 
