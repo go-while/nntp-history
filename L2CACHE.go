@@ -191,8 +191,8 @@ forever:
 
 func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 	shrinkmin := L2InitSize
-	thresholdFactor := 20 // shrink if percentage used of cache is lower than N
-	threshold := int(oldmax / 100 * thresholdFactor)
+	// shrink if percentage of cache usage is lower than DefaultThresholdFactor
+	threshold := int(float64(oldmax) / 100 * DefaultThresholdFactor)
 	if maplen > threshold {
 		return true
 	}
