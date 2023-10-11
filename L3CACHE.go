@@ -182,7 +182,7 @@ func (l3 *L3CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 
 func (l3 *L3CACHE) shrinkMap(char string, newmax int, maplen int) bool {
 	if char == "" {
-		log.Printf("ERROR L1CACHE shrinkMap char=nil")
+		log.Printf("ERROR L3CACHE shrinkMap char=nil")
 		return false
 	}
 	newmap := make(map[string]*L3ITEM, newmax)
