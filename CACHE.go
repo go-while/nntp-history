@@ -108,16 +108,13 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 		return
 	}
 	set := 0
-	// l1 key
-	if hash != "" {
+	if hash != "" { // l1
 		set++
 	}
-	// l2 key
-	if offset > 0 {
+	if offset > 0 { // l2
 		set++
 	}
-	// l3 key
-	if key != "" {
+	if key != "" { // l3
 		set++
 	}
 	if set <= 0 { // need at least one value
@@ -172,13 +169,13 @@ func (his *HISTORY) CacheEvictThread() {
 						}
 
 						logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
-						if item.hash != "" { // l1 key
+						if item.hash != "" { // l1 hash
 							tmpHash = append(tmpHash, item)
 						}
-						if item.offset > 0 { // l2key
+						if item.offset > 0 { // l2 offset
 							tmpOffset = append(tmpOffset, item)
 						}
-						if item.key != "" { // l3key
+						if item.key != "" { // l3 key
 							tmpKey = append(tmpKey, item)
 						}
 						if len(tmpHash) >= clearEveryN || len(tmpOffset) >= clearEveryN || len(tmpKey) >= clearEveryN {
