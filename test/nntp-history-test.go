@@ -40,15 +40,18 @@ func main() {
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
-	flag.IntVar(&numCPU, "numcpu", 4, "Limit CPU cores")
+	flag.IntVar(&numCPU, "numcpu", 0, "Limit CPU cores")
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
 	flag.BoolVar(&useL1Cache, "useL1Cache", true, "[true | false] (works only with useHashDB=false)")
-	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false")
-	flag.BoolVar(&history.AdaptiveBatchSizeON, "adaptBatch", false, "true | false")
+
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
-	flag.IntVar(&BatchSize, "BatchSize", 256, "You no mess with Lo Wang!")
+	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false")
+	flag.BoolVar(&history.AdaptiveBatchSizeON, "AdaptiveBatchSizeON", false, "true | false")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-5000")
+	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "1-65536")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 1000, "0-65536")
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in for loop below")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.Parse()
@@ -89,11 +92,11 @@ func main() {
 		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024          // default: 16 * 1024 * 1024
 		//history.AdaptiveBatchSizeON = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
-		history.CharBucketBatchSize = BatchSize // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
+		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
-		history.BoltSyncEveryS = 60    // only used with 'boltopts.NoSync: true' default: 5 seconds
-		history.BoltSyncEveryN = 50000 // only used with 'boltopts.NoSync: true' default: 100
+		//history.BoltSyncEveryS = 60    // only used with 'boltopts.NoSync: true' default: 5 seconds
+		//history.BoltSyncEveryN = 50000 // only used with 'boltopts.NoSync: true' default: 100
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16 // used when booting and initalizing bolt databases
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
@@ -105,7 +108,7 @@ func main() {
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 2 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        64 * 1024,
+			PageSize:        4 * 1024,
 			//NoSync:         true,
 			//NoGrowSync:     true,
 			//NoFreelistSync: true,
