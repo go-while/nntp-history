@@ -122,7 +122,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 	logf(DEBUG, "his.boltDB_Init() AdaptiveBatchSizeON=%t", AdaptiveBatchSizeON)
 	if DEBUG {
-		// run manually later: go history.History.WatchBolt()
+		// run manually: go history.History.WatchBolt()
 		go his.WatchBolt()
 	}
 	go his.boltDB_Index()
