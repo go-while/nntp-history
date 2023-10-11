@@ -107,10 +107,16 @@ forever:
 		getexpired:
 			for key, item := range l3.Caches[char].cache {
 				if extends[key] {
-					if len(l3.Caches[char].cache[key].offsets) > 0 {
+					if len(item.offsets) > 0 {
+						l3.Caches[char].cache[key].offsets = item.offsets
 						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
 						l3.Counter[char]["Count_BatchD"] += 1
 					} else {
+						/* else if len(l3.Caches[char].cache[key].offsets) > 0 {
+							l3.Caches[char].cache[key].expires = now + L3ExtendExpires
+							l3.Counter[char]["Count_BatchD"] += 1
+						}
+						else {*/
 						didnotexist++
 					}
 					delete(extends, key)
