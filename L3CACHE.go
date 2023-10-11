@@ -232,7 +232,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexp
 		l3.Caches[char].cache = newmap
 		l3.mapsizes[char].maxmapsize = newmax
 		l3.Counter[char]["Count_Growup"] += 1
-		logf(DBG_CGS, "L3CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DBG_CGS, "L3CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 	expires := NoExpiresVal
 	if flagexpires {
