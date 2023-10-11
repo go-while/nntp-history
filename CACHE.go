@@ -22,7 +22,7 @@ var (
 	DefaultCacheExpires   int64 = 15
 	DefaultCacheExtend    int64 = DefaultCacheExpires
 	DefaultCachePurge     int64 = 5  // seconds
-	DefaultTryShrinkEvery int64 = 15 // shrinks cache maps only every N seconds
+	DefaultTryShrinkEvery int64 = 60 // shrinks cache maps only every N seconds
 	DefaultEvictsCapacity int   = 4  // his.cEvCap is normally fine as is
 )
 
