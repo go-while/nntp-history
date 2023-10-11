@@ -108,7 +108,7 @@ fetchbatch:
 			logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
 			his.DoCacheEvict(*bo.char, *bo.hash, 0, *bo.char+*bo.bucket+*bo.key)
 			for _, offset := range *bo.offsets {
-				his.DoCacheEvict(*bo.char, *bo.hash, offset, emptyStr)
+				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
 			}
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
