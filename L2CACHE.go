@@ -114,22 +114,8 @@ forever:
 						log.Printf("ERROR L2 [%s] char != extends[offset=%d].char='%s'", char, offset, extends[offset].char)
 						os.Exit(1)
 					}
-
-					//if l2.Caches[char].cache[offset].hash == extends[offset].hash {
-					//if item.hash == extends[offset].hash {
-					/*
-						if item.hash != extends[offset].hash {
-							log.Printf("ERROR L2 [%s] item.hash='%s' != extends[offset=%d].hash='%s'", char, item.hash, offset, extends[offset].hash)
-							os.Exit(1)
-						} else if item.hash == "" {
-							l2.Caches[char].cache[offset].hash = extends[offset].hash
-						}
-					*/
 					l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
 					l2.Counter[char]["Count_BatchD"] += 1
-					//} else {
-					//	didnotexist++
-					//}
 					delete(extends, offset)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now {
@@ -140,10 +126,6 @@ forever:
 
 			// there may be some offsets left in extends but maybe already expired
 			for offset, item := range extends {
-				//if item.hash == "" {
-				//	log.Printf("ERROR L2 [%s] extends left hash empty offset=%d item='%#v'", char, offset, item)
-				//	continue
-				//}
 				if item.char != char {
 					log.Printf("ERROR L2 [%s] extends item.char != char offset=%d item='%#v'", char, offset, item)
 					continue
