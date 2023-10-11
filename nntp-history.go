@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	ALWAYS = true
 	//TESTHASH1 string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
@@ -232,9 +233,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		HashDBlogstr = fmt.Sprintf("KeyAlgo=%d KeyLen=%d NumQueueIndexChan=%d NumQueueindexChans=%d BatchSize=%d IndexParallel=%d", his.keyalgo, his.keylen, NumQueueIndexChan, NumQueueindexChans, CharBucketBatchSize, IndexParallel)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: new=%t\n  hisDat='%s' DB='%s.[0-9a-f]' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, his.hisDatDB, NumQueueWriteChan, DefaultCacheExpires)
+	log.Printf("History: new=%t\n  hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires)
 	if his.useHashDB {
-		log.Printf("  HashDB:{%s}", HashDBlogstr)
+		log.Printf("   DB='%s.[0-9a-f]' HashDB:{%s}", his.hisDatDB, HashDBlogstr)
 	}
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
@@ -382,7 +383,7 @@ forever:
 	if err := fh.Close(); err != nil {
 		log.Printf("ERROR history_Writer fh.Close err='%v'", err)
 	}
-	logf(DEBUG1, "history_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.hisDat, wbt, his.Offset, wroteLines)
+	logf(ALWAYS, "history_Writer closed fp='%s' wbt=%d offset=%d wroteLines=%d", his.hisDat, wbt, his.Offset, wroteLines)
 } // end func history_Writer
 
 func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flush bool, wbt *uint64) error {
@@ -579,13 +580,18 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
 		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
-		lock5, v5 := len(his.batchQueues.Booted) > 0, len(his.batchQueues.Booted)
+		lock5, v5 := false, 0
+		if his.useHashDB {
+			lock5, v5 = len(his.batchQueues.Booted) > 0, len(his.batchQueues.Booted)
+		}
 
 		batchQ, batchLOCKS := 0, 0
-		for _, char := range HEXCHARS {
-			for _, bucket := range HEXCHARS {
-				batchQ += len(his.batchQueues.Maps[char][bucket])
-				batchLOCKS += len(his.BatchLocks[char][bucket])
+		if his.useHashDB {
+			for _, char := range HEXCHARS {
+				for _, bucket := range HEXCHARS {
+					batchQ += len(his.batchQueues.Maps[char][bucket])
+					batchLOCKS += len(his.BatchLocks[char][bucket])
+				}
 			}
 		}
 		batchQueued := batchQ > 0
