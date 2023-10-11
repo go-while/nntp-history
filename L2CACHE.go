@@ -255,7 +255,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		l2.Caches[char].cache = newmap
 		l2.mapsizes[char].maxmapsize = newmax
 		l2.Counter[char]["Count_Growup"] += 1
-		logf(DBG_CGS, "L2CACHE grow newmap=%d/%d (took %d ms)", len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DBG_CGS, "L2CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 	expires := NoExpiresVal
 	if flagexpires {
