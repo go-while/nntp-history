@@ -254,6 +254,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useHashDB bool, useL1Cache b
 	his.WriterChan <- hobj // blocks if channel is full
 
 	if (useHashDB || useL1Cache) && hobj.ResponseChan != nil {
+		// wait for reponse from ResponseChan
 		select {
 		case isDup, ok := <-hobj.ResponseChan:
 			if !ok {
@@ -262,20 +263,6 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useHashDB bool, useL1Cache b
 				return -999
 			} else {
 				return isDup
-				/*
-					switch isDup {
-					case history.CaseAdded:
-						added++
-					case history.CaseDupes:
-						adddupes++
-					case history.CaseRetry:
-						addretry++
-					default:
-						errors++
-						log.Printf("main: ERROR fortodo unknown switch isDup=%d from responseChan", isDup)
-						break fortodo
-					}
-				*/
 			}
 		} // end select
 	} // end responseChan
