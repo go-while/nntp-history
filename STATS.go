@@ -39,6 +39,9 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 } // end func PrintGetBoltStatsEvery
 
 func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) {
+	if !his.useHashDB {
+		return
+	}
 	his.boltmux.Lock()
 	defer his.boltmux.Unlock()
 	if his.BoltDBsMap[char].BoltDB != nil {
@@ -57,6 +60,9 @@ func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) 
 } // end func GetBoltStat
 
 func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int) {
+	if !his.useHashDB {
+		return
+	}
 	if char != "" {
 		return his.GetBoltStat(char, print)
 	}
@@ -69,6 +75,9 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 } // end func GetBoltStats
 
 func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
+	if !his.useHashDB {
+		return
+	}
 	if char != "" {
 		for _, bucket := range HEXCHARS {
 			if his.BoltDBsMap[char].BoltDB != nil {
@@ -94,6 +103,10 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
 	var stats bolt.Stats
 
+	if !his.useHashDB {
+		return stats, nil
+	}
+
 	if db == nil {
 		return stats, fmt.Errorf("ERROR getDBStats db=nil")
 	}
@@ -109,6 +122,9 @@ func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
 
 func (his *HISTORY) getBucketStats(db *bolt.DB, bucketName string) (bolt.BucketStats, error) {
 	var stats bolt.BucketStats
+	if !his.useHashDB {
+		return stats, nil
+	}
 
 	if db == nil {
 		return stats, fmt.Errorf("ERROR getBucketStats db=nil")
