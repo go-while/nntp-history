@@ -57,8 +57,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	//gob.Register(GOBOFFSETS{})
 	gob.Register(HistorySettings{})
 
-	his.L2Cache.L2CACHE_Boot()
-	his.L3Cache.L3CACHE_Boot()
+	his.L2Cache.L2CACHE_Boot(his)
+	his.L3Cache.L3CACHE_Boot(his)
 
 	his.batchQueues = &BQ{}
 	his.batchQueues.Booted = make(chan struct{}, 16*16)                  // char [0-9a-f] * bucket [0-9a-f]
@@ -106,6 +106,10 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	} else if NumQueueindexChans > 1024*1024 {
 		NumQueueindexChans = 1024 * 1024
 	}
+	if DefaultEvictsCapacity < 65536 {
+		DefaultEvictsCapacity = 65536
+	}
+	his.cEvCap = DefaultEvictsCapacity
 	his.adaptBatch = AdaptiveBatchSizeON
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
 	his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
