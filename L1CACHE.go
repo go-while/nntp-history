@@ -190,6 +190,7 @@ forever:
 				//clear(extends)
 				//extends = nil
 				if int64(lenExt) >= mapsize {
+					log.Printf("INFO L1 [%s] grow extends=%d/%d", char, lenExt, mapsize)
 					mapsize = int64(lenExt) * 3
 				}
 				extends = make(map[string]bool, mapsize)
