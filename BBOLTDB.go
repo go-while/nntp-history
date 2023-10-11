@@ -121,6 +121,9 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		go his.boltDB_Worker(char, i, his.indexChans[i], boltOpts)
 	}
 	logf(DEBUG, "his.boltDB_Init() AdaptiveBatchSizeON=%t", AdaptiveBatchSizeON)
+	if DEBUG {
+		go his.WatchBatchInsert()
+	}
 	go his.boltDB_Index()
 } // end func boltDB_Init
 
