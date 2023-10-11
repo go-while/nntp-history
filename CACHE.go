@@ -15,7 +15,7 @@ const (
 	FlagCacheSyncExtend          = 0x42
 	FlagCacheSyncDelete          = 0x66
 	FlagCacheChanExtend          = 0x99
-	DefaultThresholdFactor       = 10
+	DefaultThresholdFactor       = 10 // shrinks caches if cache usage is below N percent
 )
 
 var (
