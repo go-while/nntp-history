@@ -21,9 +21,9 @@ var (
 	DBG_CGS               bool  // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 15
 	DefaultCacheExtend    int64 = DefaultCacheExpires
-	DefaultCachePurge     int64 = 5  // seconds
-	DefaultTryShrinkEvery int64 = 15 // shrinks cache maps only every N seconds
-	DefaultEvictsCapacity int   = 65536
+	DefaultCachePurge     int64 = 5    // seconds
+	DefaultTryShrinkEvery int64 = 15   // shrinks cache maps only every N seconds
+	DefaultEvictsCapacity int   = 1024 // his.cEvCap
 )
 
 func (his *HISTORY) PrintCacheStats() {
@@ -124,9 +124,14 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 		return
 	}
 	// pass ClearCache object to evictChan in CacheEvictThread()
-	lench := len(his.cacheEvicts[char])
-	if lench >= int(his.cEvCap/100*95) {
-		log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d 95%%full", char, lench, his.cEvCap)
+	if DEBUG {
+		lench := len(his.cacheEvicts[char])
+		limit := int(float64(his.cEvCap) * 0.95)
+		if lench > limit {
+			log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d near-full", char, lench, his.cEvCap, limit)
+		} else {
+			//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
+		}
 	}
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
