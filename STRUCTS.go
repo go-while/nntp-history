@@ -43,6 +43,7 @@ type HISTORY struct {
 	batchQueues *BQ
 	cacheEvicts map[string]chan *ClearCache
 	adaptBatch  bool // AdaptiveBatchSize
+	WBR         bool // WatchBoltRunning
 }
 
 /* builds the history.dat header */
