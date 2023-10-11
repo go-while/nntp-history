@@ -323,6 +323,9 @@ func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64)
 	if key == "" {
 		retmap = make(map[string]uint64)
 	}
+	if l3 == nil || l3.muxers == nil {
+		return
+	}
 	for _, char := range HEXCHARS {
 		l3.muxers[char].mux.Lock()
 		switch key {
