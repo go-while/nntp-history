@@ -241,6 +241,47 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
 
+func (his *HISTORY) AddHistory(hobj *HistoryObject, useHashDB bool, useL1Cache bool) int {
+	if hobj == nil {
+		log.Printf("ERROR AddHistory hobj=nil")
+		return -999
+	}
+	if his.WriterChan == nil {
+		log.Printf("ERROR AddHistory his.WriterChan=nil")
+		return -999
+	}
+
+	his.WriterChan <- hobj // blocks if channel is full
+
+	if (useHashDB || useL1Cache) && hobj.ResponseChan != nil {
+		select {
+		case isDup, ok := <-hobj.ResponseChan:
+			if !ok {
+				// error: responseChan got closed
+				log.Printf("ERROR AddHistory responseChan closed! hash='%#v'", hobj.MessageIDHash)
+				return -999
+			} else {
+				return isDup
+				/*
+					switch isDup {
+					case history.CaseAdded:
+						added++
+					case history.CaseDupes:
+						adddupes++
+					case history.CaseRetry:
+						addretry++
+					default:
+						errors++
+						log.Printf("main: ERROR fortodo unknown switch isDup=%d from responseChan", isDup)
+						break fortodo
+					}
+				*/
+			}
+		} // end select
+	} // end responseChan
+	return -999
+} // end func AddHistory
+
 func (his *HISTORY) wait4HashDB() {
 	now := utils.UnixTimeSec()
 	if his.useHashDB {
