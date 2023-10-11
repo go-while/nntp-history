@@ -297,7 +297,7 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 				if DEBUG {
 					lench := len(l3.Extend[char])
 					if lench >= int(his.cEvCap/100*95) {
-						log.Printf("WARN L3 Extend[%s]chan=%d/%d 95%%full", char, lench, his.cEvCap)
+						log.Printf("WARN L3 Extend[%s]chan=%d/his.cEvCap=%d 95%%full", char, lench, his.cEvCap)
 					}
 				}
 				l3.Extend[char] <- item.key
