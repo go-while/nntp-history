@@ -139,19 +139,20 @@ func (his *HISTORY) WatchBolt() {
 		if insertednow > inserted {
 			diff := insertednow - inserted
 			pps := diff / 15
-			log.Printf("WatchBolt: inserted %d / sec (inserted %d in 15 sec)", pps, diff)
+			log.Printf("WatchBolt: (inserted %d / sec) (+%d inserted in 15 sec)", pps, diff)
 			inserted = insertednow
 		}
 		if batchinsnow > batchins {
 			diff := batchinsnow - batchins
 			pps := diff / 15
-			log.Printf("WatchBolt: batchins %d / sec (batchins %d in 15 sec)", pps, diff)
 			batchins = batchinsnow
+			medbatchsize := uint64(inserted / batchins)
+			log.Printf("WatchBolt: (batchins %d / sec) (+%d batchins in 15 sec) batchsize=~%d", pps, diff, medbatchsize)
 		}
 		if searchesnow > searches {
 			diff := searchesnow - searches
 			pps := diff / 15
-			log.Printf("WatchBolt: searches %d / sec (searches %d in 15 sec)", pps, diff)
+			log.Printf("WatchBolt: (searches %d / sec) (+%d searches in 15 sec)", pps, diff)
 			searches = searchesnow
 		}
 	}
