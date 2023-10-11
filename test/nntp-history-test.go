@@ -31,29 +31,31 @@ func main() {
 	var KeyAlgo int
 	var KeyLen int
 	var debugs int
-	var BatchSize int
 	var RebuildHashDB bool
 	var PprofAddr string
 	var isleep int
 	var useL1Cache bool
-	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
-	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
+	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
+	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
+	flag.IntVar(&numCPU, "numcpu", 0, "Limit CPU cores")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
 	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
-	flag.IntVar(&numCPU, "numcpu", 0, "Limit CPU cores")
+	flag.IntVar(&debugs, "debugs", -1, "-1 = default|0 = more|1 = all")
+
+	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
+
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
-	flag.BoolVar(&useL1Cache, "useL1Cache", true, "[true | false] (works only with useHashDB=false)")
 
-	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
-	flag.IntVar(&KeyLen, "keylen", 6, "md5: 6-32|sha256: 6-64|sha512: 6-128")
+	flag.BoolVar(&useL1Cache, "useL1Cache", true, "[true | false] (works only with useHashDB=false)")
+	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
+	flag.IntVar(&KeyLen, "keylen", 6, "min:4 default:6 [md5: 6-32|sha256: 6-64|sha512: 6-128]") // set keylen to match your hashing algo
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false")
 	flag.BoolVar(&history.AdaptiveBatchSizeON, "AdaptiveBatchSizeON", false, "true | false")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-5000")
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "1-65536")
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 1000, "0-65536")
-	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in for loop below")
-	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
+
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
@@ -67,7 +69,7 @@ func main() {
 	}
 	history.History.SET_DEBUG(debugs)
 	//history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data after encoding
-	history.DBG_CGS = true // prints cache grow/shrink
+	//history.DBG_CGS = true // prints cache grow/shrink
 	//history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
 	//history.DBG_FBQ1 = true   // prints adaptive batchsize
 	//history.DBG_FBQ2 = true   // prints adaptive batchsize
@@ -123,14 +125,9 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
+	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
-	if useHashDB {
-		go history.History.WatchBolt()
-		go history.History.PrintGetBoltStatsEvery("", 15*time.Second)
-	}
-	go history.PrintMemoryStatsEvery(30 * time.Second)
 	// check command line arguments to execute commands
 	if RebuildHashDB {
 		defer history.History.CLOSE_HISTORY()
@@ -150,7 +147,13 @@ func main() {
 		fmt.Printf("History @offset=%d line='%s'\n", offset, *result)
 		os.Exit(0)
 	}
+	if useHashDB {
+		go history.History.WatchBolt()
+		go history.History.PrintGetBoltStatsEvery("", 15*time.Second)
+	}
+	go history.PrintMemoryStatsEvery(30 * time.Second)
 
+	// start test
 	P_donechan := make(chan struct{}, parallelTest)
 	for p := 1; p <= parallelTest; p++ {
 
@@ -267,9 +270,9 @@ func main() {
 				}
 
 			} // end for i todo
-			P_donechan <- struct{}{}
 			sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 			log.Printf("End test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d sum=%d/%d errors=%d locked=%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo, errors, locked)
+			P_donechan <- struct{}{}
 		}(p) // end go func parallel
 	} // end for parallelTest
 
@@ -281,7 +284,7 @@ func main() {
 		time.Sleep(time.Second / 10)
 	}
 	took := utils.UnixTimeSec() - start
-
+	log.Printf("main: CLOSING HISTORY")
 	// close history
 	closewait := utils.UnixTimeSec()
 	history.History.CLOSE_HISTORY()
