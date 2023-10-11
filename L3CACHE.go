@@ -110,6 +110,7 @@ forever:
 				if extends[key] {
 					if len(l3.Caches[char].cache[key].offsets) > 0 {
 						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
+						l3.Counter[char]["Count_BatchD"] += 1
 					} else {
 						didnotexist++
 					}
