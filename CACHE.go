@@ -21,9 +21,9 @@ var (
 	DBG_CGS               bool  // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 15
 	DefaultCacheExtend    int64 = DefaultCacheExpires
-	DefaultCachePurge     int64 = 5    // seconds
-	DefaultTryShrinkEvery int64 = 15   // shrinks cache maps only every N seconds
-	DefaultEvictsCapacity int   = 1024 // his.cEvCap
+	DefaultCachePurge     int64 = 5  // seconds
+	DefaultTryShrinkEvery int64 = 15 // shrinks cache maps only every N seconds
+	DefaultEvictsCapacity int   = 4  // his.cEvCap is normally fine as is
 )
 
 func (his *HISTORY) PrintCacheStats() {
@@ -147,8 +147,7 @@ func (his *HISTORY) CacheEvictThread() {
 			log.Printf("ERROR CacheEvictThread [%s] already created!", char)
 			continue
 		}
-		evictChan := make(chan *ClearCache, his.cEvCap)
-		his.cacheEvicts[char] = evictChan
+		his.cacheEvicts[char] = make(chan *ClearCache, his.cEvCap)
 		// launch a go func for every char with own evictChan
 		go func(char string, evictChan chan *ClearCache) {
 			var tmpHash []*ClearCache
@@ -214,6 +213,6 @@ func (his *HISTORY) CacheEvictThread() {
 				}
 				continue forever
 			} // end forever
-		}(char, evictChan)
+		}(char, his.cacheEvicts[char])
 	} // end for HEXCHARS
 } // end func CACHE_EVICTER
