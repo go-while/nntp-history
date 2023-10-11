@@ -163,6 +163,7 @@ forever:
 						os.Exit(1)
 					}
 					if expired {
+						//logf(DEBUG, "L1 expire [%s] hash='%#v' item='%#v'", char, hash, item)
 						cleanup = append(cleanup, hash)
 					}
 				}
@@ -333,7 +334,7 @@ func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCach
 		return
 	}
 	if len(tmpHash) == 0 {
-		//log.Printf("DelExtL1batch [%s] tmpHash empty", char)
+		log.Printf("DelExtL1batch [%s] tmpHash empty", char)
 		return
 	}
 	if flagCacheDelExt == FlagCacheChanExtend {
