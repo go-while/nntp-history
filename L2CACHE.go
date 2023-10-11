@@ -345,6 +345,9 @@ func (l2 *L2CACHE) L2Stats(key string) (retval uint64, retmap map[string]uint64)
 	if key == "" {
 		retmap = make(map[string]uint64)
 	}
+	if l2 == nil || l2.muxers == nil {
+		return
+	}
 	for _, char := range HEXCHARS {
 		l2.muxers[char].mux.Lock()
 		switch key {
