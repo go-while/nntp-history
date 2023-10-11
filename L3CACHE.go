@@ -116,6 +116,7 @@ forever:
 					delete(extends, key)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now {
+					//logf(DEBUG, "L3 expire [%s] key='%#v' item='%#v'", char, key, item)
 					cleanup = append(cleanup, key)
 				}
 			} // end for getexpired
@@ -288,7 +289,7 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 		return
 	}
 	if len(tmpKey) == 0 {
-		//log.Printf("DelExtL3batch [%s] tmpKey empty", char)
+		log.Printf("DelExtL3batch [%s] tmpKey empty", char)
 		return
 	}
 	if flagCacheDelExt == FlagCacheChanExtend {
