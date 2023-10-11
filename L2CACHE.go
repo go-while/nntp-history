@@ -195,8 +195,8 @@ func (l2 *L2CACHE) shrinkMap(char string, newmax int, maplen int) bool {
 			newmap[k] = v
 		}
 	}
-	clear(l2.Caches[char].cache)
-	l2.Caches[char].cache = nil
+	//clear(l2.Caches[char].cache)
+	//l2.Caches[char].cache = nil
 	l2.Caches[char].cache = newmap
 	l2.mapsizes[char].maxmapsize = newmax
 	l2.Counter[char]["Count_Shrink"] += 1
@@ -225,8 +225,8 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		for k, v := range l2.Caches[char].cache {
 			newmap[k] = v
 		}
-		clear(l2.Caches[char].cache)
-		l2.Caches[char].cache = nil
+		//clear(l2.Caches[char].cache)
+		//l2.Caches[char].cache = nil
 		l2.Caches[char].cache = newmap
 		l2.mapsizes[char].maxmapsize = newmax
 		l2.Counter[char]["Count_Growup"] += 1
