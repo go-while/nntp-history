@@ -121,7 +121,7 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 	// pass ClearCache object to evictChan in CacheEvictThread()
 	if DEBUG {
 		lench := len(his.cacheEvicts[char])
-		limit := int(float64(his.cEvCap) * 0.95)
+		limit := int(float64(his.cEvCap) * 0.75)
 		if lench > limit {
 			log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d near-full", char, lench, his.cEvCap, limit)
 		} else {
