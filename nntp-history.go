@@ -241,7 +241,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
 
-func (his *HISTORY) AddHistory(hobj *HistoryObject, useHashDB bool, useL1Cache bool) int {
+func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	if hobj == nil {
 		log.Printf("ERROR AddHistory hobj=nil")
 		return -999
@@ -253,7 +253,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useHashDB bool, useL1Cache b
 
 	his.WriterChan <- hobj // blocks if channel is full
 
-	if (useHashDB || useL1Cache) && hobj.ResponseChan != nil {
+	if (his.useHashDB || useL1Cache) && hobj.ResponseChan != nil {
 		// wait for reponse from ResponseChan
 		select {
 		case isDup, ok := <-hobj.ResponseChan:
@@ -270,12 +270,13 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useHashDB bool, useL1Cache b
 } // end func AddHistory
 
 func (his *HISTORY) wait4HashDB() {
-	now := utils.UnixTimeSec()
 	if his.useHashDB {
+		now := utils.UnixTimeSec()
 		for {
 			time.Sleep(10 * time.Millisecond)
 			if len(BoltHashOpen) == BoltDBs {
-				break
+				//logf(DEBUG2, "Booted HashDB")
+				return
 			}
 			took := utils.UnixTimeSec() - now
 			if took >= 15 {
@@ -284,7 +285,6 @@ func (his *HISTORY) wait4HashDB() {
 			}
 		}
 	}
-	//log.Printf("Booted HashDB")
 } // end func wait4HashDB
 
 // history_Writer writes historical data to the specified file and manages the communication with the history database (HashDB).
@@ -368,13 +368,12 @@ forever:
 							log.Printf("ERROR history_Writer dw.Flush err='%v'", err)
 							break forever
 						}
+						log.Printf("INFO history_Writer CaseRetry EOF flushed hisDat hash='%s' offset=%d", *hobj.MessageIDHash, his.Offset)
 						continue forever
-					//case CasePass:
-					//	is not a possible response here
 					case CaseAdded:
 						// pass
 					default:
-						log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x=%#v", err, isDup, isDup, isDup)
+						log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x", err, isDup, isDup)
 						break forever
 					}
 
