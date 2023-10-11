@@ -18,6 +18,7 @@ var (
 
 type L2CACHE struct {
 	Caches   map[string]*L2CACHEMAP
+	Extend   map[string]chan int64
 	muxers   map[string]*L2MUXER
 	mapsizes map[string]*MAPSIZES
 	mux      sync.Mutex
@@ -47,11 +48,13 @@ func (l2 *L2CACHE) L2CACHE_Boot() {
 		return
 	}
 	l2.Caches = make(map[string]*L2CACHEMAP, 16)
+	l2.Extend = make(map[string]chan int64, 16)
 	l2.muxers = make(map[string]*L2MUXER, 16)
 	l2.mapsizes = make(map[string]*MAPSIZES, 16)
 	l2.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
+		l2.Extend[char] = make(chan int64, 256*1024)
 		l2.muxers[char] = &L2MUXER{}
 		l2.mapsizes[char] = &MAPSIZES{maxmapsize: L2InitSize}
 		l2.Counter[char] = make(map[string]uint64)
@@ -72,47 +75,94 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 	logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
 	lastshrink := utils.UnixTimeSec()
 	cleanup := []int64{}
-	//forever
+	l2purge := L2Purge
+	if l2purge < 1 {
+		l2purge = 1
+	}
+	mapsize := 1024 * l2purge
+	extends := make(map[int64]bool, mapsize)
+	timer := time.NewTimer(time.Duration(l2purge) * time.Second)
+	timeout := false
+	didnotexist := 0
+forever:
 	for {
-		time.Sleep(time.Duration(L2Purge) * time.Second)
-		now := utils.UnixTimeSec()
-		start := utils.UnixTimeMilliSec()
-
-		l2.muxers[char].mux.Lock()
-		for key, item := range l2.Caches[char].cache {
-			if item.expires > 0 && item.expires < now {
-				logf(DEBUGL2, "L2 expire key='%#v' item='%#v' age=%d", key, item, now-item.expires)
-				cleanup = append(cleanup, key)
-			}
+		if timeout {
+			timeout = false
+			timer.Reset(time.Duration(l2purge) * time.Second)
 		}
-		maplen := len(l2.Caches[char].cache)
-		oldmax := l2.mapsizes[char].maxmapsize
-		l2.muxers[char].mux.Unlock()
+		select {
+		case offset := <-l2.Extend[char]:
+			// got offset we will extend in next timer.C run
+			if offset > 0 {
+				extends[offset] = true
+			}
+		case <-timer.C:
 
-		if len(cleanup) > 0 {
-			maplen -= len(cleanup)
+			timeout = true
+			lenExt := len(extends)
+			if didnotexist > 0 {
+				log.Printf("INFO L2 [%s] extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
+			}
+			now := utils.UnixTimeSec()
+			start := utils.UnixTimeMilliSec()
+
 			l2.muxers[char].mux.Lock()
-			for _, key := range cleanup {
-				delete(l2.Caches[char].cache, key)
-				l2.Counter[char]["Count_Delete"] += 1
-			}
-			max := l2.mapsizes[char].maxmapsize
+		getexpired:
+			for offset, item := range l2.Caches[char].cache {
+				if extends[offset] {
+					if l2.Caches[char].cache[offset].hash != "" {
+						l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
+					} else {
+						didnotexist++
+					}
+					delete(extends, offset)
+					continue getexpired
+				} else if item.expires > 0 && item.expires < now {
+					logf(DEBUGL2, "L2 expire offset='%#v' item='%#v' age=%d", offset, item, now-item.expires)
+					cleanup = append(cleanup, offset)
+				}
+			} // end for getexpired
+			maplen := len(l2.Caches[char].cache)
+			oldmax := l2.mapsizes[char].maxmapsize
 			l2.muxers[char].mux.Unlock()
-			logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
-			cleanup = nil
-		}
-		if lastshrink < now-DefaultTryShrinkEvery {
-			l2.shrinkMapIfNeeded(char, maplen, oldmax)
-			lastshrink = now
-		}
-		logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+
+			if len(cleanup) > 0 {
+				maplen -= len(cleanup)
+				l2.muxers[char].mux.Lock()
+				for _, offset := range cleanup {
+					delete(l2.Caches[char].cache, offset)
+					l2.Counter[char]["Count_Delete"] += 1
+				}
+				max := l2.mapsizes[char].maxmapsize
+				l2.muxers[char].mux.Unlock()
+				logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
+				cleanup = nil
+			}
+			if lastshrink < now-DefaultTryShrinkEvery {
+				l2.shrinkMapIfNeeded(char, maplen, oldmax)
+				lastshrink = now
+			}
+			if len(extends) != 0 {
+				//log.Printf("ERROR L2 extends=%d='%#v' != 0", len(extends), extends)
+				log.Printf("ERROR L2 extends=%d != 0", len(extends))
+			} else {
+				//clear(extends)
+				//extends = nil
+				if int64(lenExt) >= mapsize {
+					mapsize = int64(lenExt) * 3
+				}
+				extends = make(map[int64]bool, mapsize)
+			}
+			logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+			continue forever
+		} // end select
 	} // end for
 
 } //end func L2Cache_Thread
 
 func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 	shrinkmin := L2InitSize
-	thresholdFactor := 20 // percent
+	thresholdFactor := 20 // shrink if percentage used of cache is lower than N
 	threshold := int(oldmax / 100 * thresholdFactor)
 	if maplen > threshold {
 		return true
@@ -120,7 +170,7 @@ func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 	thresmax := threshold * 2
 	logf(DEBUGL2, "L2 [%s] PRE-SHRINK maplen=%d threshold=%d oldmax=%d thresmax=%d", char, maplen, threshold, oldmax, thresmax)
 	if maplen < threshold && oldmax >= thresmax && thresmax > shrinkmin {
-		newmax := threshold * 2
+		newmax := threshold * 4
 		if newmax < shrinkmin {
 			newmax = shrinkmin
 		} else if oldmax == shrinkmin && newmax == shrinkmin {
@@ -217,7 +267,7 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64) (hash *string) {
 
 /*
 // The Delete method deletes a cache item from the L2 cache using an offset as the key.
-func (l2 *L2CACHE) DeleteL2(offset *int64) {
+func (l2 *L2CACHE) DelExtL2(offset *int64) {
 	if offset == nil || *offset <= 0 {
 		log.Printf("ERROR L2CACHEDel offset=nil")
 		return
@@ -228,32 +278,45 @@ func (l2 *L2CACHE) DeleteL2(offset *int64) {
 		delete(l2.Caches[*char].cache, *offset)
 	}
 	l2.muxers[*char].mux.Unlock()
-} // end func DeleteL2
+} // end func DelExtL2
 */
 
-// The DeleteL2batch method deletes multiple cache items from the L2 cache.
-func (l2 *L2CACHE) DeleteL2batch(tmpOffset []*ClearCache) {
+// The DelExtL2batch method deletes multiple cache items from the L2 cache.
+func (l2 *L2CACHE) DelExtL2batch(tmpOffset []*ClearCache, flagCacheDelExt int) {
 	if len(tmpOffset) == 0 {
-		//log.Printf("DeleteL2batch tmpOffset empty")
+		//log.Printf("DelExtL2batch tmpOffset empty")
+		return
+	}
+	if flagCacheDelExt == FlagCacheChanExtend {
+		for _, item := range tmpOffset {
+			if item.offset > 0 {
+				char := OffsetToChar(item.offset)
+				l2.Extend[char] <- item.offset
+			}
+		}
 		return
 	}
 	now := utils.UnixTimeSec()
 	for _, item := range tmpOffset {
 		if item.offset > 0 {
 			char := OffsetToChar(item.offset)
-			//log.Printf("DeleteL2batch char=%s offset=%d offsets=%d", char, item.offset, len(tmpOffset))
+			//log.Printf("DelExtL2batch char=%s offset=%d offsets=%d", char, item.offset, len(tmpOffset))
 			l2.muxers[char].mux.Lock()
 			if _, exists := l2.Caches[char].cache[item.offset]; exists {
-				//delete(l2.Caches[*char].cache, *item.offset)
-				// dont delete from cache but extend expiry time
-				l2.Caches[char].cache[item.offset].expires = now + L2ExtendExpires
+				switch flagCacheDelExt {
+				case FlagCacheSyncDelete:
+					delete(l2.Caches[char].cache, item.offset)
+				case FlagCacheSyncExtend:
+					// dont delete from cache but extend expiry time
+					l2.Caches[char].cache[item.offset].expires = now + L2ExtendExpires
+				}
 				l2.Counter[char]["Count_BatchD"] += 1
 			}
 			l2.muxers[char].mux.Unlock()
 		}
 	}
 
-} // end func DeleteL2batch
+} // end func DelExtL2batch
 
 func OffsetToChar(offset int64) string {
 	if offset <= 0 {
