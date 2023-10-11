@@ -64,7 +64,7 @@ func main() {
 	}
 	history.History.SET_DEBUG(debugs)
 	//history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data after encoding
-	//history.DBG_CGS = true // prints cache grow/shrink
+	history.DBG_CGS = true // prints cache grow/shrink
 	//history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
 	//history.DBG_FBQ1 = true   // prints adaptive batchsize
 	//history.DBG_FBQ2 = true   // prints adaptive batchsize
