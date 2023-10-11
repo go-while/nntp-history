@@ -123,7 +123,7 @@ forever:
 			timer.Reset(time.Duration(l1purge) * time.Second)
 		}
 		select {
-		case hash := <-l1.Extend[char]:
+		case hash := <-l1.Extend[char]: // receives stuff from DelExtL1batch()
 			// got hash we will extend in next timer.C run
 			if hash != "" {
 				extends[hash] = true
