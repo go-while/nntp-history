@@ -128,6 +128,12 @@ fetchbatch:
 } // end func boltBucketPutBatch
 
 func (his *HISTORY) WatchBolt() {
+	his.mux.Lock()
+	defer his.mux.Lock()
+	if his.WBR {
+		return
+	}
+	his.WBR = true
 	var inserted uint64
 	var batchins uint64
 	var searches uint64
