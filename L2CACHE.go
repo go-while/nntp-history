@@ -96,7 +96,7 @@ forever:
 			timer.Reset(time.Duration(l2purge) * time.Second)
 		}
 		select {
-		case item := <-l2.Extend[char]:
+		case item := <-l2.Extend[char]: // receives stuff from DelExtL2batch()
 			// got offset we will extend in next timer.C run
 			if item.offset > 0 {
 				extends[item.offset] = item
