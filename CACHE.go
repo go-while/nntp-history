@@ -23,6 +23,7 @@ var (
 	DefaultCacheExtend    int64 = DefaultCacheExpires
 	DefaultCachePurge     int64 = 5  // seconds
 	DefaultTryShrinkEvery int64 = 15 // shrinks cache maps only every N seconds
+	DefaultEvictsCapacity int   = 65536
 )
 
 func (his *HISTORY) PrintCacheStats() {
@@ -123,6 +124,10 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 		return
 	}
 	// pass ClearCache object to evictChan in CacheEvictThread()
+	lench := len(his.cacheEvicts[char])
+	if lench >= int(his.cEvCap/100*95) {
+		log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d 95%%full", char, lench, his.cEvCap)
+	}
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
 
@@ -137,7 +142,7 @@ func (his *HISTORY) CacheEvictThread() {
 			log.Printf("ERROR CacheEvictThread [%s] already created!", char)
 			continue
 		}
-		evictChan := make(chan *ClearCache, 4096)
+		evictChan := make(chan *ClearCache, his.cEvCap)
 		his.cacheEvicts[char] = evictChan
 		// launch a go func for every char with own evictChan
 		go func(char string, evictChan chan *ClearCache) {
@@ -187,15 +192,15 @@ func (his *HISTORY) CacheEvictThread() {
 					} // end select
 				} // end for fetchdel
 				if timeout || len(tmpHash) >= clearEveryN {
-					his.L1Cache.DelExtL1batch(char, tmpHash, FlagCacheChanExtend)
+					his.L1Cache.DelExtL1batch(his, char, tmpHash, FlagCacheChanExtend)
 					tmpHash = nil
 				}
 				if timeout || len(tmpOffset) >= clearEveryN {
-					his.L2Cache.DelExtL2batch(tmpOffset, FlagCacheChanExtend)
+					his.L2Cache.DelExtL2batch(his, tmpOffset, FlagCacheChanExtend)
 					tmpOffset = nil
 				}
 				if timeout || len(tmpKey) >= clearEveryN {
-					his.L3Cache.DelExtL3batch(char, tmpKey, FlagCacheChanExtend)
+					his.L3Cache.DelExtL3batch(his, char, tmpKey, FlagCacheChanExtend)
 					tmpKey = nil
 				}
 				if timeout {
