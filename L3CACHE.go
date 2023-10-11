@@ -90,7 +90,7 @@ forever:
 			timer.Reset(time.Duration(l3purge) * time.Second)
 		}
 		select {
-		case key := <-l3.Extend[char]:
+		case key := <-l3.Extend[char]: // receives stuff from DelExtL3batch()
 			// got key we will extend in next timer.C run
 			if key != "" {
 				extends[key] = true
