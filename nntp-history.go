@@ -233,9 +233,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		HashDBlogstr = fmt.Sprintf("KeyAlgo=%d KeyLen=%d NumQueueIndexChan=%d NumQueueindexChans=%d BatchSize=%d IndexParallel=%d", his.keyalgo, his.keylen, NumQueueIndexChan, NumQueueindexChans, CharBucketBatchSize, IndexParallel)
 	}
 	his.Counter = make(map[string]uint64)
-	log.Printf("History: new=%t\n  hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires)
+	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires)
 	if his.useHashDB {
-		log.Printf("   DB='%s.[0-9a-f]' HashDB:{%s}", his.hisDatDB, HashDBlogstr)
+		log.Printf("DB='%s.[0-9a-f]' HashDB:{%s}", his.hisDatDB, HashDBlogstr)
 	}
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
