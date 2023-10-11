@@ -828,7 +828,7 @@ func (his *HISTORY) lockBoltSync() {
 	his.boltSyncChan <- struct{}{}
 } // end func lockBoltSync
 
-func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int, offset int64) (int, error) {
+func (his *HISTORY) IndexQuery(hash *string, indexRetChan chan int, offset int64) (int, error) {
 	if !his.useHashDB {
 		return CasePass, nil
 	}
@@ -836,18 +836,18 @@ func (his *HISTORY) IndexQuery(hash *string, IndexRetChan chan int, offset int64
 		return -999, fmt.Errorf("ERROR IndexQuery hash=nil")
 	}
 	if his.useHashDB && his.IndexChan != nil {
-		if IndexRetChan == nil {
-			IndexRetChan = make(chan int, 1)
+		if indexRetChan == nil {
+			indexRetChan = make(chan int, 1)
 		}
 		if offset > 0 {
-			his.IndexChan <- &HistoryIndex{Hash: hash, Offset: offset, IndexRetChan: IndexRetChan}
+			his.IndexChan <- &HistoryIndex{Hash: hash, Offset: offset, IndexRetChan: indexRetChan}
 		} else {
-			his.IndexChan <- &HistoryIndex{Hash: hash, Offset: -1, IndexRetChan: IndexRetChan}
+			his.IndexChan <- &HistoryIndex{Hash: hash, Offset: -1, IndexRetChan: indexRetChan}
 		}
 		select {
-		case isDup, ok := <-IndexRetChan:
+		case isDup, ok := <-indexRetChan:
 			if !ok {
-				return -999, fmt.Errorf("ERROR IndexQuery IndexRetChan closed! error in boltDB_Worker")
+				return -999, fmt.Errorf("ERROR IndexQuery indexRetChan closed! error in boltDB_Worker")
 			}
 			return isDup, nil
 		} // end select
