@@ -127,27 +127,35 @@ fetchbatch:
 	return inserted, err, closed
 } // end func boltBucketPutBatch
 
-func (his *HISTORY) WatchBoltBatch() {
+func (his *HISTORY) WatchBolt() {
 	var inserted uint64
 	var batchins uint64
+	var searches uint64
 	ticker := time.NewTicker(15 * time.Second)
 	for range ticker.C {
 		insertednow := his.GetCounter("inserted")
 		batchinsnow := his.GetCounter("batchins")
+		searchesnow := his.GetCounter("searches")
 		if insertednow > inserted {
 			diff := insertednow - inserted
 			pps := diff / 15
-			log.Printf("WatchBoltBatch: inserted %d / sec (inserted %d in 15 sec)", pps, diff)
+			log.Printf("WatchBolt: inserted %d / sec (inserted %d in 15 sec)", pps, diff)
 			inserted = insertednow
 		}
 		if batchinsnow > batchins {
 			diff := batchinsnow - batchins
 			pps := diff / 15
-			log.Printf("WatchBoltBatch: batchins %d / sec (batchins %d in 15 sec)", pps, diff)
+			log.Printf("WatchBolt: batchins %d / sec (batchins %d in 15 sec)", pps, diff)
 			batchins = batchinsnow
 		}
+		if searchesnow > searches {
+			diff := searchesnow - searches
+			pps := diff / 15
+			log.Printf("WatchBolt: searches %d / sec (searches %d in 15 sec)", pps, diff)
+			searches = searchesnow
+		}
 	}
-} // end func WatchBoltBatch
+} // end func WatchBolt
 
 func (his *HISTORY) returnBatchLock(char string, bucket string) {
 	select {
