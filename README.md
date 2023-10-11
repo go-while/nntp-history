@@ -188,13 +188,59 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 
 ## Benchmark pure writes (no dupe check via hashdb) to history file with 4K bufio.
 ```sh
-./nntp-history-test -useHashDB=false -useGoCache=true
-CPU=4/12 | useHashDB: false | useGoCache: true | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=1024
-2023/09/29 15:45:46 History: hisDat='history/history.dat' DB='hashdb/history.dat.hash' C='&{0xc000104f00}' HT=11 HL=6
-...
-2023/09/29 15:45:52 history_Writer closed fp='history/history.dat' wbt=108148560 offset=108148622 wroteLines=1060280
-2023/09/29 15:45:52 key_add=0 key_app=0 total=0
-2023/09/29 15:45:52 done=4000000 took 6 seconds
+./nntp-history-test -useHashDB=false -useL1Cache=true -todo=1000000
+ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=256
+ useHashDB: false | IndexParallel=16
+ boltOpts='(*bbolt.Options)(nil)'
+2023/10/11 13:53:09 History: new=true
+  hisDat='history/history.dat' NumQueueWriteChan=16 DefaultCacheExpires=15
+2023/10/11 13:53:12 End test p=1 nntp-history added=0 dupes=0 cLock=0 addretry=0 retry=0 adddupes=0 cdupes=750069 cretry1=0 cretry2=0 sum=750069/1000000 errors=0 locked=249931
+2023/10/11 13:53:12 End test p=4 nntp-history added=0 dupes=0 cLock=0 addretry=0 retry=0 adddupes=0 cdupes=752254 cretry1=0 cretry2=0 sum=752254/1000000 errors=0 locked=247746
+2023/10/11 13:53:12 End test p=3 nntp-history added=0 dupes=0 cLock=0 addretry=0 retry=0 adddupes=0 cdupes=744587 cretry1=0 cretry2=0 sum=744587/1000000 errors=0 locked=255413
+2023/10/11 13:53:12 End test p=2 nntp-history added=0 dupes=0 cLock=0 addretry=0 retry=0 adddupes=0 cdupes=753090 cretry1=0 cretry2=0 sum=753090/1000000 errors=0 locked=246910
+2023/10/11 13:53:12 CLOSE_HISTORY: his.WriterChan <- nil
+2023/10/11 13:53:12 WAIT CLOSE_HISTORY: lock1=true=1 lock2=false=0 lock3=false=0 lock4=false=0 lock5=false=0 batchQueued=false=0 batchLocked=false=0
+2023/10/11 13:53:12 history_Writer closed fp='history/history.dat' wbt=102000000 offset=102000081 wroteLines=1000000
+2023/10/11 13:53:13 CLOSE_HISTORY DONE
+2023/10/11 13:53:13 key_add=0 key_app=0 total=0 fseeks=0 eof=0 BoltDB_decodedOffsets=0 addoffset=0 appoffset=0 trymultioffsets=0 tryoffset=0 searches=0 inserted=0
+2023/10/11 13:53:13 L1=0:0:0 L2=0:0:0 L3=0:0:0 | wCBBS=~0 conti=0 slept=0
+2023/10/11 13:53:13 done=4000000 (took 3 seconds) (closewait 1 seconds)
+Alloc: 290 MiB, TotalAlloc: 1166 MiB, Sys: 417 MiB, NumGC: 13
+2023/10/11 13:53:13 runtime.GC() [ 1 / 4 ] sleep 30 sec
+2023/10/11 13:53:24 L1: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:1000000 (~62500/char)
+2023/10/11 13:53:24 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:53:24 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:53:39 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:53:39 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:53:39 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+Alloc: 296 MiB, TotalAlloc: 1264 MiB, Sys: 469 MiB, NumGC: 14
+Alloc: 299 MiB, TotalAlloc: 1267 MiB, Sys: 469 MiB, NumGC: 14
+2023/10/11 13:53:43 runtime.GC() [ 2 / 4 ] sleep 30 sec
+2023/10/11 13:53:54 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:53:54 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:53:54 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:09 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:09 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:09 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+Alloc: 135 MiB, TotalAlloc: 1280 MiB, Sys: 469 MiB, NumGC: 15
+Alloc: 138 MiB, TotalAlloc: 1282 MiB, Sys: 469 MiB, NumGC: 15
+2023/10/11 13:54:13 runtime.GC() [ 3 / 4 ] sleep 30 sec
+2023/10/11 13:54:24 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:24 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:24 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:39 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:39 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:39 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+Alloc: 135 MiB, TotalAlloc: 1295 MiB, Sys: 469 MiB, NumGC: 16
+Alloc: 138 MiB, TotalAlloc: 1298 MiB, Sys: 469 MiB, NumGC: 16
+2023/10/11 13:54:43 runtime.GC() [ 4 / 4 ] sleep 30 sec
+2023/10/11 13:54:54 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:54 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:54:54 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+Alloc: 135 MiB, TotalAlloc: 1311 MiB, Sys: 469 MiB, NumGC: 17
+2023/10/11 13:55:09 L1: [fex=0/set:0] [del:1000000/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:55:09 L2: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
+2023/10/11 13:55:09 L3: [fex=0/set:0] [del:0/bat:0] [g/s:0/0] cached:0 (~0/char)
 ```
 
 ## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb
