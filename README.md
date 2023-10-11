@@ -187,6 +187,7 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 
 
 ## Benchmark pure writes (no dupe check via hashdb) to history file with 4K bufio.
+- not using L1Cache results in 4mio lines written as there are 4 jobs running
 ```sh
 ./nntp-history-test -useHashDB=false -useL1Cache=true -todo=1000000
 ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=256
