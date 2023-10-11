@@ -248,33 +248,21 @@ func main() {
 					Date:          doa, // date of article
 					ResponseChan:  responseChan,
 				}
-				history.History.WriterChan <- hobj
 
-				if (useHashDB || useL1Cache) && responseChan != nil {
-					select {
-					case isDup, ok := <-responseChan:
-						if !ok {
-							// error: responseChan got closed
-							log.Printf("ERROR test p=%d responseChan closed! i=%d hash=%s", p, i, hash)
-							break fortodo
-						} else {
-							switch isDup {
-							//case history.CasePass:
-							//	// is not a possible response here
-							case history.CaseAdded:
-								added++
-							case history.CaseDupes:
-								adddupes++
-							case history.CaseRetry:
-								addretry++
-							default:
-								errors++
-								log.Printf("main: ERROR fortodo unknown switch isDup=%d from responseChan", isDup)
-								break fortodo
-							}
-						}
-					} // end select
-				} // end responseChan
+				isDup := history.History.AddHistory(hobj, useHashDB, useL1Cache)
+				switch isDup {
+				case history.CaseAdded:
+					added++
+				case history.CaseDupes:
+					adddupes++
+				case history.CaseRetry:
+					addretry++
+				default:
+					errors++
+					log.Printf("main: ERROR fortodo unknown switch isDup=%d from AddHistory", isDup)
+					break fortodo
+				}
+
 			} // end for i todo
 			P_donechan <- struct{}{}
 			sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
