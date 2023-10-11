@@ -78,7 +78,7 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 //	CaseDupes == is a duplicate
 //	CaseRetry == retry later
 //	CasePass == not a duplicate // locked article for processing
-func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int) int {
+func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bool) int {
 	if hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
 		return -999
@@ -91,6 +91,9 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int) int {
 		retval := l1.Caches[char].cache[hash].value
 		l1.muxers[char].mux.Unlock()
 		return retval
+	}
+	if !useHashDB {
+		value = CaseDupes
 	}
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
@@ -366,6 +369,9 @@ func (l1 *L1CACHE) DelExtL1batch(char string, tmpHash []*ClearCache, flagCacheDe
 func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64) {
 	if key == "" {
 		retmap = make(map[string]uint64)
+	}
+	if l1 == nil || l1.muxers == nil {
+		return
 	}
 	for _, char := range HEXCHARS {
 		l1.muxers[char].mux.Lock()
