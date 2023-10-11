@@ -1,10 +1,14 @@
 package history
 
+/*
+ * WARNING: the `char` used by L2Cache is NOT boltDB char!
+ *          it is derived from offset via OffsetToChar !
+ */
 import (
 	"fmt"
 	"github.com/go-while/go-utils"
 	"log"
-	"os"
+	//"os"
 	"sync"
 	"time"
 )
@@ -312,14 +316,12 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 			if item.offset > 0 && item.char != "" {
 				testchar := l2.OffsetToChar(item.offset)
 				if testchar != item.char {
-					log.Printf("ERROR DelExtL2batch testchar=%s != item.char=%s", testchar, item.char)
-					os.Exit(1)
+					log.Printf("ERROR DelExtL2batch1 testchar=%s != item.char=%s", testchar, item.char)
+					continue
 				}
-
-				//char := OffsetToChar(item.offset)
 				if DEBUG {
 					lench := len(l2.Extend[item.char])
-					if lench > int(float64(his.cEvCap)*0.95) {
+					if lench >= int(float64(his.cEvCap)*0.75) {
 						log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d near-full", item.char, lench, his.cEvCap)
 					}
 				}
@@ -334,8 +336,11 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 	now := utils.UnixTimeSec()
 	for _, item := range tmpOffset {
 		if item.offset > 0 && item.char != "" {
-			//char := item.char
-			//char := OffsetToChar(item.offset)
+			testchar := l2.OffsetToChar(item.offset)
+			if testchar != item.char {
+				log.Printf("ERROR DelExtL2batch2 testchar=%s != item.char=%s", testchar, item.char)
+				continue
+			}
 			//log.Printf("DelExtL2batch char=%s offset=%d offsets=%d", char, item.offset, len(tmpOffset))
 			l2.muxers[item.char].mux.Lock()
 			if _, exists := l2.Caches[item.char].cache[item.offset]; exists {
