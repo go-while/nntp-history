@@ -297,30 +297,31 @@ func (l2 *L2CACHE) DelExtL2batch(tmpOffset []*ClearCache, flagCacheDelExt int) {
 	}
 	if flagCacheDelExt == FlagCacheChanExtend {
 		for _, item := range tmpOffset {
-			if item.offset > 0 && item.hash != "" {
-				char := OffsetToChar(item.offset)
-				l2.Extend[char] <- item
+			if item.offset > 0 && item.hash != "" && item.char != "" {
+				//char := OffsetToChar(item.offset)
+				l2.Extend[item.char] <- item
 			}
 		}
 		return
 	}
 	now := utils.UnixTimeSec()
 	for _, item := range tmpOffset {
-		if item.offset > 0 {
-			char := OffsetToChar(item.offset)
+		if item.offset > 0 && item.char != "" {
+			//char := item.char
+			//char := OffsetToChar(item.offset)
 			//log.Printf("DelExtL2batch char=%s offset=%d offsets=%d", char, item.offset, len(tmpOffset))
-			l2.muxers[char].mux.Lock()
-			if _, exists := l2.Caches[char].cache[item.offset]; exists {
+			l2.muxers[item.char].mux.Lock()
+			if _, exists := l2.Caches[item.char].cache[item.offset]; exists {
 				switch flagCacheDelExt {
 				case FlagCacheSyncDelete:
-					delete(l2.Caches[char].cache, item.offset)
+					delete(l2.Caches[item.char].cache, item.offset)
 				case FlagCacheSyncExtend:
 					// dont delete from cache but extend expiry time
-					l2.Caches[char].cache[item.offset].expires = now + L2ExtendExpires
+					l2.Caches[item.char].cache[item.offset].expires = now + L2ExtendExpires
 				}
-				l2.Counter[char]["Count_BatchD"] += 1
+				l2.Counter[item.char]["Count_BatchD"] += 1
 			}
-			l2.muxers[char].mux.Unlock()
+			l2.muxers[item.char].mux.Unlock()
 		}
 	}
 
