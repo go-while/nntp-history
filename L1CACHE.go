@@ -188,8 +188,8 @@ forever:
 				lastshrink = now
 			}
 			if len(extends) != 0 {
-				//log.Printf("ERROR L1 extends=%d='%#v' != 0", len(extends), extends)
-				log.Printf("ERROR L1 extends=%d != 0", len(extends))
+				log.Printf("ERROR L1 [%s] extends=%d='%#v' != 0", char, len(extends), extends)
+				//log.Printf("ERROR L1 [%s] extends=%d != 0", char, len(extends))
 			} else {
 				//clear(extends)
 				//extends = nil
