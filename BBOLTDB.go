@@ -270,7 +270,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 
 	lastsync := utils.UnixTimeSec()
-	var added, passed, processed, dupes, searches, retry uint64
+	var added, passed, processed, dupes, searches, retry, countsearches uint64
 	cutHashlen := 8 // 2:8 = 6 chars
 	if his.keyalgo == HashShort {
 		cutHashlen = 2 + his.keylen
@@ -457,7 +457,11 @@ forever:
 			}
 			if hi.Offset == -1 {
 				searches++
-				his.Sync_upcounter("searches")
+				countsearches++
+				if countsearches >= 1000 {
+					his.Sync_upcounterN("searches", countsearches)
+					countsearches = 0
+				}
 				continue forever
 			} else if hi.Offset > 0 {
 				processed++
