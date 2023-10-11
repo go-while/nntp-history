@@ -8,9 +8,12 @@ import (
 )
 
 const (
-	FlagExpires      bool  = true
-	FlagNeverExpires bool  = false
-	NoExpiresVal     int64 = -1
+	FlagExpires         bool  = true
+	FlagNeverExpires    bool  = false
+	NoExpiresVal        int64 = -1
+	FlagCacheSyncExtend       = 0x42
+	FlagCacheSyncDelete       = 0x66
+	FlagCacheChanExtend       = 0x99
 )
 
 var (
@@ -177,15 +180,15 @@ func (his *HISTORY) CacheEvictThread() {
 					} // end select
 				} // end for fetchdel
 				if timeout || len(tmpHash) >= clearEveryN {
-					his.L1Cache.DeleteL1batch(char, tmpHash)
+					his.L1Cache.DelExtL1batch(char, tmpHash, FlagCacheChanExtend)
 					tmpHash = nil
 				}
 				if timeout || len(tmpOffset) >= clearEveryN {
-					his.L2Cache.DeleteL2batch(tmpOffset)
+					his.L2Cache.DelExtL2batch(tmpOffset, FlagCacheChanExtend)
 					tmpOffset = nil
 				}
 				if timeout || len(tmpKey) >= clearEveryN {
-					his.L3Cache.DeleteL3batch(char, tmpKey)
+					his.L3Cache.DelExtL3batch(char, tmpKey, FlagCacheChanExtend)
 					tmpKey = nil
 				}
 				if timeout {
