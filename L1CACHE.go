@@ -18,6 +18,7 @@ var (
 
 type L1CACHE struct {
 	Caches   map[string]*L1CACHEMAP
+	Extend   map[string]chan string
 	muxers   map[string]*L1MUXER
 	mapsizes map[string]*MAPSIZES
 	mux      sync.Mutex
@@ -51,11 +52,13 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 		return
 	}
 	l1.Caches = make(map[string]*L1CACHEMAP, 16)
+	l1.Extend = make(map[string]chan string, 16)
 	l1.muxers = make(map[string]*L1MUXER, 16)
 	l1.mapsizes = make(map[string]*MAPSIZES, 16)
 	l1.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
+		l1.Extend[char] = make(chan string, 256*1024)
 		l1.muxers[char] = &L1MUXER{}
 		l1.mapsizes[char] = &MAPSIZES{maxmapsize: L1InitSize}
 		l1.Counter[char] = make(map[string]uint64)
@@ -100,73 +103,115 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	l1.mux.Lock() // waits for CACHE_Boot to unlock
 	l1.mux.Unlock()
 	logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
-	cleanup := []string{}
 	lastshrink := utils.UnixTimeSec()
-	//forever
+	cleanup := []string{}
+	l1purge := L1Purge
+	if l1purge < 1 {
+		l1purge = 1
+	}
+	mapsize := 1024 * l1purge
+	extends := make(map[string]bool, mapsize)
+	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
+	timeout := false
+forever:
 	for {
-		time.Sleep(time.Duration(L1Purge) * time.Second)
-		now := utils.UnixTimeSec()
-		start := utils.UnixTimeMilliSec()
-		l1.muxers[char].mux.Lock()
-	getexpired:
-		for hash, item := range l1.Caches[char].cache {
-			expired := false
-			if item.expires > 0 && item.expires < now {
-				// value is cached response:
-				switch item.value {
-				case CaseLock: // processing
-					continue getexpired
-				case CaseWrite: // processing
-					continue getexpired
-				case CaseDupes: // duplicate
-					expired = true
-				case CaseRetry: // retry
-					expired = true
-				default:
-					log.Printf("ERROR L1 unknown switch item.value=%d=%x", item.value, item.value)
-					os.Exit(1)
-				}
-				if expired {
-					cleanup = append(cleanup, hash)
-				}
-			}
+		if timeout {
+			timeout = false
+			timer.Reset(time.Duration(l1purge) * time.Second)
 		}
-		maplen := len(l1.Caches[char].cache)
-		oldmax := l1.mapsizes[char].maxmapsize
-		l1.muxers[char].mux.Unlock()
-
-		if len(cleanup) > 0 {
-			maplen -= len(cleanup)
+		select {
+		case hash := <-l1.Extend[char]:
+			// got hash we will extend in next timer.C run
+			if hash != "" {
+				extends[hash] = true
+			}
+		case <-timer.C:
+			timeout = true
+			lenExt := len(extends)
+			//if lenExt > 0 {
+			//	log.Printf("INFO L1 [%s] extends=%d/%d", char, lenExt, mapsize)
+			//}
+			now := utils.UnixTimeSec()
+			start := utils.UnixTimeMilliSec()
 			l1.muxers[char].mux.Lock()
-			for _, hash := range cleanup {
-				delete(l1.Caches[char].cache, hash)
-				l1.Counter[char]["Count_Delete"] += 1
-			}
-			max := l1.mapsizes[char].maxmapsize
+		getexpired:
+			for hash, item := range l1.Caches[char].cache {
+				expired := false
+				if extends[hash] {
+					l1.Caches[char].cache[hash].expires = now + L1ExtendExpires
+					// has been written to boltDB and is now a Duplicate in response
+					l1.Caches[char].cache[hash].value = CaseDupes
+					delete(extends, hash)
+					continue getexpired
+				} else if item.expires > 0 && item.expires < now {
+					// value is cached response:
+					switch item.value {
+					case CaseLock: // processing
+						continue getexpired
+					case CaseWrite: // processing
+						continue getexpired
+					case CaseDupes: // duplicate
+						expired = true
+					case CaseRetry: // retry
+						expired = true
+					default:
+						log.Printf("ERROR L1 unknown switch item.value=%d=%x", item.value, item.value)
+						os.Exit(1)
+					}
+					if expired {
+						cleanup = append(cleanup, hash)
+					}
+				}
+			} // end for getexpired
+			maplen := len(l1.Caches[char].cache)
+			oldmax := l1.mapsizes[char].maxmapsize
 			l1.muxers[char].mux.Unlock()
-			logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
-			cleanup = nil
-		}
-		if lastshrink < now-DefaultTryShrinkEvery {
-			l1.shrinkMapIfNeeded(char, maplen, oldmax)
-			lastshrink = now
-		}
-		logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+
+			if len(cleanup) > 0 {
+				maplen -= len(cleanup)
+				l1.muxers[char].mux.Lock()
+				for _, hash := range cleanup {
+					delete(l1.Caches[char].cache, hash)
+					l1.Counter[char]["Count_Delete"] += 1
+				}
+				max := l1.mapsizes[char].maxmapsize
+				l1.muxers[char].mux.Unlock()
+				logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
+				cleanup = nil
+			}
+			if lastshrink < now-DefaultTryShrinkEvery {
+				l1.shrinkMapIfNeeded(char, maplen, oldmax)
+				lastshrink = now
+			}
+			if len(extends) != 0 {
+				//log.Printf("ERROR L1 extends=%d='%#v' != 0", len(extends), extends)
+				log.Printf("ERROR L1 extends=%d != 0", len(extends))
+			} else {
+				//clear(extends)
+				//extends = nil
+				if int64(lenExt) >= mapsize {
+					mapsize = int64(lenExt) * 3
+				}
+				extends = make(map[string]bool, mapsize)
+			}
+			logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+			continue forever
+		} // end select
 	} // end for
 
 } //end func L1Cache_Thread
 
 func (l1 *L1CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 	shrinkmin := L1InitSize
-	thresholdFactor := 20 // percent
+	thresholdFactor := 20 // shrink if percentage used of cache is lower than N
 	threshold := int(oldmax / 100 * thresholdFactor)
 	if maplen > threshold {
 		return true
 	}
-	thresmax := threshold * 4
+	thresmax := threshold * 2
 	logf(DEBUGL1, "L1 [%s] PRE-SHRINK maplen=%d threshold=%d oldmax=%d thresmax=%d", char, maplen, threshold, oldmax, thresmax)
 	if maplen < threshold && oldmax >= thresmax && thresmax > shrinkmin {
-		newmax := threshold * 2
+		newmax := threshold * 4
 		if newmax < shrinkmin {
 			newmax = shrinkmin
 		} else if oldmax == shrinkmin && newmax == shrinkmin {
@@ -259,7 +304,7 @@ func (l1 *L1CACHE) Get(hash *string, char string) (retval *int) {
 
 /*
 // The Delete method deletes a cache item from the L1 cache.
-func (l1 *L1CACHE) DeleteL1(char *string, hash *string) {
+func (l1 *L1CACHE) DelExtL1(char *string, hash *string) {
 	if char == nil || *char == "" {
 		achar := string(string(*hash)[0])
 		char = &achar
@@ -273,17 +318,25 @@ func (l1 *L1CACHE) DeleteL1(char *string, hash *string) {
 		delete(l1.Caches[*char].cache, *hash)
 	}
 	l1.muxers[*char].mux.Unlock()
-} // end func DeleteL1
+} // end func DelExtL1
 */
 
-// The DeleteL1batch method deletes multiple cache items from the L1 cache.
-func (l1 *L1CACHE) DeleteL1batch(char string, tmpHash []*ClearCache) {
+// The DelExtL1batch method deletes multiple cache items from the L1 cache.
+func (l1 *L1CACHE) DelExtL1batch(char string, tmpHash []*ClearCache, flagCacheDelExt int) {
 	if char == "" {
-		log.Printf("ERROR DeleteL1batch char=nil")
+		log.Printf("ERROR DelExtL1batch char=nil")
 		return
 	}
 	if len(tmpHash) == 0 {
-		//log.Printf("DeleteL1batch [%s] tmpHash empty", char)
+		//log.Printf("DelExtL1batch [%s] tmpHash empty", char)
+		return
+	}
+	if flagCacheDelExt == FlagCacheChanExtend {
+		for _, item := range tmpHash {
+			if item.hash != "" {
+				l1.Extend[char] <- item.hash
+			}
+		}
 		return
 	}
 	now := utils.UnixTimeSec()
@@ -291,17 +344,22 @@ func (l1 *L1CACHE) DeleteL1batch(char string, tmpHash []*ClearCache) {
 	for _, item := range tmpHash {
 		if item.hash != "" {
 			if _, exists := l1.Caches[char].cache[item.hash]; exists {
-				//delete(l1.Caches[*char].cache, *item.hash)
-				// dont delete from cache but extend expiry time
-				l1.Caches[char].cache[item.hash].expires = now + L1ExtendExpires
-				// has been written to boltDB and is now a Duplicate in response
-				l1.Caches[char].cache[item.hash].value = CaseDupes
+				switch flagCacheDelExt {
+				case FlagCacheSyncDelete:
+					delete(l1.Caches[char].cache, item.hash)
+				case FlagCacheSyncExtend:
+					// dont delete from cache but extend expiry time
+					l1.Caches[char].cache[item.hash].expires = now + L1ExtendExpires
+					// has been written to boltDB and is now a Duplicate in response
+					l1.Caches[char].cache[item.hash].value = CaseDupes
+				}
 				l1.Counter[char]["Count_BatchD"] += 1
 			}
+
 		}
 	}
 	l1.muxers[char].mux.Unlock()
-} // end func DeleteL1batch
+} // end func DelExtL1batch
 
 func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64) {
 	if key == "" {
