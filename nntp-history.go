@@ -593,10 +593,13 @@ func (his *HISTORY) SET_DEBUG(debug int) {
 }
 
 func (his *HISTORY) CLOSE_HISTORY() {
+	log.Printf("CLOSE_HISTORY aquire lock")
 	his.mux.Lock()
 	defer his.mux.Unlock()
+	log.Printf("CLOSE_HISTORY aquired lock ok")
 	defer log.Printf("CLOSE_HISTORY DONE")
 	if his.WriterChan == nil {
+		log.Printf("ERROR CLOSE_HISTORY his.WriterChan=nil")
 		return
 	}
 	log.Printf("CLOSE_HISTORY: his.WriterChan <- nil")
