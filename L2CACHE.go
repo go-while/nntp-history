@@ -198,7 +198,7 @@ func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
 
 func (l2 *L2CACHE) shrinkMap(char string, newmax int, maplen int) bool {
 	if char == "" {
-		log.Printf("ERROR L1CACHE shrinkMap char=nil")
+		log.Printf("ERROR L2CACHE shrinkMap char=nil")
 		return false
 	}
 	newmap := make(map[int64]*L2ITEM, newmax)
