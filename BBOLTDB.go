@@ -106,8 +106,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	} else if NumQueueindexChans > 1024*1024 {
 		NumQueueindexChans = 1024 * 1024
 	}
-	if DefaultEvictsCapacity < 65536 {
-		DefaultEvictsCapacity = 65536
+	if DefaultEvictsCapacity < 4 {
+		DefaultEvictsCapacity = 4
 	}
 	his.cEvCap = DefaultEvictsCapacity
 	his.adaptBatch = AdaptiveBatchSizeON
