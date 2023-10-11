@@ -106,9 +106,11 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	} else if NumQueueindexChans > 65536 {
 		NumQueueindexChans = 65536
 	}
+
 	if DefaultEvictsCapacity < 4 {
 		DefaultEvictsCapacity = 4
 	}
+
 	his.cEvCap = DefaultEvictsCapacity
 	his.adaptBatch = AdaptiveBatchSizeON
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
@@ -211,8 +213,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	if boltOpts == nil {
 		defboltOpts := bolt.Options{
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 1024 * 1024 * 1024,
-			PageSize:        64 * 1024,
+			InitialMmapSize: 2 * 1024 * 1024 * 1024,
+			PageSize:        4 * 1024,
 		}
 		boltOpts = &defboltOpts
 	}
@@ -221,7 +223,10 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		log.Printf("ERROR HashDB dbpath='%s' err='%v'", dbpath, err)
 		return
 	}
-	if BoltDB_MaxBatchSize > 0 {
+	if BoltDB_MaxBatchSize > 65536 {
+		BoltDB_MaxBatchSize = 65536
+	}
+	if BoltDB_MaxBatchSize >= 0 {
 		db.MaxBatchSize = BoltDB_MaxBatchSize
 	}
 	if BoltDB_MaxBatchDelay > 0 {
