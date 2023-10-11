@@ -218,9 +218,6 @@ func main() {
 					switch isDup {
 					case history.CasePass:
 						// pass
-					//case history.CaseAdded:
-					//	// is not a possible response here
-					//	break fortodo
 					case history.CaseDupes:
 						dupes++
 						continue fortodo
@@ -252,7 +249,7 @@ func main() {
 					ResponseChan:  responseChan,
 				}
 
-				isDup := history.History.AddHistory(hobj, useHashDB, useL1Cache)
+				isDup := history.History.AddHistory(hobj, useL1Cache)
 				switch isDup {
 				case history.CaseAdded:
 					added++
