@@ -122,7 +122,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 	logf(DEBUG, "his.boltDB_Init() AdaptiveBatchSizeON=%t", AdaptiveBatchSizeON)
 	if DEBUG {
-		go his.WatchBatchInsert()
+		// run manually later: go history.History.WatchBoltBatch()
+		go his.WatchBoltBatch()
 	}
 	go his.boltDB_Index()
 } // end func boltDB_Init
@@ -617,7 +618,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 			return -999, err
 		}
 		logf(DEBUG1, "HDBZW [%s|%s] APPENDED key=%s hash=%s offset=%d offsets=%d='%#v'", char, bucket, key, hash, offset, len(*offsets), *offsets)
-		his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires) // was CaseDupes before // offset of history entry added to key: hash is a duplicate in cached response now
+		//his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires) // was CaseDupes before // offset of history entry added to key: hash is a duplicate in cached response now
 		if len(*offsets) > 1 {
 			his.Sync_upcounter("key_app")
 		}
@@ -678,21 +679,8 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	if db == nil {
 		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
 	}
-	/*
-		if char == nil {
-			return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=nil")
-		}
-		if bucket == nil || *bucket == "" {
-			return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=nil", *char)
-		}
-		if key == nil || *key == "" {
-			return nil, fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key=nil", *char, *bucket)
-		}
-	*/
-
 	offsets = his.L3Cache.GetOffsets(char+bucket+key, char)
 	if offsets != nil && len(*offsets) >= 0 {
-		//his.Sync_upcounter("L3CACHE_Get")
 		//logf(DEBUG1,"boltBucketGetOffsets: get CACHED [%s|%s] key=%s offsets='%#v'", *char, *bucket, *key, *offsets)
 		return offsets, nil
 	}
