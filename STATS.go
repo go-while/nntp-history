@@ -27,12 +27,12 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 		prevTimestamp = currentTimestamp
 
 		// Get the BoltStats
-		_, tx := his.GetBoltStats("", false)
+		otx, tx := his.GetBoltStats("", false)
 		did := tx - tmpTX
 		passed := timePassed.Seconds()
 		performance := float64(did) / passed
 		if performance > 0 {
-			log.Printf("BoltSpeed: %.2f tx/s ( did=%d in %.1f sec ) totalTX=%d", performance, did, passed, tx)
+			log.Printf("BoltSpeed: %.2f tx/s ( did=%d in %.1f sec ) totalTX=%d otx=%d", performance, did, passed, tx, otx)
 		}
 		tmpTX = tx
 	}
@@ -102,42 +102,32 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 
 func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
 	var stats bolt.Stats
-
 	if !his.useHashDB {
 		return stats, nil
 	}
-
 	if db == nil {
 		return stats, fmt.Errorf("ERROR getDBStats db=nil")
 	}
-
 	err := db.View(func(tx *bolt.Tx) error {
-		// Get statistics
 		stats = db.Stats()
 		return nil
 	})
-
 	return stats, err
 } // end func getDBStats
 
-func (his *HISTORY) getBucketStats(db *bolt.DB, bucketName string) (bolt.BucketStats, error) {
+func (his *HISTORY) getBucketStats(db *bolt.DB, bucket string) (bolt.BucketStats, error) {
 	var stats bolt.BucketStats
 	if !his.useHashDB {
 		return stats, nil
 	}
-
 	if db == nil {
 		return stats, fmt.Errorf("ERROR getBucketStats db=nil")
 	}
-
 	err := db.View(func(tx *bolt.Tx) error {
-		// Access the specified bucket
-		bucket := tx.Bucket([]byte(bucketName))
+		bucket := tx.Bucket([]byte(bucket))
 		if bucket == nil {
-			return fmt.Errorf("Bucket not found: %s", bucketName)
+			return fmt.Errorf("Bucket not found: %s", bucket)
 		}
-
-		// Get statistics
 		stats = bucket.Stats()
 		return nil
 	})
