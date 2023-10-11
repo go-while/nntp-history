@@ -44,7 +44,7 @@ type MAPSIZES struct {
 
 // The L1CACHE_Boot method initializes the cache system.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
-func (l1 *L1CACHE) L1CACHE_Boot() {
+func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.mux.Lock()
 	defer l1.mux.Unlock()
 	if l1.Caches != nil {
@@ -58,7 +58,7 @@ func (l1 *L1CACHE) L1CACHE_Boot() {
 	l1.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
-		l1.Extend[char] = make(chan string, 256*1024)
+		l1.Extend[char] = make(chan string, his.cEvCap)
 		l1.muxers[char] = &L1MUXER{}
 		l1.mapsizes[char] = &MAPSIZES{maxmapsize: L1InitSize}
 		l1.Counter[char] = make(map[string]uint64)
@@ -327,7 +327,7 @@ func (l1 *L1CACHE) DelExtL1(char *string, hash *string) {
 */
 
 // The DelExtL1batch method deletes multiple cache items from the L1 cache.
-func (l1 *L1CACHE) DelExtL1batch(char string, tmpHash []*ClearCache, flagCacheDelExt int) {
+func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCache, flagCacheDelExt int) {
 	if char == "" {
 		log.Printf("ERROR DelExtL1batch char=nil")
 		return
@@ -339,6 +339,12 @@ func (l1 *L1CACHE) DelExtL1batch(char string, tmpHash []*ClearCache, flagCacheDe
 	if flagCacheDelExt == FlagCacheChanExtend {
 		for _, item := range tmpHash {
 			if item.hash != "" {
+				if DEBUG {
+					lench := len(l1.Extend[char])
+					if lench >= int(his.cEvCap/100*95) {
+						log.Printf("WARN L1 Extend[%s]chan=%d/%d 95%%full", char, lench, his.cEvCap)
+					}
+				}
 				l1.Extend[char] <- item.hash
 			}
 		}
