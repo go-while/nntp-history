@@ -236,8 +236,8 @@ func (l1 *L1CACHE) shrinkMap(char string, newmax int, maplen int) bool {
 			newmap[k] = v
 		}
 	}
-	clear(l1.Caches[char].cache)
-	l1.Caches[char].cache = nil
+	//clear(l1.Caches[char].cache)
+	//l1.Caches[char].cache = nil
 	l1.Caches[char].cache = newmap
 	l1.mapsizes[char].maxmapsize = newmax
 	l1.Counter[char]["Count_Shrink"] += 1
@@ -265,8 +265,8 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		for k, v := range l1.Caches[char].cache {
 			newmap[k] = v
 		}
-		clear(l1.Caches[char].cache)
-		l1.Caches[char].cache = nil
+		//clear(l1.Caches[char].cache)
+		//l1.Caches[char].cache = nil
 		l1.Caches[char].cache = newmap
 		l1.mapsizes[char].maxmapsize = newmax
 		l1.Counter[char]["Count_Growup"] += 1
