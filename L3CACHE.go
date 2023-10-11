@@ -39,7 +39,7 @@ type L3MUXER struct {
 
 // The L3CACHE_Boot method initializes the L3 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
-func (l3 *L3CACHE) L3CACHE_Boot() {
+func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.mux.Lock()
 	defer l3.mux.Unlock()
 	if l3.Caches != nil {
@@ -53,7 +53,7 @@ func (l3 *L3CACHE) L3CACHE_Boot() {
 	l3.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
-		l3.Extend[char] = make(chan string, 256*1024)
+		l3.Extend[char] = make(chan string, his.cEvCap)
 		l3.muxers[char] = &L3MUXER{}
 		l3.mapsizes[char] = &MAPSIZES{maxmapsize: L3InitSize}
 		l3.Counter[char] = make(map[string]uint64)
@@ -101,7 +101,6 @@ forever:
 			if didnotexist > 0 {
 				log.Printf("INFO L3 [%s] extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
 			}
-			//time.Sleep(time.Duration(l3purge) * time.Second)
 			now := utils.UnixTimeSec()
 			start := utils.UnixTimeMilliSec()
 			l3.muxers[char].mux.Lock()
@@ -283,7 +282,7 @@ func (l3 *L3CACHE) DelExtL3(char *string, key *string) {
 */
 
 // The DelExtL3batch method deletes multiple cache items from the L3 cache.
-func (l3 *L3CACHE) DelExtL3batch(char string, tmpKey []*ClearCache, flagCacheDelExt int) {
+func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache, flagCacheDelExt int) {
 	if char == "" {
 		log.Printf("ERROR DelExtL3batch char=nil")
 		return
@@ -295,6 +294,12 @@ func (l3 *L3CACHE) DelExtL3batch(char string, tmpKey []*ClearCache, flagCacheDel
 	if flagCacheDelExt == FlagCacheChanExtend {
 		for _, item := range tmpKey {
 			if item.key != "" {
+				if DEBUG {
+					lench := len(l3.Extend[char])
+					if lench >= int(his.cEvCap/100*95) {
+						log.Printf("WARN L3 Extend[%s]chan=%d/%d 95%%full", char, lench, his.cEvCap)
+					}
+				}
 				l3.Extend[char] <- item.key
 			}
 		}
