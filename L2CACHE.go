@@ -40,7 +40,7 @@ type L2MUXER struct {
 
 // The L2CACHE_Boot method initializes the L2 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
-func (l2 *L2CACHE) L2CACHE_Boot() {
+func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 	l2.mux.Lock()
 	defer l2.mux.Unlock()
 	if l2.Caches != nil {
@@ -54,7 +54,7 @@ func (l2 *L2CACHE) L2CACHE_Boot() {
 	l2.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
-		l2.Extend[char] = make(chan *ClearCache, 256*1024)
+		l2.Extend[char] = make(chan *ClearCache, his.cEvCap)
 		l2.muxers[char] = &L2MUXER{}
 		l2.mapsizes[char] = &MAPSIZES{maxmapsize: L2InitSize}
 		l2.Counter[char] = make(map[string]uint64)
@@ -290,7 +290,7 @@ func (l2 *L2CACHE) DelExtL2(offset *int64) {
 */
 
 // The DelExtL2batch method deletes multiple cache items from the L2 cache.
-func (l2 *L2CACHE) DelExtL2batch(tmpOffset []*ClearCache, flagCacheDelExt int) {
+func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCacheDelExt int) {
 	if len(tmpOffset) == 0 {
 		//log.Printf("DelExtL2batch tmpOffset empty")
 		return
@@ -299,6 +299,12 @@ func (l2 *L2CACHE) DelExtL2batch(tmpOffset []*ClearCache, flagCacheDelExt int) {
 		for _, item := range tmpOffset {
 			if item.offset > 0 && item.hash != "" && item.char != "" {
 				//char := OffsetToChar(item.offset)
+				if DEBUG {
+					lench := len(l2.Extend[item.char])
+					if lench >= int(his.cEvCap/100*95) {
+						log.Printf("WARN L2 Extend[%s]chan=%d/%d 95%%full", item.char, lench, his.cEvCap)
+					}
+				}
 				l2.Extend[item.char] <- item
 			} else {
 				log.Printf("ERROR DelExtL2batch item='%#v'", item)
