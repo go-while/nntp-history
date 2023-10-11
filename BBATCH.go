@@ -125,6 +125,20 @@ fetchbatch:
 	return inserted, err, closed
 } // end func boltBucketPutBatch
 
+func (his *HISTORY) WatchBatchInsert() {
+	var inserted uint64
+	ticker := time.NewTicker(15 * time.Second)
+	for range ticker.C {
+		insertednow := his.GetCounter("inserted")
+		if insertednow > inserted {
+			diff := insertednow - inserted
+			pps := diff / 15
+			inserted = insertednow
+			log.Printf("WatchBatchInsert: %d / sec (inserted %d in 15 sec)", pps, inserted)
+		}
+	}
+} // end func WatchBatchInsert
+
 func (his *HISTORY) returnBatchLock(char string, bucket string) {
 	select {
 	case _ = <-his.BatchLocks[char][bucket]:
