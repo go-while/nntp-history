@@ -192,8 +192,8 @@ func (l3 *L3CACHE) shrinkMap(char string, newmax int, maplen int) bool {
 			newmap[k] = v
 		}
 	}
-	clear(l3.Caches[char].cache)
-	l3.Caches[char].cache = nil
+	//clear(l3.Caches[char].cache)
+	//l3.Caches[char].cache = nil
 	l3.Caches[char].cache = newmap
 	l3.mapsizes[char].maxmapsize = newmax
 	l3.Counter[char]["Count_Shrink"] += 1
@@ -220,8 +220,8 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexp
 		for k, v := range l3.Caches[char].cache {
 			newmap[k] = v
 		}
-		clear(l3.Caches[char].cache)
-		l3.Caches[char].cache = nil
+		//clear(l3.Caches[char].cache)
+		//l3.Caches[char].cache = nil
 		l3.Caches[char].cache = newmap
 		l3.mapsizes[char].maxmapsize = newmax
 		l3.Counter[char]["Count_Growup"] += 1
