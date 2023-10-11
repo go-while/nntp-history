@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/go-while/go-utils"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -100,7 +101,7 @@ forever:
 			timeout = true
 			lenExt := len(extends)
 			if didnotexist > 0 {
-				log.Printf("INFO L2 [%s] extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
+				logf(DEBUGL2, "INFO L2 [%s] extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
 			}
 			now := utils.UnixTimeSec()
 			start := utils.UnixTimeMilliSec()
@@ -109,32 +110,60 @@ forever:
 		getexpired:
 			for offset, item := range l2.Caches[char].cache {
 				if extends[offset] != nil {
-					if l2.Caches[char].cache[offset].hash != "" {
-						l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
-						l2.Counter[char]["Count_BatchD"] += 1
-					} else {
-						didnotexist++
+					if char != extends[offset].char {
+						log.Printf("ERROR L2 [%s] char != extends[offset=%d].char='%s'", char, offset, extends[offset].char)
+						os.Exit(1)
 					}
+
+					//if l2.Caches[char].cache[offset].hash == extends[offset].hash {
+					//if item.hash == extends[offset].hash {
+					/*
+						if item.hash != extends[offset].hash {
+							log.Printf("ERROR L2 [%s] item.hash='%s' != extends[offset=%d].hash='%s'", char, item.hash, offset, extends[offset].hash)
+							os.Exit(1)
+						} else if item.hash == "" {
+							l2.Caches[char].cache[offset].hash = extends[offset].hash
+						}
+					*/
+					l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
+					l2.Counter[char]["Count_BatchD"] += 1
+					//} else {
+					//	didnotexist++
+					//}
 					delete(extends, offset)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now {
-					logf(DEBUGL2, "L2 expire [%s] offset='%#v' item='%#v' age=%d", char, offset, item, now-item.expires)
+					//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v'", char, offset, item)
 					cleanup = append(cleanup, offset)
 				}
 			} // end for getexpired
-			// there may be some left
+
+			// there may be some offsets left in extends but maybe already expired
 			for offset, item := range extends {
-				if item.hash == "" {
-					log.Printf("ERROR L2 [%s] extends left hash empty offset=%d item='%#v'", char, offset, item)
-					continue
-				}
+				//if item.hash == "" {
+				//	log.Printf("ERROR L2 [%s] extends left hash empty offset=%d item='%#v'", char, offset, item)
+				//	continue
+				//}
 				if item.char != char {
 					log.Printf("ERROR L2 [%s] extends item.char != char offset=%d item='%#v'", char, offset, item)
 					continue
 				}
-				l2.Caches[char].cache[offset] = &L2ITEM{hash: item.hash, expires: now + L2ExtendExpires}
+				if _, exists := l2.Caches[char].cache[offset]; !exists {
+					delete(extends, offset)
+					didnotexist++
+					logf(DEBUG2, "WARN L2 [%s] extends !exists l2.Caches[char].cache[offset=%d] item='%#v'", char, offset, item)
+					continue
+				}
+				if l2.Caches[char].cache[offset].hash == "" {
+					delete(extends, offset)
+					log.Printf("ERROR L2 [%s] extends empty l2.Caches[char].cache[offset=%d].hash item='%#v'", char, offset, item)
+					continue
+				}
+				l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
+				//l2.Caches[char].cache[offset] = &L2ITEM{hash: item.hash, expires: now + L2ExtendExpires}
 				delete(extends, offset)
 			}
+
 			maplen := len(l2.Caches[char].cache)
 			oldmax := l2.mapsizes[char].maxmapsize
 			l2.muxers[char].mux.Unlock()
@@ -156,8 +185,8 @@ forever:
 				lastshrink = now
 			}
 			if len(extends) != 0 {
-				log.Printf("ERROR L2 [%s] extends=%d='%#v' != 0", char, len(extends), extends)
-				//log.Printf("ERROR L2 [%s] extends=%d != 0", char, len(extends))
+				//log.Printf("ERROR L2 [%s] extends=%d='%#v' != 0", char, len(extends), extends)
+				log.Printf("ERROR L2 [%s] extends=%d != 0", char, len(extends))
 			} else {
 				//clear(extends)
 				//extends = nil
@@ -225,7 +254,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		log.Printf("ERROR L2CACHESet nil pointer")
 		return
 	}
-	char := OffsetToChar(offset)
+	char := l2.OffsetToChar(offset)
 	start := utils.UnixTimeMilliSec()
 	l2.muxers[char].mux.Lock()
 
@@ -259,7 +288,7 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64) (hash *string) {
 		log.Printf("ERROR L2CACHEGetHashToOffset offset=nil")
 		return
 	}
-	char := OffsetToChar(offset)
+	char := l2.OffsetToChar(offset)
 	l2.muxers[char].mux.Lock()
 	if l2.Caches[char].cache[offset] != nil {
 		l2.Counter[char]["Count_Get"] += 1
@@ -292,12 +321,19 @@ func (l2 *L2CACHE) DelExtL2(offset *int64) {
 // The DelExtL2batch method deletes multiple cache items from the L2 cache.
 func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCacheDelExt int) {
 	if len(tmpOffset) == 0 {
-		//log.Printf("DelExtL2batch tmpOffset empty")
+		log.Printf("DelExtL2batch tmpOffset empty")
 		return
 	}
 	if flagCacheDelExt == FlagCacheChanExtend {
 		for _, item := range tmpOffset {
-			if item.offset > 0 && item.hash != "" && item.char != "" {
+			//if item.offset > 0 && item.hash != "" && item.char != "" {
+			if item.offset > 0 && item.char != "" {
+				testchar := l2.OffsetToChar(item.offset)
+				if testchar != item.char {
+					log.Printf("ERROR DelExtL2batch testchar=%s != item.char=%s", testchar, item.char)
+					os.Exit(1)
+				}
+
 				//char := OffsetToChar(item.offset)
 				if DEBUG {
 					lench := len(l2.Extend[item.char])
@@ -305,6 +341,7 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 						log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d 95%%full", item.char, lench, his.cEvCap)
 					}
 				}
+				//char := l2.OffsetToChar(item.offset)
 				l2.Extend[item.char] <- item
 			} else {
 				log.Printf("ERROR DelExtL2batch item='%#v'", item)
@@ -335,7 +372,7 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 
 } // end func DelExtL2batch
 
-func OffsetToChar(offset int64) string {
+func (l2 *L2CACHE) OffsetToChar(offset int64) string {
 	if offset <= 0 {
 		log.Printf("ERROR L2CACHE.OffsetToChar offset=%d <=0", offset)
 		return ""
