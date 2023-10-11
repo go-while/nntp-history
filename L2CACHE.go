@@ -300,6 +300,8 @@ func (l2 *L2CACHE) DelExtL2batch(tmpOffset []*ClearCache, flagCacheDelExt int) {
 			if item.offset > 0 && item.hash != "" && item.char != "" {
 				//char := OffsetToChar(item.offset)
 				l2.Extend[item.char] <- item
+			} else {
+				log.Printf("ERROR DelExtL2batch item='%#v'", item)
 			}
 		}
 		return
