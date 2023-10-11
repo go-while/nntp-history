@@ -9,12 +9,13 @@ import (
 
 const (
 	// never change this
-	FlagExpires         bool  = true
-	FlagNeverExpires    bool  = false
-	NoExpiresVal        int64 = -1
-	FlagCacheSyncExtend       = 0x42
-	FlagCacheSyncDelete       = 0x66
-	FlagCacheChanExtend       = 0x99
+	FlagExpires            bool  = true
+	FlagNeverExpires       bool  = false
+	NoExpiresVal           int64 = -1
+	FlagCacheSyncExtend          = 0x42
+	FlagCacheSyncDelete          = 0x66
+	FlagCacheChanExtend          = 0x99
+	DefaultThresholdFactor       = 10
 )
 
 var (
