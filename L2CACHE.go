@@ -112,7 +112,7 @@ forever:
 				if extends[offset] != nil {
 					if char != extends[offset].char {
 						log.Printf("ERROR L2 [%s] char != extends[offset=%d].char='%s'", char, offset, extends[offset].char)
-						os.Exit(1)
+						continue getexpired
 					}
 					l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
 					l2.Counter[char]["Count_BatchD"] += 1
@@ -319,8 +319,8 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 				//char := OffsetToChar(item.offset)
 				if DEBUG {
 					lench := len(l2.Extend[item.char])
-					if lench >= int(his.cEvCap/100*95) {
-						log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d 95%%full", item.char, lench, his.cEvCap)
+					if lench > int(float64(his.cEvCap)*0.95) {
+						log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d near-full", item.char, lench, his.cEvCap)
 					}
 				}
 				//char := l2.OffsetToChar(item.offset)
