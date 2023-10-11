@@ -112,6 +112,7 @@ forever:
 				if extends[offset] {
 					if l2.Caches[char].cache[offset].hash != "" {
 						l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
+						l2.Counter[char]["Count_BatchD"] += 1
 					} else {
 						didnotexist++
 					}
