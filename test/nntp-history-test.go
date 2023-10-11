@@ -120,11 +120,14 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	go history.PrintMemoryStatsEvery(30 * time.Second)
-	go history.History.PrintGetBoltStatsEvery("", 15*time.Second)
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, BatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+	if useHashDB {
+		go history.History.WatchBolt()
+		go history.History.PrintGetBoltStatsEvery("", 15*time.Second)
+	}
+	go history.PrintMemoryStatsEvery(30 * time.Second)
 	// check command line arguments to execute commands
 	if RebuildHashDB {
 		defer history.History.CLOSE_HISTORY()
