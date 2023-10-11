@@ -223,7 +223,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
 
-	his.L1Cache.L1CACHE_Boot()
+	his.L1Cache.L1CACHE_Boot(his)
 	his.CacheEvictThread()
 
 	HashDBlogstr := ""
