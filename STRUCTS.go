@@ -44,6 +44,7 @@ type HISTORY struct {
 	cacheEvicts map[string]chan *ClearCache
 	adaptBatch  bool // AdaptiveBatchSize
 	WBR         bool // WatchBoltRunning
+	cEvCap      int  // cacheEvictsCapacity
 }
 
 /* builds the history.dat header */
