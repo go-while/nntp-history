@@ -302,7 +302,7 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 				if DEBUG {
 					lench := len(l2.Extend[item.char])
 					if lench >= int(his.cEvCap/100*95) {
-						log.Printf("WARN L2 Extend[%s]chan=%d/%d 95%%full", item.char, lench, his.cEvCap)
+						log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d 95%%full", item.char, lench, his.cEvCap)
 					}
 				}
 				l2.Extend[item.char] <- item
