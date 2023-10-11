@@ -141,6 +141,7 @@ forever:
 					l1.Caches[char].cache[hash].expires = now + L1ExtendExpires
 					// has been written to boltDB and is now a Duplicate in response
 					l1.Caches[char].cache[hash].value = CaseDupes
+					l1.Counter[char]["Count_BatchD"] += 1
 					delete(extends, hash)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now {
