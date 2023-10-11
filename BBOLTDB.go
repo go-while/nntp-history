@@ -122,8 +122,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 	logf(DEBUG, "his.boltDB_Init() AdaptiveBatchSizeON=%t", AdaptiveBatchSizeON)
 	if DEBUG {
-		// run manually later: go history.History.WatchBoltBatch()
-		go his.WatchBoltBatch()
+		// run manually later: go history.History.WatchBolt()
+		go his.WatchBolt()
 	}
 	go his.boltDB_Index()
 } // end func boltDB_Init
@@ -457,6 +457,7 @@ forever:
 			}
 			if hi.Offset == -1 {
 				searches++
+				his.Sync_upcounter("searches")
 				continue forever
 			} else if hi.Offset > 0 {
 				processed++
@@ -494,7 +495,7 @@ forever:
 		his.boltBucketPutBatch(db, char, bucket, his.batchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:[%s|%s]", char, bucket), false, -1, -1)
 	}
 	logf(DEBUG2, "Quit HDBZW char=%s added=%d passed=%d dupes=%d processed=%d searches=%d retry=%d", char, added, passed, dupes, processed, searches, retry)
-	his.Sync_upcounterN("searches", searches)
+	//his.Sync_upcounterN("searches", searches)
 	historyfile.Close()
 	his.boltSyncClose(db, char)
 	time.Sleep(time.Second / 10)
