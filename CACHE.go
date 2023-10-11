@@ -24,7 +24,7 @@ var (
 	DefaultCacheExtend    int64 = DefaultCacheExpires
 	DefaultCachePurge     int64 = 5  // seconds
 	DefaultTryShrinkEvery int64 = 60 // shrinks cache maps only every N seconds
-	DefaultEvictsCapacity int   = 4  // his.cEvCap is normally fine as is
+	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
 
 func (his *HISTORY) PrintCacheStats() {
@@ -150,7 +150,7 @@ func (his *HISTORY) CacheEvictThread() {
 			var tmpOffset []*ClearCache
 			var tmpKey []*ClearCache
 			clearEveryN := 1024
-			timer := time.NewTimer(2500 * time.Millisecond)
+			timer := time.NewTimer(500 * time.Millisecond)
 			timeout := false
 		forever:
 			for {
@@ -185,27 +185,27 @@ func (his *HISTORY) CacheEvictThread() {
 							tmpKey = append(tmpKey, item)
 						}
 						if len(tmpHash) >= clearEveryN || len(tmpOffset) >= clearEveryN || len(tmpKey) >= clearEveryN {
-							timer.Reset(2500 * time.Millisecond)
+							timer.Reset(500 * time.Millisecond)
 							//logf(DEBUG, "CacheEvictThread [%s] break fetchdel evictChan=%d", char, len(evictChan))
 							break fetchdel
 						}
 					} // end select
 				} // end for fetchdel
-				if timeout || len(tmpHash) >= clearEveryN {
+				if (timeout && len(tmpHash) > 0) || len(tmpHash) >= clearEveryN {
 					his.L1Cache.DelExtL1batch(his, char, tmpHash, FlagCacheChanExtend)
 					tmpHash = nil
 				}
-				if timeout || len(tmpOffset) >= clearEveryN {
+				if (timeout && len(tmpOffset) > 0) || len(tmpOffset) >= clearEveryN {
 					his.L2Cache.DelExtL2batch(his, tmpOffset, FlagCacheChanExtend)
 					tmpOffset = nil
 				}
-				if timeout || len(tmpKey) >= clearEveryN {
+				if (timeout && len(tmpKey) > 0) || len(tmpKey) >= clearEveryN {
 					his.L3Cache.DelExtL3batch(his, char, tmpKey, FlagCacheChanExtend)
 					tmpKey = nil
 				}
 				if timeout {
 					timeout = false
-					timer.Reset(2500 * time.Millisecond)
+					timer.Reset(500 * time.Millisecond)
 				}
 				continue forever
 			} // end forever
