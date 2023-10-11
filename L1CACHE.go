@@ -275,7 +275,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		l1.Caches[char].cache = newmap
 		l1.mapsizes[char].maxmapsize = newmax
 		l1.Counter[char]["Count_Growup"] += 1
-		logf(DBG_CGS, "L1CACHE char=%s grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		logf(DBG_CGS, "L1CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
 	}
 	expires := NoExpiresVal
 	if flagexpires {
