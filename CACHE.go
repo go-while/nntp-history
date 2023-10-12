@@ -122,13 +122,14 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 	// pass ClearCache object to evictChan in CacheEvictThread()
 	if DEBUG {
 		lench := len(his.cacheEvicts[char])
-		limit := int(float64(his.cEvCap) * 0.75)
+		limit := int(float64(his.cEvCap) * 0.50)
 		if lench > limit {
 			log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d near-full", char, lench, his.cEvCap, limit)
 		} else {
 			//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
 		}
 	}
+	// pass down to CacheEvictThread
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
 
@@ -149,16 +150,26 @@ func (his *HISTORY) CacheEvictThread() {
 			var tmpHash []*ClearCache
 			var tmpOffset []*ClearCache
 			var tmpKey []*ClearCache
-			clearEveryN := 1024
+			clearEveryN := 500
 			timer := time.NewTimer(500 * time.Millisecond)
-			timeout := false
+			//timeout := false
+			var del1, del2, del3 bool
 		forever:
 			for {
 			fetchdel:
 				for {
+
 					select {
 					case <-timer.C:
-						timeout = true
+						if len(tmpHash) > 0 {
+							del1 = true
+						}
+						if len(tmpOffset) > 0 {
+							del2 = true
+						}
+						if len(tmpKey) > 0 {
+							del3 = true
+						}
 						Q := len(evictChan)
 						if Q > 0 {
 							logf(DEBUG, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
@@ -175,38 +186,66 @@ func (his *HISTORY) CacheEvictThread() {
 						}
 
 						//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
-						if item.hash != "" { // l1 hash
-							tmpHash = append(tmpHash, item)
-						}
 						if item.offset > 0 { // l2 offset
 							tmpOffset = append(tmpOffset, item)
+						} else {
+							if item.hash != "" { // l1 hash
+								tmpHash = append(tmpHash, item)
+							}
+							if item.key != "" { // l3 key
+								tmpKey = append(tmpKey, item)
+							}
 						}
-						if item.key != "" { // l3 key
-							tmpKey = append(tmpKey, item)
+
+						/*
+							if item.hash != "" { // l1 hash
+								tmpHash = append(tmpHash, item)
+							}
+							if item.offset > 0 { // l2 offset
+								tmpOffset = append(tmpOffset, item)
+							}
+							if item.key != "" { // l3 key
+								tmpKey = append(tmpKey, item)
+							}
+						*/
+
+						if len(tmpHash) >= clearEveryN {
+							del1 = true
 						}
-						if len(tmpHash) >= clearEveryN || len(tmpOffset) >= clearEveryN || len(tmpKey) >= clearEveryN {
-							timer.Reset(500 * time.Millisecond)
-							//logf(DEBUG, "CacheEvictThread [%s] break fetchdel evictChan=%d", char, len(evictChan))
+						if len(tmpOffset) >= clearEveryN {
+							del2 = true
+						}
+						if len(tmpKey) >= clearEveryN {
+							del3 = true
+						}
+						if del1 || del2 || del3 {
 							break fetchdel
 						}
+						/*
+							if len(tmpHash) >= clearEveryN || len(tmpOffset) >= clearEveryN || len(tmpKey) >= clearEveryN {
+								timeout = true
+								//timer.Reset(500 * time.Millisecond)
+								//logf(DEBUG, "CacheEvictThread [%s] break fetchdel evictChan=%d", char, len(evictChan))
+								break fetchdel
+							}*/
 					} // end select
 				} // end for fetchdel
-				if (timeout && len(tmpHash) > 0) || len(tmpHash) >= clearEveryN {
+				if del1 {
 					his.L1Cache.DelExtL1batch(his, char, tmpHash, FlagCacheChanExtend)
 					tmpHash = nil
+					del1 = false
 				}
-				if (timeout && len(tmpOffset) > 0) || len(tmpOffset) >= clearEveryN {
+				if del2 {
 					his.L2Cache.DelExtL2batch(his, tmpOffset, FlagCacheChanExtend)
 					tmpOffset = nil
+					del2 = false
 				}
-				if (timeout && len(tmpKey) > 0) || len(tmpKey) >= clearEveryN {
+				if del3 {
 					his.L3Cache.DelExtL3batch(his, char, tmpKey, FlagCacheChanExtend)
 					tmpKey = nil
+					del3 = false
 				}
-				if timeout {
-					timeout = false
-					timer.Reset(500 * time.Millisecond)
-				}
+				timer.Reset(500 * time.Millisecond)
 				continue forever
 			} // end forever
 		}(char, his.cacheEvicts[char])
