@@ -4,13 +4,83 @@ import (
 	"bufio"
 	"fmt"
 	//"github.com/go-while/go-utils"
+	//"golang.org/x/exp/mmap"
+	"github.com/edsrzf/mmap-go"
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"os"
 	"strings"
 )
 
+func (his *HISTORY) ReplayHistoryDat(quickreplay bool, testmax int) {
+	if !his.useHashDB || his.hisDat == "" {
+		log.Printf("return ReplayHistoryDat !his.useHashDB || his.hisDat empty")
+		return
+	}
+	if testmax < 1 {
+		testmax = 1
+	}
+	his.wait4HashDB()
+	indexRetChan := make(chan int, 1)
+	// oldestFirst=true checks up to `testmax` lines from oldest to latest.
+	// oldestFirst=false checks from latest and stops if latest (first) hash is in DB.
+	oldestFirst := true
+	if quickreplay {
+		oldestFirst = false
+		testmax = QuickReplayTestMax
+	}
+	lines, err := readLastNLinesFromFile(his.hisDat, testmax, oldestFirst)
+	lenlines := len(lines)
+	log.Printf("ReplayHistoryDat quickreplay=%t testmax=%d lines=%d ", quickreplay, testmax, lenlines)
+	if err != nil {
+		log.Printf("ERROR ReplayHistoryDat err='%#v'", err)
+		os.Exit(1)
+	}
+	if lenlines <= 1 { // nothing or header only
+		return
+	}
+	ok := 0
+replay:
+	for i, line := range lines {
+		hash := extractHash(line)
+		if hash == "" {
+			log.Printf("ERROR ReplayHistoryDat i=%d hash empty line='%s'", i, line)
+			os.Exit(1)
+		}
+		logf(DEBUG, "ReplayHistoryDat: replay hash='%s'", hash)
+		isDup, err := his.IndexQuery(&hash, indexRetChan, -1)
+		if err != nil {
+			log.Printf("ERROR ReplayHistoryDat IndexQuery hash='%s' err='%v'", hash, err)
+			os.Exit(1)
+		}
+		switch isDup {
+		case CaseDupes:
+			ok++
+			if !oldestFirst && ok == testmax {
+				break replay
+			}
+		default:
+			log.Printf("Error ReplayHistoryDat bad response from IndexQuery isDup=%x", isDup)
+			os.Exit(1)
+		}
+	}
+	log.Printf("ReplayHistoryDat ok=%d/%d testmax=%d quickreplay=%t oldestFirst=%t", ok, lenlines, testmax, quickreplay, oldestFirst)
+} // end func ReplayHistoryDat
+
+func extractHash(line string) string {
+	parts := strings.Split(line, "\t") // Split the line at the first tab character
+	if len(parts) < 3 || len(parts[0]) < 32+2 || parts[0][0] != '{' || parts[0][len(parts[0])-1] != '}' {
+		return ""
+	}
+	hash := string(parts[0][1 : len(parts[0])-1])
+	return hash
+} // end func extractHash
+
 func (his *HISTORY) RebuildHashDB() error {
+	if !his.useHashDB || his.hisDat == "" {
+		log.Printf("return RebuildHashDB !his.useHashDB || his.hisDat empty")
+		return nil
+	}
 	// Open the history.dat file for reading
 	file, err := os.Open(his.hisDat)
 	if err != nil {
@@ -30,26 +100,35 @@ func (his *HISTORY) RebuildHashDB() error {
 	var offset, added, passed, skipped, dupes, retry, did, total int64
 	// Create a scanner to read the file line by line
 	scanner := bufio.NewScanner(file)
-	IndexRetChan := make(chan int, 1)
+	indexRetChan := make(chan int, 1)
 	for scanner.Scan() {
 		line := scanner.Text()
-		ll := len(line) + 1                // +1 accounts for LF
-		parts := strings.Split(line, "\t") // Split the line at the first tab character
-		if len(parts) < 3 || len(parts[0]) < 32+2 || parts[0][0] != '{' || parts[0][len(parts[0])-1] != '}' {
-			// Skip lines that don't have correct fields or not { } character in first
-			skipped++
-			offset += int64(ll)
-			continue
-		}
-		hash := string(parts[0][1 : len(parts[0])-1])
+		ll := len(line) + 1 // +1 accounts for LF
+		/*
+			parts := strings.Split(line, "\t") // Split the line at the first tab character
+			if len(parts) < 3 || len(parts[0]) < 32+2 || parts[0][0] != '{' || parts[0][len(parts[0])-1] != '}' {
+				// Skip lines that don't have correct fields or not { } character in first
+				if offset > 0 { // ignores header line @ offset 0
+					log.Printf("skipped: line @offset=%d ll=%d", offset, ll)
+					skipped++
+				}
+				offset += int64(ll)
+				continue
+			}
+			hash := string(parts[0][1 : len(parts[0])-1])
+		*/
+		hash := extractHash(line)
 		if len(hash) < 32 { // at least md5
-			skipped++
+			if offset > 0 { // ignores header line @ offset 0
+				log.Printf("skipped: line @offset=%d ll=%d", offset, ll)
+				skipped++
+			}
 			continue
 		}
 		//log.Printf("RebuildHashDB hash='%s' @offset=%d", hash, offset)
 		// pass hash:offset to IndexChan
 
-		isDup, err := his.IndexQuery(&hash, IndexRetChan, offset)
+		isDup, err := his.IndexQuery(&hash, indexRetChan, offset)
 		if err != nil {
 			log.Printf("ERROR RebuildHashDB IndexQuery hash='%s' err='%v'", hash, err)
 			return err
@@ -98,7 +177,7 @@ func boltCreateBucket(db *bolt.DB, char *string, bucket *string) (retbool bool, 
 		if err != nil {
 			return err
 		}
-		logf(DEBUG2, "OK boltCreateBucket char=%s bucket='%s'", *char, *bucket)
+		//logf(DEBUG2, "OK boltCreateBucket char=%s bucket='%s'", *char, *bucket)
 		retbool = true
 		return nil
 	}); err != nil {
@@ -226,3 +305,65 @@ func boltGetAllKeys(db *bolt.DB, char *string, bucket *string) (retkeys *[]*stri
 	retkeys = &keys
 	return
 } // end func boltGetAllKeys
+
+func readLastNLinesFromFile(filePath string, n int, oldestFirst bool) ([]string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	stat, err := file.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	size := stat.Size()
+	mmappedData, err := mmap.Map(file, mmap.RDONLY, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer mmappedData.Unmap()
+
+	lines := make([]string, 0, n)
+	lineStart := int64(size - 1)
+	lineEnd := lineStart
+	log.Printf("readLastNLinesFromFile file='%s' size=%d ls=%d le=%d", filePath, size, lineStart, lineEnd)
+	if mmappedData[size-1] != '\n' {
+		log.Printf("ERROR readLastNLinesFromFile: EOF != '\n' file='%s'", filePath)
+		os.Exit(1)
+	}
+	startindex := size - 2
+	var skipped int64
+	for i := startindex; i >= 0; i-- { // scan backwards
+		if mmappedData[i] == '\n' {
+			//log.Printf("mmappedData ls=%d le=%d i=%d", lineStart, lineEnd, i)
+			line := string(mmappedData[lineStart:lineEnd])
+			if line == "" {
+				log.Printf("extracted line='%s' ls=%d le=%d i=%d skipped=%d", line, lineStart, lineEnd, i, skipped)
+				os.Exit(1)
+			}
+			lines = append(lines, line)
+			if len(lines) >= n {
+				break
+			}
+			lineEnd -= skipped
+			skipped = 0
+		} else {
+			skipped++
+		}
+		lineStart--
+	}
+	if oldestFirst {
+		// Reverse the order of lines. if reversed: start check from oldest else will check from latest.
+		reverseStrings(lines)
+	}
+	return lines, nil
+} // end func readLastNLinesFromFile
+
+func reverseStrings(lines []string) {
+	for i := 0; i < len(lines)/2; i++ {
+		j := len(lines) - i - 1
+		lines[i], lines[j] = lines[j], lines[i]
+	}
+}
