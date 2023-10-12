@@ -117,13 +117,14 @@ fetchbatch:
 		}
 		// batch insert to boltDB done, pass to CacheEvict
 		for _, bo := range batch1 {
-			if bo.offsets == nil || len(*bo.offsets) == 0 {
-				log.Printf("ERROR boltBucketPutBatch pre DoCacheEvict bo.offsets nil or empty")
-				continue
-			}
+			//if bo.offsets == nil || len(*bo.offsets) == 0 {
+			//	log.Printf("ERROR boltBucketPutBatch pre DoCacheEvict bo.offsets nil or empty")
+			//	continue
+			//}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
 			his.DoCacheEvict(*bo.char, *bo.hash, 0, *bo.bucket+*bo.key)
 			for _, offset := range *bo.offsets {
+				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
 				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
 			}
 		}
@@ -132,7 +133,7 @@ fetchbatch:
 			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
 		}
 		// debugs adaptive batchsize
-		logf(DBG_ABS1, "INFO bboltPutBatch [%s|%s] Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
+		logf(DBG_ABS1, "INFO bboltPutBatch [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 	}
 	if inserted > 0 {
 		his.Sync_upcounterN("inserted", inserted) // +N
