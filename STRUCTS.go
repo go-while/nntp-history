@@ -82,10 +82,10 @@ type BQ struct {
 type BatchOffset struct {
 	bucket            *string
 	key               *string
-	gobEncodedOffsets *[]byte
-	hash              *string // for cache eviction
-	char              *string // for cache eviction
-	offsets           *[]int64
+	gobEncodedOffsets *[]byte  // gob encoded offsets for this key
+	hash              *string  // for cache eviction
+	char              *string  // for cache eviction
+	offsets           *[]int64 // stored for this key
 }
 
 /*
