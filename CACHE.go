@@ -174,7 +174,7 @@ func (his *HISTORY) CacheEvictThread() {
 							break forever
 						}
 
-						logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
+						//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
 						if item.hash != "" { // l1 hash
 							tmpHash = append(tmpHash, item)
 						}
