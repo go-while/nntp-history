@@ -35,7 +35,8 @@ const (
 )
 
 var (
-	WatchBoltTimer       int64   = 15                           // prints bolts stats every N seconds. only with DEBUG
+	WatchBoltTimer       int64   = 10                           // prints bolts stats every N seconds. only with DEBUG
+	NoReplayHisDat       bool    = false                        // can be set before booting to not replay history.dat
 	QuickReplayHisDat    bool    = true                         // true checks from latest entry backwards, false checks oldestFirst
 	QuickReplayTestMax   int     = 16                           // quickly replays not more than this from latest backwards
 	ReplayTestMax        int     = 65536                        // replays at most this many if !QuickReplay, do oldestFirst.
@@ -165,13 +166,14 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 	go his.boltDB_Index()
 	his.ReplayHistoryDat(QuickReplayHisDat, ReplayTestMax)
-	logf(DEBUG, "his.boltDB_Init() ")
 	if DEBUG {
 		// run manually: go history.History.WatchBolt()
 		go his.WatchBolt()
 	}
-	HashDBlogstr := fmt.Sprintf("adaptBatch=%t KeyAlgo=%d KeyLen=%d QIndexChan=%d QindexChans=%d BatchSize=%d IndexParallel=%d", his.adaptBatch, his.keyalgo, his.keylen, QIndexChan, QindexChans, CharBucketBatchSize, IndexParallel)
-	log.Printf("boltDB_Init HashDB='%s.[0-9a-f]' HashDB:{%s}", his.hisDatDB, HashDBlogstr)
+	log.Printf("boltDB_Init HashDB='%s.[0-9a-f]'", his.hisDatDB)
+	log.Printf("  KeyAlgo=%d KeyLen=%d IndexParallel=%d", his.keyalgo, his.keylen, IndexParallel)
+	log.Printf("  adaptBatch=%t QIndexChan=%d QindexChans=%d", his.adaptBatch, QIndexChan, QindexChans)
+	log.Printf("  BatchSize=%d  BatchFlushEvery=%d", CharBucketBatchSize, BatchFlushEvery)
 } // end func boltDB_Init
 
 // boltDB_Index listens to incoming HistoryIndex structs on the IndexChan channel and distributes them to corresponding worker goroutines.
@@ -254,7 +256,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	if boltOpts == nil {
 		defboltOpts := bolt.Options{
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 16 * 1024 * 1024,
+			InitialMmapSize: 128 * 1024 * 1024 * 1024, // yes 128gb! avoids fragmentation on growing?
 			PageSize:        64 * 1024,
 			// https://github.com/etcd-io/bbolt/issues/401#issuecomment-1424484221
 			NoFreelistSync: true,
@@ -343,13 +345,16 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		return
 	}
 
-	// make the batchQueues
+	// make the batchQueues: if CharBucketBatchSize > 0
 	batchQcap := CharBucketBatchSize * 2
 	if his.adaptBatch {
 		batchQcap = 65536
 	}
 	for _, c1 := range HEXCHARS {
 		for _, c2 := range HEXCHARS {
+			if CharBucketBatchSize <= 0 {
+				continue
+			}
 			bucket := c1 + c2
 			// The batchQueue, like a ravenous dragon, gorges itself on memory, holding twofold the might of the actual CharBucketBatchSize.
 			// A daring gamble that ignites the fires of performance, but beware the voracious appetite!
@@ -462,21 +467,25 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		} // end for c2
 	} // end for c1
 
-	// wait for batchqueues to boot
-	BQtimeout := 60 * 1000
-	for {
-		time.Sleep(time.Millisecond)
-		if len(his.batchQueues.Booted) == 16*16*16 {
-			break
+	if CharBucketBatchSize > 0 {
+		// wait for batchqueues to boot
+		BQtimeout := 60 * 1000
+		for {
+			time.Sleep(time.Millisecond)
+			if len(his.batchQueues.Booted) == 16*16*16 {
+				break
+			}
+			BQtimeout--
+			if BQtimeout <= 0 {
+				log.Printf("ERROR boltDB_Worker [%s] BQtimeout batchQueues.Boot timeout", char)
+				his.CLOSE_HISTORY()
+				return
+			}
 		}
-		BQtimeout--
-		if BQtimeout <= 0 {
-			log.Printf("ERROR boltDB_Worker [%s] BQtimeout batchQueues.Boot timeout", char)
-			his.CLOSE_HISTORY()
-			return
-		}
+		//log.Printf("BOOTED boltDB_Worker [%s] (took %d ms)", char, 1000-BQtimeout)
+	} else {
+		//log.Printf("BOOTED boltDB_Worker [%s]")
 	}
-	//log.Printf("BOOTED boltDB_Worker char=%s (took %d ms)", char, 1000-BQtimeout)
 
 forever:
 	for {
@@ -565,11 +574,13 @@ forever:
 			}
 		} // end select
 	} // end for
-	for _, c1 := range HEXCHARS {
-		for _, c2 := range HEXCHARS {
-			bucket := c1 + c2
-			his.batchQueues.Maps[char][bucket] <- nil
-			close(his.batchQueues.Maps[char][bucket])
+	if CharBucketBatchSize > 0 {
+		for _, c1 := range HEXCHARS {
+			for _, c2 := range HEXCHARS {
+				bucket := c1 + c2
+				his.batchQueues.Maps[char][bucket] <- nil
+				close(his.batchQueues.Maps[char][bucket])
+			}
 		}
 	}
 	for _, c1 := range HEXCHARS {
@@ -756,8 +767,8 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 	his.L2Cache.SetOffsetHash(offset, hash, FlagNeverExpires)                                      // boltBucketKeyPutOffsets
 	his.L3Cache.SetOffsets(bucket+key, char, offsets, FlagNeverExpires, "boltBucketKeyPutOffsets") // boltBucketKeyPutOffsets
 
-	useBatchQueue := true
-	if useBatchQueue {
+	//useBatchQueue := true
+	if CharBucketBatchSize > 0 {
 		// puts offset into batchQ
 		batchQueue <- &BatchOffset{bucket: &bucket, key: &key, gobEncodedOffsets: &gobEncodedOffsets, hash: &hash, char: &char, offsets: offsets}
 		return
@@ -766,7 +777,7 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 	his.BatchLocks[char][bucket] <- struct{}{}
 	defer his.returnBatchLock(char, bucket)
 
-	if err := db.Update(func(tx *bolt.Tx) error {
+	if err := db.Batch(func(tx *bolt.Tx) error {
 		var err error
 		b := tx.Bucket([]byte(bucket))
 		puterr := b.Put([]byte(key), gobEncodedOffsets)
@@ -781,7 +792,7 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 		return err
 	}
 	his.Sync_upcounter("inserted")
-	his.DoCacheEvict(char, hash, 0, char+bucket+key)
+	his.DoCacheEvict(char, hash, 0, bucket+key)
 	for _, offset := range *offsets {
 		his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
 	}
