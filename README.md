@@ -1,4 +1,4 @@
-# nntp-history
+# nntp-history - work in progress and every commit makes it worse! xD
 
 nntp-history is a Go module designed for managing and storing NNTP (Network News Transfer Protocol) history records efficiently.
 
@@ -72,9 +72,9 @@ To use the `History_Boot` function, follow these steps:
 
 # Message-ID Hash Splitting with BoltDB
 
-## KeyAlgo (`ShortHash`)
+## KeyAlgo (`HashShort`)
 
-- The standard key algorithm used is `ShortHash`.
+- The standard key algorithm used is `HashShort` (-keyalgo=11).
 
 ## Database Organization
 
@@ -82,9 +82,7 @@ To improve processing speed and optimize data storage, we organize data into mul
 
 - We create 16 separate BoltDB databases, each corresponding to one of the 16 possible hexadecimal characters (0-9 and a-f).
 
-Each of these 16 databases is further divided into buckets using the second character of the hash:
-
-- For each database, we create buckets corresponding to the possible values of the second character (0-9 and a-f).
+- Each of these 16 databases is further divided into 256 buckets using the 2nd and 3rd character of the hash.
 
 ## Key Structure
 
@@ -93,13 +91,37 @@ The remaining portion of the hash (after the first two characters) is used as th
 - The length of this remaining hash used as a key can be customized based on the `KeyLen` setting.
 - A lower `KeyLen` results in more "multioffsets" stored per key, which can be beneficial for reducing storage space.
 - However, a lower `KeyLen` also result in more frequent file seeks when accessing data.
-- The default `KeyLen` is 6. The minimum recommended `KeyLen` is 4.
-- Reasonable values for `KeyLen` typically range from 5 to 8.
-- Test with 100M inserts (`i` hashes) shows 1.2% stored multioffsets with `KeyLen` = 6.
+- The recommended `KeyLen` is 6. The minimum `KeyLen` is 1. The maximum `KeyLen` is the length of the hash -3.
+- Reasonable values for `KeyLen` range from 4 to 6. more if you expect more than 100M messages.
+- Choose wisely. You can not change `KeyLen` or `KeyAlgo` later.
+```sh
+
+# Test   1M inserts with `KeyLen` = 3 (`i` hashes): appoffset=29256 (~3%) trymultioffsets=57928 (~6%)
+# Test  10M inserts with `KeyLen` = 3 (`i` hashes): appoffset=2467646 (24%!!) trymultioffsets=4491877 (44%!!)
+# Test 100M inserts with `KeyLen` = 3 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
+
+# Test   1M inserts with `KeyLen` = 4 (`i` hashes): appoffset=1850 (<0.2%) trymultioffsets=3698 (<0.4%)
+# Test  10M inserts with `KeyLen` = 4 (`i` hashes): appoffset=183973 (<2%) trymultioffsets=365670 (<4%)
+# Test 100M inserts with `KeyLen` = 4 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
+
+# Test   1M inserts with `KeyLen` = 5 (`i` hashes): appoffset=114 trymultioffsets=228
+# Test  10M inserts with `KeyLen` = 5 (`i` hashes): appoffset=11667 (~0.1%) trymultioffsets=23321 (~0.2%)
+# Test 100M inserts with `KeyLen` = 5 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
+
+# Test   1M inserts with `KeyLen` = 6 (`i` hashes): appoffset=4 trymultioffsets=8
+# Test  10M inserts with `KeyLen` = 6 (`i` hashes): appoffset=748 trymultioffsets=1496
+# Test 100M inserts with `KeyLen` = 6 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
+
+# Test   1M inserts with `KeyLen` = 8 (`i` hashes): appoffset=0 trymultioffsets=0
+# Test  10M inserts with `KeyLen` = 8 (`i` hashes): appoffset=4 trymultioffsets=8
+# Test 100M inserts with `KeyLen` = 8 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
+
+```
 
 ## FNV KeyAlgos
 
 - The other available `FNV` KeyAlgos have pre-defined `KeyLen` values and use the full hash to generate keys.
+- They are just there to test and play with. `HashShort` with KeyLen is faster.
 
 ## Example
 
@@ -107,9 +129,9 @@ Let's illustrate this approach with an example:
 
 Suppose you have a Message-ID hash of "1a2b3c4d5e6f0...":
 
-- The first character "1" selects the database "1".
-- The next character "a" selects the bucket "a" within the "1" database.
-- The remaining hash "2b3c4d5e6f0..." is used as the key in the "a" bucket based on the specified `KeyLen`.
+- We have 16 Databases: [0-9a-f]. The first character "1" selects the database "1".
+- Each database holds 256 buckets. The next character "a2" selects the bucket "a2" within the "1" database.
+- The remaining hash "b3c4d5e6f0..." is used as the key in the "a2" bucket based on the specified `KeyLen`.
 
 By following this approach, you can efficiently organize and retrieve data based on Message-ID hashes while benefiting from the performance and storage optimizations provided by BoltDB.
 
@@ -250,10 +272,10 @@ Alloc: 135 MiB, TotalAlloc: 1311 MiB, Sys: 469 MiB, NumGC: 17
 ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=256
  useHashDB: true | IndexParallel=16
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
-2023/10/11 13:21:19 his.boltDB_Init() AdaptiveBatchSizeON=false
+2023/10/11 13:21:19 his.boltDB_Init() AdaptBatch=false
 2023/10/11 13:21:19 History: new=true
   hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=15
-2023/10/11 13:21:19   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueindexChans=16 BatchSize=256 IndexParallel=16}
+2023/10/11 13:21:19   HashDB:{KeyAlgo=11 KeyLen=6 QIndexChan=16 QindexChans=16 BatchSize=256 IndexParallel=16}
 2023/10/11 13:21:34 L1: [fex=0/set:722261] [del:0/bat:451584] [g/s:80/0] cached:722204 (~45137/char)
 2023/10/11 13:21:34 L2: [fex=0/set:722203] [del:0/bat:451575] [g/s:48/0] cached:722203 (~45137/char)
 2023/10/11 13:21:34 L3: [fex=0/set:722204] [del:0/bat:451575] [g/s:80/0] cached:722147 (~45134/char)
@@ -339,10 +361,10 @@ Alloc: 364 MiB, TotalAlloc: 7573 MiB, Sys: 1557 MiB, NumGC: 29
 ARGS: CPU=4/12 | jobs=4 | todo=1000000 | total=4000000 | keyalgo=11 | keylen=6 | BatchSize=256
  useHashDB: true | IndexParallel=16
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
-2023/10/11 13:26:55 his.boltDB_Init() AdaptiveBatchSizeON=false
+2023/10/11 13:26:55 his.boltDB_Init() AdaptBatch=false
 2023/10/11 13:26:55 History: new=false
   hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=15
-2023/10/11 13:26:55   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueindexChans=16 BatchSize=256 IndexParallel=16}
+2023/10/11 13:26:55   HashDB:{KeyAlgo=11 KeyLen=6 QIndexChan=16 QindexChans=16 BatchSize=256 IndexParallel=16}
 2023/10/11 13:27:10 L1: [fex=658843/set:0] [del:0/bat:0] [g/s:80/0] cached:658845 (~41177/char)
 2023/10/11 13:27:10 L2: [fex=658845/set:0] [del:0/bat:0] [g/s:48/0] cached:658845 (~41177/char)
 2023/10/11 13:27:10 L3: [fex=658800/set:0] [del:0/bat:0] [g/s:80/0] cached:658800 (~41175/char)
@@ -699,10 +721,10 @@ Alloc: 62 MiB, TotalAlloc: 11095566 MiB, Sys: 2095 MiB, NumGC: 26836
 ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen=6 | BatchSize=256
  useHashDB: true | IndexParallel=16
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
-2023/10/10 21:55:30 his.boltDB_Init() AdaptiveBatchSizeON=false
+2023/10/10 21:55:30 his.boltDB_Init() AdaptBatch=false
 2023/10/10 21:55:30 History: new=true
   hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=15
-2023/10/10 21:55:30   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueindexChans=16 BatchSize=256 IndexParallel=16}
+2023/10/10 21:55:30   HashDB:{KeyAlgo=11 KeyLen=6 QIndexChan=16 QindexChans=16 BatchSize=256 IndexParallel=16}
 2023/10/10 21:56:00 L2: [fex=0/set:1255738] [del:0/bat:1212416] [g/s:48/0] cached:1255738 (~78483/char)
 2023/10/10 21:56:00 L3: [fex=0/set:1255738] [del:0/bat:1212416] [g/s:96/0] cached:1255538 (~78471/char)
 2023/10/10 21:56:00 BoltSpeed: 38862.47 tx/s ( did=576795 in 14.8 sec ) totalTX=1255571
@@ -723,7 +745,7 @@ ARGS: CPU=4/12 | jobs=4 | todo=100000000 | total=400000000 | keyalgo=11 | keylen
  boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:false, PreLoadFreelist:false, FreelistType:"", ReadOnly:false, MmapFlags:0, InitialMmapSize:2147483648, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
 2023/10/10 01:07:56 History: new=false
   hisDat='history/history.dat' DB='hashdb/history.dat.hash.[0-9a-f]' NumQueueWriteChan=16 DefaultCacheExpires=16
-2023/10/10 01:07:56   HashDB:{KeyAlgo=11 KeyLen=6 NumQueueIndexChan=16 NumQueueindexChans=16 BatchSize=64 IndexParallel=16}
+2023/10/10 01:07:56   HashDB:{KeyAlgo=11 KeyLen=6 QIndexChan=16 QindexChans=16 BatchSize=64 IndexParallel=16}
 2023/10/10 01:08:11 L1: [fex=515785/set:0] [del:0/bat:0] [g/s:80/0] cached:515789 (~32236/char)
 2023/10/10 01:08:11 L2: [fex=515792/set:0] [del:0/bat:0] [g/s:48/0] cached:515792 (~32237/char)
 2023/10/10 01:08:11 L3: [fex=515758/set:0] [del:0/bat:0] [g/s:80/0] cached:515758 (~32234/char)
@@ -1719,4 +1741,12 @@ Alloc: 26 MiB, TotalAlloc: 843302 MiB, Sys: 1173 MiB, NumGC: 2069
 2023/10/10 02:00:41 L1: [fex=100000000/set:0] [del:100000000/bat:0] [g/s:80/96] cached:0 (~0/char)
 2023/10/10 02:00:41 L2: [fex=101150197/set:0] [del:101150197/bat:0] [g/s:48/56] cached:0 (~0/char)
 2023/10/10 02:00:41 L3: [fex=99986182/set:0] [del:99986182/bat:0] [g/s:80/96] cached:0 (~0/char)
+```
+
+## Sizes with 25M hashes inserted
+- Filesystem: ZFS@linux
+- ZFS compression: lz4
+- ZFS blocksize=128K
+```sh
+
 ```
