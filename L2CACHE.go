@@ -107,8 +107,8 @@ forever:
 			if didnotexist > 0 {
 				logf(DEBUGL2, "INFO L2 [%s] extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
 			}
-			now := utils.UnixTimeSec()
 			start := utils.UnixTimeMilliSec()
+			now := int64(start / 1000)
 
 			l2.muxers[char].mux.Lock()
 		getexpired:
@@ -137,7 +137,7 @@ forever:
 				if _, exists := l2.Caches[char].cache[offset]; !exists {
 					delete(extends, offset)
 					didnotexist++
-					logf(DEBUG2, "WARN L2 [%s] extends !exists l2.Caches[char].cache[offset=%d] item='%#v'", char, offset, item)
+					//logf(DEBUG2, "WARN L2 [%s] extends !exists l2.Caches[char].cache[offset=%d] item='%#v'", char, offset, item)
 					continue
 				}
 				if l2.Caches[char].cache[offset].hash == "" {
@@ -174,13 +174,15 @@ forever:
 				//log.Printf("ERROR L2 [%s] extends=%d='%#v' != 0", char, len(extends), extends)
 				log.Printf("ERROR L2 [%s] extends=%d != 0", char, len(extends))
 			} else {
-				//clear(extends)
-				//extends = nil
-				if int64(lenExt) >= mapsize {
-					mapsize = int64(lenExt) * 3
-					logf(DEBUGL2, "INFO L2 [%s] grow extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
-				}
-				extends = make(map[int64]*ClearCache, mapsize)
+				/*
+					//clear(extends)
+					//extends = nil
+					if int64(lenExt) >= mapsize {
+						mapsize = int64(lenExt) * 3
+						logf(DEBUGL2, "INFO L2 [%s] grow extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
+					}
+					extends = make(map[int64]*ClearCache, mapsize)
+				*/
 			}
 			logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
@@ -190,6 +192,8 @@ forever:
 } //end func L2Cache_Thread
 
 func (l2 *L2CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
+	return true
+
 	shrinkmin := L2InitSize
 	// shrink if percentage of cache usage is lower than DefaultThresholdFactor
 	threshold := int(float64(oldmax) / 100 * DefaultThresholdFactor)
@@ -241,22 +245,25 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		return
 	}
 	char := l2.OffsetToChar(offset)
-	start := utils.UnixTimeMilliSec()
+	//start := utils.UnixTimeMilliSec()
 	l2.muxers[char].mux.Lock()
+	defer l2.muxers[char].mux.Unlock()
 
-	if len(l2.Caches[char].cache) >= int(l2.mapsizes[char].maxmapsize/100*98) { // grow map
-		newmax := l2.mapsizes[char].maxmapsize * 4
-		newmap := make(map[int64]*L2ITEM, newmax)
-		for k, v := range l2.Caches[char].cache {
-			newmap[k] = v
-		}
-		//clear(l2.Caches[char].cache)
-		//l2.Caches[char].cache = nil
-		l2.Caches[char].cache = newmap
-		l2.mapsizes[char].maxmapsize = newmax
-		l2.Counter[char]["Count_Growup"] += 1
-		logf(DBG_CGS, "L2CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
-	}
+	/*
+		if len(l2.Caches[char].cache) >= int(l2.mapsizes[char].maxmapsize/100*98) { // grow map
+			newmax := l2.mapsizes[char].maxmapsize * 4
+			newmap := make(map[int64]*L2ITEM, newmax)
+			for k, v := range l2.Caches[char].cache {
+				newmap[k] = v
+			}
+			//clear(l2.Caches[char].cache)
+			//l2.Caches[char].cache = nil
+			l2.Caches[char].cache = newmap
+			l2.mapsizes[char].maxmapsize = newmax
+			l2.Counter[char]["Count_Growup"] += 1
+			logf(DBG_CGS, "L2CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		}*/
+
 	expires := NoExpiresVal
 	if flagexpires {
 		expires = utils.UnixTimeSec() + L2CacheExpires
@@ -264,8 +271,17 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	} else {
 		l2.Counter[char]["Count_Set"] += 1
 	}
+	if l2.Caches[char].cache[offset] != nil {
+		if l2.Caches[char].cache[offset].hash != hash {
+			log.Printf("ERROR L2Cache [%s] cached hash=%s@offset=%d != hash=%s", char, l2.Caches[char].cache[offset].hash, offset, hash)
+			return
+		}
+		l2.Caches[char].cache[offset].expires = expires
+
+		return
+	}
 	l2.Caches[char].cache[offset] = &L2ITEM{hash: hash, expires: expires}
-	l2.muxers[char].mux.Unlock()
+	l2.mapsizes[char].maxmapsize++
 } // end func SetOffsetHash
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
