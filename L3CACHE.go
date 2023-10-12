@@ -12,7 +12,7 @@ var (
 	L3CacheExpires  int64 = DefaultCacheExpires
 	L3ExtendExpires int64 = DefaultCacheExtend
 	L3Purge         int64 = DefaultCachePurge
-	L3InitSize      int   = 64
+	L3InitSize      int   = 256 * 1024
 )
 
 type L3CACHE struct {
@@ -69,17 +69,16 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 // The L3Cache_Thread function runs as a goroutine for each character.
 // It periodically cleans up expired cache entries and dynamically shrinks the cache size if needed.
 func (l3 *L3CACHE) L3Cache_Thread(char string) {
-	l3.mux.Lock() // waits for CACHE_Boot to unlock
+	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
 	logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
-	lastshrink := utils.UnixTimeSec()
+	//lastshrink := utils.UnixTimeSec()
 	cleanup := []string{}
 	l3purge := L3Purge
 	if l3purge < 1 {
 		l3purge = 1
 	}
-	mapsize := int(1024 * l3purge)
-	extends := make(map[string]bool, mapsize)
+	extends := make(map[string]bool, 1024)
 	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 	timeout := false
 	//didnotexist := 0
@@ -117,9 +116,9 @@ forever:
 				}
 			} // end for getexpired
 			maplen := len(l3.Caches[char].cache)
-			oldmax := l3.mapsizes[char].maxmapsize
+			//oldmax := l3.mapsizes[char].maxmapsize
 			l3.muxers[char].mux.Unlock()
-
+			clear(extends)
 			if len(cleanup) > 0 {
 				maplen -= len(cleanup)
 				l3.muxers[char].mux.Lock()
@@ -127,15 +126,15 @@ forever:
 					delete(l3.Caches[char].cache, key)
 					l3.Counter[char]["Count_Delete"] += 1
 				}
-				max := l3.mapsizes[char].maxmapsize
+				//max := l3.mapsizes[char].maxmapsize
 				l3.muxers[char].mux.Unlock()
-				logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d maplen=%d/%d", char, len(cleanup), maplen, max)
+				logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
 			}
-			if lastshrink < now-DefaultTryShrinkEvery {
-				l3.shrinkMapIfNeeded(char, maplen, oldmax)
-				lastshrink = now
-			}
+			//if lastshrink < now-DefaultTryShrinkEvery {
+			//	l3.shrinkMapIfNeeded(char, maplen, oldmax)
+			//	lastshrink = now
+			//}
 			/*
 				if lenExt >= mapsize {
 					mapsize = lenExt * 4
