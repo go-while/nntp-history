@@ -80,9 +80,9 @@ To use the `History_Boot` function, follow these steps:
 
 To improve processing speed and optimize data storage, we organize data into multiple BoltDB databases based on the first character of the hash:
 
-- We create 16 separate BoltDB databases, each corresponding to one of the 16 possible hexadecimal characters (0-9 and a-f).
+- We create 16 separate BoltDB databases, each corresponding to one of the characters (0-9 and a-f).
 
-- Each of these 16 databases is further divided into 256 buckets using the 2nd and 3rd character of the hash.
+- Each of these 16 DBs is further divided into 256 buckets using the 2nd and 3rd character of the hash.
 
 ## Key Structure
 
