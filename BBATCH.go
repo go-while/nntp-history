@@ -22,7 +22,7 @@ var (
 	emptyStr             string               // used as pointer
 )
 
-func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, looped bool, lastflush int64, workerCharBucketBatchSize int) (int, uint64, error, bool) {
+func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, lastflush int64, workerCharBucketBatchSize int) (int, uint64, error, bool) {
 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	Q := len(batchQueue)
@@ -122,7 +122,7 @@ fetchbatch:
 				continue
 			}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
-			his.DoCacheEvict(*bo.char, *bo.hash, 0, *bo.char+*bo.bucket+*bo.key)
+			his.DoCacheEvict(*bo.char, *bo.hash, 0, *bo.bucket+*bo.key)
 			for _, offset := range *bo.offsets {
 				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
 			}
