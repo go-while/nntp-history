@@ -8,16 +8,51 @@ import (
 	"time"
 )
 
-func (his *HISTORY) PrintGetBoltStatsEveryN(char string, interval time.Duration) {
-	ticker := time.NewTicker(interval)
-	for range ticker.C {
-		his.GetBoltStats("", false)
+func (his *HISTORY) WatchBolt() {
+	his.mux.Lock()
+	if his.WBR {
+		his.mux.Unlock()
+		return
 	}
-} // end func PrintGetBoltStatsEveryN
+	his.WBR = true
+	go his.PrintBoltPerformance()
+	his.mux.Unlock()
 
-func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) {
+	var inserted uint64
+	var batchins uint64
+	var searches uint64
+	ticker := time.NewTicker(time.Duration(WatchBoltTimer) * time.Second)
+	for range ticker.C {
+		insertednow := his.GetCounter("inserted")
+		batchinsnow := his.GetCounter("batchins")
+		searchesnow := his.GetCounter("searches")
+		if insertednow > inserted {
+			diff := insertednow - inserted
+			pps := diff / 15
+			log.Printf("WatchBolt: (inserted %d/s) (+%d inserted in 15s)", pps, diff)
+			inserted = insertednow
+		}
+		if batchinsnow > batchins {
+			if insertednow > 0 {
+				diff := batchinsnow - batchins
+				pps := diff / 15
+				medbatchsize := uint64(insertednow / batchinsnow)
+				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in 15s) medBS=~%d", pps, diff, medbatchsize)
+			}
+			batchins = batchinsnow
+		}
+		if searchesnow > searches {
+			diff := searchesnow - searches
+			pps := diff / 15
+			log.Printf("WatchBolt: (searches %d/s) (+%d searches in 15s)", pps, diff)
+			searches = searchesnow
+		}
+	}
+} // end func WatchBolt
+
+func (his *HISTORY) PrintBoltPerformance() {
 	var tmpTX int
-	ticker := time.NewTicker(interval)
+	ticker := time.NewTicker(time.Duration(WatchBoltTimer) * time.Second)
 	prevTimestamp := time.Now()
 	for range ticker.C {
 		his.PrintCacheStats()
@@ -36,7 +71,7 @@ func (his *HISTORY) PrintGetBoltStatsEvery(char string, interval time.Duration) 
 		}
 		tmpTX = tx
 	}
-} // end func PrintGetBoltStatsEvery
+} // end func PrintBoltPerformance
 
 func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) {
 	if !his.useHashDB {
@@ -53,9 +88,10 @@ func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) 
 		OpenTxN += dbstats.OpenTxN
 		TxN += dbstats.TxN
 		if print {
-			log.Printf("BoltStats [%s] OpenTxN=%d TxN=%d", char, dbstats.OpenTxN, dbstats.TxN)
+			logf(DEBUG2, "BoltStats [%s] OpenTxN=%d TxN=%d", char, dbstats.OpenTxN, dbstats.TxN)
 		}
 	}
+
 	return
 } // end func GetBoltStat
 
@@ -70,6 +106,9 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 		otx, tx := his.GetBoltStat(char, print)
 		OpenTxN += otx
 		TxN += tx
+	}
+	if print {
+		log.Printf("BoltStats [%s] OpenTxN=%d TxN=%d", char, OpenTxN, TxN)
 	}
 	return OpenTxN, TxN
 } // end func GetBoltStats
