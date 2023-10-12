@@ -130,12 +130,12 @@ forever:
 			}
 		case <-timer.C:
 			timeout = true
-			lenExt := len(extends)
+			//lenExt := len(extends)
 			//if lenExt > 0 {
 			//	log.Printf("INFO L1 [%s] extends=%d/%d", char, lenExt, mapsize)
 			//}
-			now := utils.UnixTimeSec()
 			start := utils.UnixTimeMilliSec()
+			now := int64(start / 1000)
 			l1.muxers[char].mux.Lock()
 		getexpired:
 			for hash, item := range l1.Caches[char].cache {
@@ -192,13 +192,15 @@ forever:
 				log.Printf("ERROR L1 [%s] extends=%d='%#v' != 0", char, len(extends), extends)
 				//log.Printf("ERROR L1 [%s] extends=%d != 0", char, len(extends))
 			} else {
-				//clear(extends)
-				//extends = nil
-				if int64(lenExt) >= mapsize {
-					logf(DEBUGL1, "INFO L1 [%s] grow extends=%d/%d", char, lenExt, mapsize)
-					mapsize = int64(lenExt) * 3
-				}
-				extends = make(map[string]bool, mapsize)
+				/*
+					//clear(extends)
+					//extends = nil
+					if int64(lenExt) >= mapsize {
+						logf(DEBUGL1, "INFO L1 [%s] grow extends=%d/%d", char, lenExt, mapsize)
+						mapsize = int64(lenExt) * 3
+					}
+					extends = make(map[string]bool, mapsize)
+				*/
 			}
 			logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
@@ -208,6 +210,8 @@ forever:
 } //end func L1Cache_Thread
 
 func (l1 *L1CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
+	return true
+
 	shrinkmin := L1InitSize
 	// shrink if percentage of cache usage is lower than DefaultThresholdFactor
 	threshold := int(float64(oldmax) / 100 * DefaultThresholdFactor)
@@ -261,22 +265,25 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	if char == "" {
 		char = string(hash[0])
 	}
-	start := utils.UnixTimeMilliSec()
+	//start := utils.UnixTimeMilliSec()
 	l1.muxers[char].mux.Lock()
+	defer l1.muxers[char].mux.Unlock()
 
-	if len(l1.Caches[char].cache) >= int(l1.mapsizes[char].maxmapsize/100*98) { // grow map
-		newmax := l1.mapsizes[char].maxmapsize * 4
-		newmap := make(map[string]*L1ITEM, newmax)
-		for k, v := range l1.Caches[char].cache {
-			newmap[k] = v
-		}
-		//clear(l1.Caches[char].cache)
-		//l1.Caches[char].cache = nil
-		l1.Caches[char].cache = newmap
-		l1.mapsizes[char].maxmapsize = newmax
-		l1.Counter[char]["Count_Growup"] += 1
-		logf(DBG_CGS, "L1CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
-	}
+	/*
+		if len(l1.Caches[char].cache) >= int(l1.mapsizes[char].maxmapsize/100*98) { // grow map
+			newmax := l1.mapsizes[char].maxmapsize * 4
+			newmap := make(map[string]*L1ITEM, newmax)
+			for k, v := range l1.Caches[char].cache {
+				newmap[k] = v
+			}
+			//clear(l1.Caches[char].cache)
+			//l1.Caches[char].cache = nil
+			l1.Caches[char].cache = newmap
+			l1.mapsizes[char].maxmapsize = newmax
+			l1.Counter[char]["Count_Growup"] += 1
+			logf(DBG_CGS, "L1CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		}*/
+
 	expires := NoExpiresVal
 	if flagexpires {
 		l1.Counter[char]["Count_FlagEx"] += 1
@@ -284,8 +291,13 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	} else if !flagexpires && value == CaseWrite {
 		l1.Counter[char]["Count_Set"] += 1
 	}
+
+	if l1.Caches[char].cache[hash] != nil {
+		l1.Caches[char].cache[hash].expires = expires
+		return
+	}
+	l1.mapsizes[char].maxmapsize++
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
-	l1.muxers[char].mux.Unlock()
 } // end func Set
 
 /*
