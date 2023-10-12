@@ -90,14 +90,14 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 
 	// boltDB_Index receives a HistoryIndex struct and passes it down to boltDB_Worker['0-9a-f']
-	if IndexParallel < 1 {
+	if IndexParallel <= 0 {
 		IndexParallel = 1
 	} else if IndexParallel > 16 {
 		IndexParallel = 16 // hardcoded limit to 16
 	}
 
 	if CharBucketBatchSize <= 0 {
-		CharBucketBatchSize = 1
+		CharBucketBatchSize = 0
 	} else if CharBucketBatchSize > 65536 {
 		CharBucketBatchSize = 65536
 	}
