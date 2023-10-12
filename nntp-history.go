@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	ALWAYS = true
+	BUFIOBUFFER = 4 * 1024
+	ALWAYS      = true
 	//TESTHASH1 string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
 	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
@@ -68,31 +69,34 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	if BatchFlushEvery <= 500 { // milliseconds
 		BatchFlushEvery = 500
-	} else if BatchFlushEvery > 5000 {
-		BatchFlushEvery = 5000
+	} else if BatchFlushEvery > 15000 {
+		BatchFlushEvery = 15000
 	}
 
-	// TODO BUGFIX: this does not work as intended
-	// whenever writes need longer the cache evicts and lost the cached info before writing it....
-	// any next requests adding offsets will result in problems
-	if BatchFlushEvery*3 > DefaultCacheExpires*1000 {
-		DefaultCacheExpires = BatchFlushEvery*3/1000 + 1
+	if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
+		DefaultCacheExpires = BatchFlushEvery * 2 / 1000
 	}
 
+	if DefaultCachePurge <= 0 { // seconds
+		DefaultCachePurge = 1
+	} else if DefaultCachePurge > 900 { // really?
+		DefaultCachePurge = 900
+	}
+
+	if DefaultCacheExpires <= 0 { // seconds
+		DefaultCacheExpires = 1
+	} else if DefaultCacheExpires > 86400 { // really?
+		DefaultCacheExpires = 86400
+	}
+
+	// boltDB_Index receives a HistoryIndex struct and passes it down to boltDB_Worker['0-9a-f']
 	if IndexParallel < 1 {
 		IndexParallel = 1
 	} else if IndexParallel > 16 {
 		IndexParallel = 16 // hardcoded limit to 16
 	}
 
-	// With a mere batchsize of 1, behold as 512 queued hashes arise in all their glory!
-	// Divided among 256 queues, like the 16 sacred char databases and 16 mighty buckets.
-	// Yet, should one dare to wield a batchsize of 1024, prepare for the spectacle of 512K queued hashes!
-	// Brace yourselves, champions of the shadows.
-	// For those who wield the unstoppable force of 65536 as their batchsize, an almost infinite horde of queued hashes shall rise.
-	// An awe-inspiring testament to their indomitable valor!
-	// Why, you ask? Because: batchQcap := CharBucketBatchSize * 2 (* 256 queues), and that's more than double the trouble, baby!
-	if CharBucketBatchSize < 1 {
+	if CharBucketBatchSize <= 0 {
 		CharBucketBatchSize = 1
 	} else if CharBucketBatchSize > 65536 {
 		CharBucketBatchSize = 65536
@@ -178,7 +182,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot os.OpenFile err='%v'", err)
 		os.Exit(1)
 	}
-	dw := bufio.NewWriterSize(fh, 4*1024)
+	dw := bufio.NewWriterSize(fh, BUFIOBUFFER)
 	if new {
 		// create history.dat
 		data, err := gobEncodeHeader(history_settings)
@@ -220,23 +224,19 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		}
 		his.keyalgo = history_settings.KeyAlgo
 		his.keylen = history_settings.KeyLen
-		logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
+		//logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
+	his.Counter = make(map[string]uint64)
 
 	his.L1Cache.L1CACHE_Boot(his)
 	his.CacheEvictThread()
 
-	HashDBlogstr := ""
 	if useHashDB {
 		his.useHashDB = true
 		his.boltDB_Init(boltOpts)
-		HashDBlogstr = fmt.Sprintf("KeyAlgo=%d KeyLen=%d NumQueueIndexChan=%d NumQueueindexChans=%d BatchSize=%d IndexParallel=%d", his.keyalgo, his.keylen, NumQueueIndexChan, NumQueueindexChans, CharBucketBatchSize, IndexParallel)
 	}
-	his.Counter = make(map[string]uint64)
+
 	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires)
-	if his.useHashDB {
-		log.Printf("DB='%s.[0-9a-f]' HashDB:{%s}", his.hisDatDB, HashDBlogstr)
-	}
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
@@ -275,7 +275,7 @@ func (his *HISTORY) wait4HashDB() {
 		for {
 			time.Sleep(10 * time.Millisecond)
 			if len(BoltHashOpen) == BoltDBs {
-				//logf(DEBUG2, "Booted HashDB")
+				////logf(DEBUG2, "Booted HashDB")
 				return
 			}
 			took := utils.UnixTimeSec() - now
@@ -308,7 +308,7 @@ func (his *HISTORY) history_Writer(fh *os.File, dw *bufio.Writer) {
 		os.Exit(1)
 	}
 	his.Offset = fileInfo.Size()
-	logf(DEBUG2, "history_Writer opened fp='%s' filesize=%d", his.hisDat, his.Offset)
+	//logf(DEBUG2, "history_Writer opened fp='%s' filesize=%d", his.hisDat, his.Offset)
 	flush := false // false: will flush when bufio gets full
 	var wbt uint64
 	var wroteLines uint64
@@ -323,7 +323,7 @@ forever:
 			return
 		}
 		select {
-		case hobj, ok := <-his.WriterChan: // recevies a HistoryObject struct
+		case hobj, ok := <-his.WriterChan: // receives a HistoryObject struct
 			if !ok || hobj == nil {
 				// receiving a nil object stops history_writer
 				if History.IndexChan != nil {
@@ -423,7 +423,7 @@ func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flus
 		log.Printf("ERROR history_Writer WriteString err='%v'", err)
 		return err
 	} else {
-		logf(DEBUG2, "history_Writer ll=%d wb=%d hash='%s'", len(line), wb, *hobj.MessageIDHash)
+		//logf(DEBUG2, "history_Writer ll=%d wb=%d hash='%s'", len(line), wb, *hobj.MessageIDHash)
 		if wbt != nil {
 			*wbt += uint64(wb)
 		}
@@ -517,7 +517,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64) (*strin
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
-			//logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
+			////logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
 			his.L2Cache.SetOffsetHash(offset, hash, FlagExpires)
 			return &hash, nil
 		}
@@ -577,8 +577,12 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 } // end func FseekHistoryLine
 
 func (his *HISTORY) SET_DEBUG(debug int) {
+	if debug < 0 {
+		return
+	}
 	switch debug {
 	case 0:
+		DEBUG = true
 		DEBUG0 = true
 	case 1:
 		DEBUG0 = true
@@ -590,7 +594,7 @@ func (his *HISTORY) SET_DEBUG(debug int) {
 	case 9:
 		DEBUG9 = true
 	}
-}
+} // end func SET_DEBUG
 
 func (his *HISTORY) CLOSE_HISTORY() {
 	log.Printf("CLOSE_HISTORY aquire lock")
@@ -618,9 +622,12 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		batchQ, batchLOCKS := 0, 0
 		if his.useHashDB {
 			for _, char := range HEXCHARS {
-				for _, bucket := range HEXCHARS {
-					batchQ += len(his.batchQueues.Maps[char][bucket])
-					batchLOCKS += len(his.BatchLocks[char][bucket])
+				for _, c1 := range HEXCHARS {
+					for _, c2 := range HEXCHARS {
+						bucket := c1 + c2
+						batchQ += len(his.batchQueues.Maps[char][bucket])
+						batchLOCKS += len(his.BatchLocks[char][bucket])
+					}
 				}
 			}
 		}
@@ -684,19 +691,21 @@ func isPow2(n int) bool {
 } // end func isPow2
 
 func (his *HISTORY) Sync_upcounter(counter string) {
-	go func(counter string) {
-		his.cmux.Lock()
-		his.Counter[counter] += 1
-		his.cmux.Unlock()
-	}(counter)
+	if !DEBUG {
+		return
+	}
+	his.cmux.Lock()
+	his.Counter[counter] += 1
+	his.cmux.Unlock()
 } // end func sync_upcounter
 
 func (his *HISTORY) Sync_upcounterN(counter string, value uint64) {
-	go func(counter string, value uint64) {
-		his.cmux.Lock()
-		his.Counter[counter] += value
-		his.cmux.Unlock()
-	}(counter, value)
+	if !DEBUG {
+		return
+	}
+	his.cmux.Lock()
+	his.Counter[counter] += value
+	his.cmux.Unlock()
 } // end func Sync_upcounterN
 
 func (his *HISTORY) GetCounter(counter string) uint64 {
