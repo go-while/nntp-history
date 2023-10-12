@@ -16,7 +16,7 @@ import (
 	"os"
 	"runtime"
 	//"runtime/debug"
-	"syscall"
+	//"syscall"
 	"time"
 )
 
@@ -35,6 +35,9 @@ func main() {
 	var PprofAddr string
 	var isleep int
 	var useL1Cache bool
+	var NoSync bool
+	var NoGrowSync bool
+	var NoFreelistSync bool
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit your CPU cores to Threads/2 !")
@@ -54,11 +57,17 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
-	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false")
-	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 2500, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
-	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "1-65536")
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 4096, "0-65536 default: -1 = 1000")
+	flag.BoolVar(&NoSync, "NoSync", true, "bbolt.NoSync")
+	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
+	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
+
+	// experimental flags
+	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
+	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
+	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 
 	flag.Parse()
 	if numCPU > 0 {
@@ -72,11 +81,12 @@ func main() {
 	}
 	if PprofAddr != "" {
 		go debug_pprof(PprofAddr)
+		time.Sleep(time.Second)
 	}
 	history.History.SET_DEBUG(debugs)
 	//history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data after encoding
 	//history.DBG_CGS = true // prints cache grow/shrink
-	//history.DBG_BS_LOG = true // this debug eats memory and costs performance (sync.mutex) to log all batched writes
+	//history.DBG_BS_LOG = true // this debug eats memory to log all batched writes
 	//history.DBG_ABS1 = true // prints adaptive batchsize queue
 	//history.DBG_ABS2 = true // prints adaptive batchsize decr/incr
 	storageToken := "F" // storagetoken flatfile
@@ -97,43 +107,46 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		//history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
-		//history.BoltDB_MaxBatchDelay = 50 * time.Millisecond // default: 10 * time.Millisecond
+		//history.BoltDB_MaxBatchDelay = 1000 * time.Millisecond // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
 		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
-		history.BoltSyncEveryS = 60     // only used with 'boltopts.NoSync: true' default: 5 seconds
-		history.BoltSyncEveryN = 500000 // only used with 'boltopts.NoSync: true' default: 100
+		//history.BoltSyncEveryS = 60     // only used with 'boltopts.NoSync: true' default: 5 seconds
+		//history.BoltSyncEveryN = 500000 // only used with 'boltopts.NoSync: true' default: 100
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16 // used when booting and initalizing bolt databases
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
 		//history.QIndexChan = 1     // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
-		history.QindexChans = 2 // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
+		//history.QindexChans = 2 // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
 		//history.IndexParallel = 1 // default: 16
 		// DO NOT change any settings while process is running! will produce race conditions!
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 16 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        64 * 1024,
+			InitialMmapSize: 1024 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
+			PageSize:        512 * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
 			FreelistType:   bolt.FreelistMapType,
-			NoSync:         true,
-			NoGrowSync:     true,
-			NoFreelistSync: true,
+			NoSync:         NoSync,
+			NoGrowSync:     NoGrowSync,
+			NoFreelistSync: NoFreelistSync,
 			//FreelistType: "hashmap",
 			//FreelistType: "array",
 			//PreLoadFreelist: ?,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
-			MmapFlags: syscall.MAP_POPULATE,
+			//MmapFlags: syscall.MAP_POPULATE,
 		}
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize)
 	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
+	if offset >= 0 {
+		history.NoReplayHisDat = true
+	}
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	// check command line arguments to execute commands
 	if RebuildHashDB {
@@ -154,7 +167,7 @@ func main() {
 		fmt.Printf("History @offset=%d line='%s'\n", offset, *result)
 		os.Exit(0)
 	}
-	time.Sleep(3 * time.Second)
+	//time.Sleep(3 * time.Second)
 	if useHashDB {
 		go history.History.WatchBolt()
 	}
