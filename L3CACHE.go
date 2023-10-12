@@ -78,11 +78,11 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	if l3purge < 1 {
 		l3purge = 1
 	}
-	mapsize := 1024 * l3purge
+	mapsize := int(1024 * l3purge)
 	extends := make(map[string]bool, mapsize)
 	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 	timeout := false
-	didnotexist := 0
+	//didnotexist := 0
 forever:
 	for {
 		if timeout {
@@ -97,12 +97,9 @@ forever:
 			}
 		case <-timer.C:
 			timeout = true
-			lenExt := len(extends)
-			if didnotexist > 0 {
-				log.Printf("INFO L3 [%s] extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
-			}
-			now := utils.UnixTimeSec()
+			//lenExt := len(extends)
 			start := utils.UnixTimeMilliSec()
+			now := int64(start / 1000)
 			l3.muxers[char].mux.Lock()
 		getexpired:
 			for key, item := range l3.Caches[char].cache {
@@ -111,13 +108,6 @@ forever:
 						l3.Caches[char].cache[key].offsets = item.offsets
 						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
 						l3.Counter[char]["Count_BatchD"] += 1
-					} else {
-						/* else if len(l3.Caches[char].cache[key].offsets) > 0 {
-							l3.Caches[char].cache[key].expires = now + L3ExtendExpires
-							l3.Counter[char]["Count_BatchD"] += 1
-						}
-						else {*/
-						didnotexist++
 					}
 					delete(extends, key)
 					continue getexpired
@@ -146,17 +136,25 @@ forever:
 				l3.shrinkMapIfNeeded(char, maplen, oldmax)
 				lastshrink = now
 			}
-			if len(extends) != 0 {
-				log.Printf("ERROR L3 [%s] extends=%d='%#v' != 0", char, len(extends), extends)
-				//log.Printf("ERROR L3 [%s] extends=%d != 0", char, len(extends))
-			} else {
-				//clear(extends)
-				//extends = nil
-				if int64(lenExt) >= mapsize {
-					mapsize = int64(lenExt) * 3
+			/*
+				if lenExt >= mapsize {
+					mapsize = lenExt * 4
 					logf(DEBUGL3, "INFO L3 [%s] grow extends=%d/%d didnotexist=%d", char, lenExt, mapsize, didnotexist)
 				}
-				extends = make(map[string]bool, mapsize)
+			*/
+			if len(extends) != 0 {
+				log.Printf("ERROR L3 [%s] extends=%d='%#v'!=0", char, len(extends), extends)
+				//log.Printf("ERROR L3 [%s] extends=%d != 0", char, len(extends))
+			} else {
+				/*
+					//clear(extends)
+					//extends = nil
+					if lenExt >= mapsize {
+						mapsize = lenExt * 4
+						logf(DEBUGL3, "INFO L3 [%s] grow extends=%d/%d", char, lenExt, mapsize)
+					}
+					extends = make(map[string]bool, mapsize)
+				*/
 			}
 			logf(DEBUGL3, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
@@ -166,6 +164,8 @@ forever:
 } //end func L3Cache_Thread
 
 func (l3 *L3CACHE) shrinkMapIfNeeded(char string, maplen int, oldmax int) bool {
+	return true
+
 	shrinkmin := L3InitSize
 	// shrink if percentage of cache usage is lower than DefaultThresholdFactor
 	threshold := int(float64(oldmax) / 100 * DefaultThresholdFactor)
@@ -211,29 +211,36 @@ func (l3 *L3CACHE) shrinkMap(char string, newmax int, maplen int) bool {
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
-func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexpires bool) {
-	if offsets == nil {
+func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexpires bool, src string) {
+	if key == "" {
 		return
 	}
 	if char == "" {
 		char = string(key[0])
 	}
-	start := utils.UnixTimeMilliSec()
-	l3.muxers[char].mux.Lock()
-
-	if len(l3.Caches[char].cache) >= int(l3.mapsizes[char].maxmapsize/100*98) { // grow map
-		newmax := l3.mapsizes[char].maxmapsize * 4
-		newmap := make(map[string]*L3ITEM, newmax)
-		for k, v := range l3.Caches[char].cache {
-			newmap[k] = v
-		}
-		//clear(l3.Caches[char].cache)
-		//l3.Caches[char].cache = nil
-		l3.Caches[char].cache = newmap
-		l3.mapsizes[char].maxmapsize = newmax
-		l3.Counter[char]["Count_Growup"] += 1
-		logf(DBG_CGS, "L3CACHE [%s] grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+	if offsets == nil {
+		return
 	}
+	//start := utils.UnixTimeMilliSec()
+	l3.muxers[char].mux.Lock()
+	defer l3.muxers[char].mux.Unlock()
+
+	/*
+		if len(l3.Caches[char].cache) >= int(l3.mapsizes[char].maxmapsize/100*98) { // grow map
+			newmax := l3.mapsizes[char].maxmapsize * 4
+			newmap := make(map[string]*L3ITEM, newmax)
+			for k, v := range l3.Caches[char].cache {
+				newmap[k] = v
+			}
+			//clear(l3.Caches[char].cache)
+			//l3.Caches[char].cache = nil
+			l3.Caches[char].cache = newmap
+			l3.mapsizes[char].maxmapsize = newmax
+			l3.Counter[char]["Count_Growup"] += 1
+			logf(DBG_CGS, "L3CACHE [%s] SetOffsets grow newmap=%d/%d (took %d ms)", char, len(newmap), newmax, utils.UnixTimeMilliSec()-start)
+		}
+	*/
+
 	expires := NoExpiresVal
 	if flagexpires {
 		if len(*offsets) > 0 {
@@ -243,9 +250,51 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexp
 	} else {
 		l3.Counter[char]["Count_Set"] += 1
 	}
+
+	if l3.Caches[char].cache[key] != nil {
+		// cache entry exists
+		l3.Caches[char].cache[key].expires = expires
+		cachedlen := len(l3.Caches[char].cache[key].offsets)
+		if cachedlen == 0 {
+			// there is an empty offsets-slice cached: set this
+			l3.Caches[char].cache[key].offsets = *offsets
+			return
+		}
+		allexist := allValuesExistInSlice(*offsets, l3.Caches[char].cache[key].offsets)
+		if allexist {
+			return
+		}
+		cacheex := utils.UnixTimeSec() - l3.Caches[char].cache[key].expires
+		newoffsetslen := len(*offsets)
+		for _, offset := range *offsets {
+			if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
+				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
+				log.Printf("INFO L3CACHE [%s] SetOffsets append key='%s' cached=%d='%#v' set?=%d='%#v' cacheex=%d newexpi=%d !valueExistsInSlice offset=%d src='%s'", char, key, cachedlen, l3.Caches[char].cache[key].offsets, newoffsetslen, offsets, cacheex, expires, offset, src)
+			}
+		}
+		return
+	}
 	l3.Caches[char].cache[key] = &L3ITEM{offsets: *offsets, expires: expires}
-	l3.muxers[char].mux.Unlock()
+	l3.mapsizes[char].maxmapsize++
 } // end func SetOffsets
+
+func allValuesExistInSlice(values []int64, slice []int64) bool {
+	for _, v := range values {
+		if !valueExistsInSlice(v, slice) {
+			return false
+		}
+	}
+	return true
+}
+
+func valueExistsInSlice(value int64, slice []int64) bool {
+	for _, v := range slice {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
 func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets *[]int64) {
