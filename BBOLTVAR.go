@@ -13,6 +13,9 @@ import (
 )
 
 func (his *HISTORY) ReplayHistoryDat(quickreplay bool, testmax int) {
+	if NoReplayHisDat {
+		return
+	}
 	if !his.useHashDB || his.hisDat == "" {
 		log.Printf("return ReplayHistoryDat !his.useHashDB || his.hisDat empty")
 		return
@@ -31,6 +34,9 @@ func (his *HISTORY) ReplayHistoryDat(quickreplay bool, testmax int) {
 	}
 	lines, err := readLastNLinesFromFile(his.hisDat, testmax, oldestFirst)
 	lenlines := len(lines)
+	if lenlines == 0 {
+		return
+	}
 	log.Printf("ReplayHistoryDat quickreplay=%t testmax=%d lines=%d ", quickreplay, testmax, lenlines)
 	if err != nil {
 		log.Printf("ERROR ReplayHistoryDat err='%#v'", err)
