@@ -73,8 +73,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		BatchFlushEvery = 15000
 	}
 
-	if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
-		DefaultCacheExpires = BatchFlushEvery * 2 / 1000
+	/*
+		if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
+			DefaultCacheExpires = BatchFlushEvery * 2 / 1000
+		}*/
+
+	if BatchFlushEvery > DefaultCacheExpires*1000 {
+		DefaultCacheExpires = BatchFlushEvery / 1000
 	}
 
 	if DefaultCachePurge <= 0 { // seconds
