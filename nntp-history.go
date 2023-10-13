@@ -7,6 +7,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"io"
 	"log"
+	"math/rand"
 	"os"
 	"runtime"
 	"strings"
@@ -56,6 +57,7 @@ var (
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
+	rand.Seed(time.Now().UnixNano())
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
 		return
