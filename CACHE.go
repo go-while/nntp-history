@@ -3,27 +3,27 @@ package history
 import (
 	//"fmt"
 	"log"
+	"math/rand"
 	"time"
 	//"sync"
 )
 
 const (
 	// never change this
-	FlagExpires            bool  = true
-	FlagNeverExpires       bool  = false
-	NoExpiresVal           int64 = -1
-	FlagCacheSyncExtend          = 0x42
-	FlagCacheSyncDelete          = 0x66
-	FlagCacheChanExtend          = 0x99
-	DefaultThresholdFactor       = 10 // shrinks caches if cache usage is below N percent
+	FlagExpires      bool  = true
+	FlagNeverExpires bool  = false
+	NoExpiresVal     int64 = -1
+	// CacheEvictThread => his.LXCache.DelExtLXbatch
+	FlagCacheSyncExtend = 0x42
+	FlagCacheSyncDelete = 0x66
+	FlagCacheChanExtend = 0x99
 )
 
 var (
-	DBG_CGS               bool  // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 5
-	DefaultCacheExtend    int64 = DefaultCacheExpires
-	DefaultCachePurge     int64 = 5  // seconds
-	DefaultTryShrinkEvery int64 = 60 // shrinks cache maps only every N seconds
+	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
+	DefaultCacheExpires   int64 = 5  // search only
+	DefaultCacheExtend    int64 = 5  // extends cached items after writes
+	DefaultCachePurge     int64 = 3  // seconds
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
 
@@ -133,6 +133,14 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
 
+func jitter(j int, timer int) int {
+	randInt := rand.Intn(j)
+	if randInt < j/2 {
+		return timer - randInt
+	}
+	return timer + randInt
+}
+
 func (his *HISTORY) CacheEvictThread() {
 	if his.cacheEvicts != nil {
 		log.Printf("ERROR CacheEvictThread already running!")
@@ -144,6 +152,7 @@ func (his *HISTORY) CacheEvictThread() {
 			log.Printf("ERROR CacheEvictThread [%s] already created!", char)
 			continue
 		}
+		j := 50 // jitter
 		his.cacheEvicts[char] = make(chan *ClearCache, his.cEvCap)
 		// launch a go func for every char with own evictChan
 		go func(char string, evictChan chan *ClearCache) {
@@ -151,14 +160,14 @@ func (his *HISTORY) CacheEvictThread() {
 			var tmpOffset []*ClearCache
 			var tmpKey []*ClearCache
 			clearEveryN := 500
-			timer := time.NewTimer(500 * time.Millisecond)
+			basetimer := 500
+			timer := time.NewTimer(time.Duration(jitter(j, basetimer)) * time.Millisecond)
 			//timeout := false
 			var del1, del2, del3 bool
 		forever:
 			for {
 			fetchdel:
 				for {
-
 					select {
 					case <-timer.C:
 						if len(tmpHash) > 0 {
@@ -197,18 +206,6 @@ func (his *HISTORY) CacheEvictThread() {
 							}
 						}
 
-						/*
-							if item.hash != "" { // l1 hash
-								tmpHash = append(tmpHash, item)
-							}
-							if item.offset > 0 { // l2 offset
-								tmpOffset = append(tmpOffset, item)
-							}
-							if item.key != "" { // l3 key
-								tmpKey = append(tmpKey, item)
-							}
-						*/
-
 						if len(tmpHash) >= clearEveryN {
 							del1 = true
 						}
@@ -221,13 +218,6 @@ func (his *HISTORY) CacheEvictThread() {
 						if del1 || del2 || del3 {
 							break fetchdel
 						}
-						/*
-							if len(tmpHash) >= clearEveryN || len(tmpOffset) >= clearEveryN || len(tmpKey) >= clearEveryN {
-								timeout = true
-								//timer.Reset(500 * time.Millisecond)
-								//logf(DEBUG, "CacheEvictThread [%s] break fetchdel evictChan=%d", char, len(evictChan))
-								break fetchdel
-							}*/
 					} // end select
 				} // end for fetchdel
 				if del1 {
@@ -245,7 +235,7 @@ func (his *HISTORY) CacheEvictThread() {
 					tmpKey = nil
 					del3 = false
 				}
-				timer.Reset(500 * time.Millisecond)
+				timer.Reset(time.Duration(jitter(j, basetimer)) * time.Millisecond)
 				continue forever
 			} // end forever
 		}(char, his.cacheEvicts[char])
