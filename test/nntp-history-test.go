@@ -58,14 +58,14 @@ func main() {
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 4096, "0-65536 default: -1 = 1000")
-	flag.BoolVar(&NoSync, "NoSync", true, "bbolt.NoSync")
+	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
 
 	// experimental flags
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 
@@ -125,8 +125,8 @@ func main() {
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 1024 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        512 * 1024,
+			InitialMmapSize: 128 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
+			PageSize:        128 * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
 			FreelistType:   bolt.FreelistMapType,
 			NoSync:         NoSync,
