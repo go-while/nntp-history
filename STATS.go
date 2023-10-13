@@ -18,6 +18,7 @@ func (his *HISTORY) WatchBolt() {
 	go his.PrintBoltPerformance()
 	his.mux.Unlock()
 
+	uWatchBoltTimer := uint64(WatchBoltTimer)
 	var inserted uint64
 	var batchins uint64
 	var searches uint64
@@ -28,23 +29,23 @@ func (his *HISTORY) WatchBolt() {
 		searchesnow := his.GetCounter("searches")
 		if insertednow > inserted {
 			diff := insertednow - inserted
-			pps := diff / 15
-			log.Printf("WatchBolt: (inserted %d/s) (+%d inserted in 15s)", pps, diff)
+			pps := diff / uWatchBoltTimer
+			log.Printf("WatchBolt: (inserted %d/s) (+%d inserted in 10s)", pps, diff)
 			inserted = insertednow
 		}
 		if batchinsnow > batchins {
 			if insertednow > 0 {
 				diff := batchinsnow - batchins
-				pps := diff / 15
+				pps := diff / uWatchBoltTimer
 				medbatchsize := uint64(insertednow / batchinsnow)
-				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in 15s) medBS=~%d", pps, diff, medbatchsize)
+				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in 10s) medBS=~%d", pps, diff, medbatchsize)
 			}
 			batchins = batchinsnow
 		}
 		if searchesnow > searches {
 			diff := searchesnow - searches
-			pps := diff / 15
-			log.Printf("WatchBolt: (searches %d/s) (+%d searches in 15s)", pps, diff)
+			pps := diff / uWatchBoltTimer
+			log.Printf("WatchBolt: (searches %d/s) (+%d searches in 10s)", pps, diff)
 			searches = searchesnow
 		}
 	}
