@@ -57,7 +57,7 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 4096, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65536, "0-65536 default: -1 = 1000")
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
@@ -107,7 +107,7 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		//history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
-		//history.BoltDB_MaxBatchDelay = 1000 * time.Millisecond // default: 10 * time.Millisecond
+		history.BoltDB_MaxBatchDelay = time.Duration(history.BatchFlushEvery / 5) // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
 		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
@@ -189,7 +189,7 @@ func main() {
 			if todo >= 100*1000*1000 { // todo 100m
 				spammer = 10 * 1000 * 1000 // spam every 10m done
 			} else if todo < 1000*1000 { // todo less than 1m
-				spammer = uint64(todo) / 10 // spams every 10%
+				spammer = uint64(todo) / 25 // spams every 25%
 			}
 		fortodo:
 			for i := 1; i <= todo; i++ {
