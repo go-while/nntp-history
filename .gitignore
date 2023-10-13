@@ -20,6 +20,7 @@
 
 # Go workspace file
 go.work
+bak/
 src/
 pkg
 test/src
@@ -27,3 +28,4 @@ test/history
 test/hashdb
 test/nntp-history-test
 test/test*
+test/bak*
