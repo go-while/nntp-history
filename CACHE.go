@@ -20,7 +20,7 @@ const (
 
 var (
 	DBG_CGS               bool  // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 15
+	DefaultCacheExpires   int64 = 5
 	DefaultCacheExtend    int64 = DefaultCacheExpires
 	DefaultCachePurge     int64 = 5  // seconds
 	DefaultTryShrinkEvery int64 = 60 // shrinks cache maps only every N seconds
