@@ -22,6 +22,18 @@ var (
 	emptyStr             string               // used as pointer
 )
 
+func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
+	if db == nil {
+		his.boltmux.Lock()
+		if his.BoltDBsMap[char].BoltDB != nil {
+			db = his.BoltDBsMap[char].BoltDB
+		}
+		his.boltmux.Unlock()
+		return db
+	}
+	return nil
+} // end func getNewDB
+
 func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, lastflush int64, workerCharBucketBatchSize int) (int, uint64, error, bool) {
 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
@@ -36,6 +48,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 
 	his.BatchLocks[char][bucket] <- struct{}{}
 	defer his.returnBatchLock(char, bucket)
+
 	var err error
 	var closed bool
 	batch1 := []*BatchOffset{}
@@ -50,27 +63,27 @@ fetchbatch:
 				//logf(DEBUG2, "boltBucketPutBatch received nil pointer [%s|%s]", char, bucket)
 				break fetchbatch
 			}
-			if bo.char == nil || *bo.char == "" || *bo.char != char {
+			if bo.char != char {
 				log.Printf("ERROR boltBucketPutBatch bo.char nil or empty or mismatch!")
 				continue fetchbatch
 			}
-			if bo.bucket == nil || *bo.bucket == "" {
+			if bo.bucket == "" {
 				log.Printf("ERROR boltBucketPutBatch bo.bucket nil or empty")
 				continue fetchbatch
 			}
-			if *bo.bucket != bucket {
-				err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", *bo.bucket, bucket)
+			if bo.bucket != bucket {
+				err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
 				return 0, 0, err, closed
 			}
-			if bo.gobEncodedOffsets == nil || len(*bo.gobEncodedOffsets) == 0 {
-				log.Printf("ERROR boltBucketPutBatch bo.gobEncodedOffsets nil or empty!")
+			if bo.encodedOffsets == nil || len(bo.encodedOffsets) == 0 {
+				log.Printf("ERROR boltBucketPutBatch bo.encodedOffsets nil or empty!")
 				continue fetchbatch
 			}
-			if bo.hash == nil || *bo.hash == "" {
+			if bo.hash == "" {
 				log.Printf("ERROR boltBucketPutBatch bo.hash nil or empty!")
 				continue fetchbatch
 			}
-			if bo.key == nil || *bo.key == "" {
+			if bo.key == "" {
 				log.Printf("ERROR boltBucketPutBatch bo.key nil or empty!")
 				continue fetchbatch
 			}
@@ -87,6 +100,21 @@ fetchbatch:
 	//var freelist int
 	var inserted uint64
 	if len(batch1) > 0 {
+		if db == nil {
+			log.Printf("WARN boltBucketPutBatch db=nil")
+			time.Sleep(time.Second * 5)
+			his.boltmux.Lock()
+			if his.BoltDBsMap[char].BoltDB != nil {
+				db = his.BoltDBsMap[char].BoltDB
+			}
+			his.boltmux.Unlock()
+			if db == nil {
+				return Q, 0, fmt.Errorf("boltBucketPutBatch [%s] db=nil", char), false
+			}
+		}
+
+		// experimental sync mutexing the batchqueue?!
+		//his.batchQueues.mux.Lock()
 		start1 := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
@@ -103,7 +131,7 @@ fetchbatch:
 			*/
 		batch1insert:
 			for _, bo := range batch1 {
-				puterr := b.Put([]byte(*bo.key), *bo.gobEncodedOffsets)
+				puterr := b.Put([]byte(bo.key), bo.encodedOffsets)
 				if puterr != nil {
 					err = puterr
 					break batch1insert
@@ -112,9 +140,11 @@ fetchbatch:
 			}
 			return err
 		}); err != nil {
-			log.Printf("ERROR boltBucketPutBatch [%s|%s] err='%v'", char, bucket, err)
+			//his.batchQueues.mux.Unlock()
+			log.Printf("ERROR boltBucketPutBatch [%s|%s] db.Batch err='%v'", char, bucket, err)
 			return 0, inserted, err, closed
 		}
+		//his.batchQueues.mux.Unlock()
 		// batch insert to boltDB done, pass to CacheEvict
 		for _, bo := range batch1 {
 			//if bo.offsets == nil || len(*bo.offsets) == 0 {
@@ -122,8 +152,8 @@ fetchbatch:
 			//	continue
 			//}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
-			his.DoCacheEvict(*bo.char, *bo.hash, 0, *bo.bucket+*bo.key)
-			for _, offset := range *bo.offsets {
+			his.DoCacheEvict(bo.char, bo.hash, 0, bo.bucket+bo.key)
+			for _, offset := range bo.offsets {
 				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
 				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
 			}
