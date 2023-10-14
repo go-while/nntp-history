@@ -10,19 +10,22 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"net/http"
-	"net/http/pprof"
+	hpprof "net/http/pprof"
 	//"strings"
 	"flag"
+	"math/rand"
 	"os"
+	"os/signal"
 	"runtime"
-	//"runtime/debug"
-	//"syscall"
+	"runtime/debug"
+	"runtime/pprof"
+	"syscall"
 	"time"
 )
 
 func main() {
 	numCPU := runtime.NumCPU()
-	//debug.SetGCPercent(200)
+	debug.SetGCPercent(200)
 	var offset int64
 	var todo int // todo x parallelTest
 	var parallelTest int
@@ -57,7 +60,7 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65536, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
@@ -68,6 +71,8 @@ func main() {
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
+	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
+	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", true, "default: false")
 
 	flag.Parse()
 	if numCPU > 0 {
@@ -148,6 +153,7 @@ func main() {
 		history.NoReplayHisDat = true
 	}
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+	history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {
 		defer history.History.CLOSE_HISTORY()
@@ -173,11 +179,34 @@ func main() {
 	}
 	//go history.PrintMemoryStatsEvery(30 * time.Second)
 
+	// pregen hashes
+	log.Printf("Pregen Hashes")
+	pregen := utils.UnixTimeMilliSec()
+	testhashes := []string{} // sequential
+	for i := 1; i <= todo; i++ {
+		hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+		//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
+		//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+		//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+		//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
+		testhashes = append(testhashes, hash)
+	}
+	//shuffleStrings(testhashes) // randomize order
+	log.Printf("Pregen Hashes=%d (took %d ms)", len(testhashes), utils.UnixTimeMilliSec()-pregen)
+
 	// start test
+	cpuProfileFile, err := startCPUProfile()
+	if err != nil {
+		log.Fatal("Could not start CPU profile: ", err)
+	}
+	defer stopCPUProfile(cpuProfileFile)
+
 	P_donechan := make(chan struct{}, parallelTest)
 	for p := 1; p <= parallelTest; p++ {
 
-		go func(p int) {
+		go func(p int, testhashes *[]string) {
+			time.Sleep(time.Duration(time.Duration(p*p*p) * time.Second)) // delay start
+			log.Printf("Launch p=%d", p)
 			var responseChan chan int
 			var IndexRetChan chan int
 			if useHashDB {
@@ -192,7 +221,8 @@ func main() {
 				spammer = uint64(todo) / 25 // spams every 25%
 			}
 		fortodo:
-			for i := 1; i <= todo; i++ {
+			//for i := 1; i <= todo; i++ {
+			for _, hash := range *testhashes {
 				if spam >= spammer {
 					sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d %d/%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo)
@@ -202,11 +232,6 @@ func main() {
 				if isleep > 0 {
 					time.Sleep(time.Duration(isleep) * time.Millisecond)
 				}
-				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				//log.Printf("hash=%s", hash)
 				char := string(hash[0])
 				if useHashDB || useL1Cache {
@@ -236,7 +261,7 @@ func main() {
 				}
 
 				if useHashDB {
-					isDup, err := history.History.IndexQuery(&hash, IndexRetChan, -1)
+					isDup, err := history.History.IndexQuery(hash, IndexRetChan, -1)
 					if err != nil {
 						log.Printf("FALSE IndexQuery hash=%s", hash)
 						break fortodo
@@ -267,8 +292,8 @@ func main() {
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
 					MessageIDHash: &hash,
-					Char:          &char,
-					StorageToken:  &storageToken,
+					Char:          char,
+					StorageToken:  storageToken,
 					Arrival:       now,
 					Expires:       expires,
 					Date:          doa, // date of article
@@ -293,7 +318,7 @@ func main() {
 			sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 			log.Printf("End test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d sum=%d/%d errors=%d locked=%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo, errors, locked)
 			P_donechan <- struct{}{}
-		}(p) // end go func parallel
+		}(p, &testhashes) // end go func parallel
 	} // end for parallelTest
 
 	// wait for test to finish
@@ -355,12 +380,12 @@ func main() {
 
 func debug_pprof(addr string) {
 	router := mux.NewRouter()
-	router.Handle("/debug/pprof/", http.HandlerFunc(pprof.Index))
-	router.Handle("/debug/pprof/cmdline", http.HandlerFunc(pprof.Cmdline))
-	router.Handle("/debug/pprof/profile", http.HandlerFunc(pprof.Profile))
-	router.Handle("/debug/pprof/symbol", http.HandlerFunc(pprof.Symbol))
-	router.Handle("/debug/pprof/trace", http.HandlerFunc(pprof.Trace))
-	router.Handle("/debug/pprof/{cmd}", http.HandlerFunc(pprof.Index)) // special handling for Gorilla mux
+	router.Handle("/debug/pprof/", http.HandlerFunc(hpprof.Index))
+	router.Handle("/debug/pprof/cmdline", http.HandlerFunc(hpprof.Cmdline))
+	router.Handle("/debug/pprof/profile", http.HandlerFunc(hpprof.Profile))
+	router.Handle("/debug/pprof/symbol", http.HandlerFunc(hpprof.Symbol))
+	router.Handle("/debug/pprof/trace", http.HandlerFunc(hpprof.Trace))
+	router.Handle("/debug/pprof/{cmd}", http.HandlerFunc(hpprof.Index)) // special handling for Gorilla mux
 	server := &http.Server{Addr: addr, Handler: router}
 
 	// go launch debug http
@@ -372,3 +397,38 @@ func debug_pprof(addr string) {
 		}
 	}()
 } // end func debug_pprof
+
+func startCPUProfile() (*os.File, error) {
+	cpuProfileFile, err := os.Create("cpu.pprof.out")
+	if err != nil {
+		log.Printf("ERROR startCPUProfile err1='%v'", err)
+		return nil, err
+	}
+	if err := pprof.StartCPUProfile(cpuProfileFile); err != nil {
+		log.Printf("ERROR startCPUProfile err2='%v'", err)
+		return nil, err
+	}
+	return cpuProfileFile, nil
+}
+
+func stopCPUProfile(cpuProfileFile *os.File) {
+	pprof.StopCPUProfile()
+	cpuProfileFile.Close()
+}
+
+func captureInterruptSignal(cpuProfileFile *os.File) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGINT)
+	go func() {
+		<-c
+		stopCPUProfile(cpuProfileFile)
+		os.Exit(1)
+	}()
+}
+
+func shuffleStrings(strings []string) {
+	n := len(strings)
+	rand.Shuffle(n, func(i, j int) {
+		strings[i], strings[j] = strings[j], strings[i]
+	})
+}
