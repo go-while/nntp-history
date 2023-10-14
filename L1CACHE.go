@@ -35,7 +35,7 @@ type L1ITEM struct {
 }
 
 type L1MUXER struct {
-	mux sync.Mutex
+	mux sync.RWMutex
 }
 
 type MAPSIZES struct {
@@ -75,6 +75,7 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 // Possible return values:
 //
 //	CaseLock == already in processing
+//	CaseWrite == already in processing
 //	CaseDupes == is a duplicate
 //	CasePass == not a duplicate == locked article for processing
 func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bool) int {
@@ -87,6 +88,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	}
 	l1.muxers[char].mux.Lock()
 	if l1.Caches[char].cache[hash] != nil {
+		l1.Counter[char]["Count_Get"] += 1
 		retval := l1.Caches[char].cache[hash].value
 		l1.muxers[char].mux.Unlock()
 		return retval
@@ -95,6 +97,8 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	if !useHashDB {
 		value = CaseDupes
 	}
+
+	l1.Counter[char]["Count_Locked"] += 1
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
 	return CasePass
