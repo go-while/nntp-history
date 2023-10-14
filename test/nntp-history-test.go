@@ -23,10 +23,7 @@ import (
 	"time"
 )
 
-// var TESTHASH = ""
-var TESTHASH = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
-
-//var TESTHASH = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
+var TESTHASH = history.TESTHASH
 
 func main() {
 	numCPU := runtime.NumCPU()
