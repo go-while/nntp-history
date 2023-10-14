@@ -31,10 +31,9 @@ const (
 )
 
 var (
-	//TESTHASH1   string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
-	//TESTHASH2   string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
-	TESTHASH3   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09" // i=393644
-	TESTHASH           = TESTHASH3
+	TESTHASH1   string = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8" // i=393644
+	TESTHASH2   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09" // i=393644
+	TESTHASH           = TESTHASH2
 	TESTCACKEY         = "f0d784ae1"
 	TESTKEY            = "784ae1"
 	TESTBUK            = "0d"
