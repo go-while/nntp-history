@@ -23,6 +23,11 @@ import (
 	"time"
 )
 
+// var TESTHASH = ""
+var TESTHASH = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
+
+//var TESTHASH = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
+
 func main() {
 	numCPU := runtime.NumCPU()
 	debug.SetGCPercent(200)
@@ -72,7 +77,7 @@ func main() {
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
-	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", true, "default: false")
+	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
 
 	flag.Parse()
 	if numCPU > 0 {
@@ -112,7 +117,7 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		//history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
-		history.BoltDB_MaxBatchDelay = time.Duration(history.BatchFlushEvery / 5) // default: 10 * time.Millisecond
+		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
 		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
@@ -190,6 +195,9 @@ func main() {
 		//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
 		//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 		testhashes = append(testhashes, hash)
+		if hash == TESTHASH {
+			log.Printf("DEBUG main TESTHASH='%s' i=%d", hash, i)
+		}
 	}
 	//shuffleStrings(testhashes) // randomize order
 	log.Printf("Pregen Hashes=%d (took %d ms)", len(testhashes), utils.UnixTimeMilliSec()-pregen)
@@ -201,11 +209,14 @@ func main() {
 	}
 	defer stopCPUProfile(cpuProfileFile)
 
+	LOCKONLYTEST := false
+
 	P_donechan := make(chan struct{}, parallelTest)
 	for p := 1; p <= parallelTest; p++ {
 
-		go func(p int, testhashes *[]string) {
-			time.Sleep(time.Duration(time.Duration(p*p*p) * time.Second)) // delay start
+		go func(p int, testhashes []string) {
+			// delay start
+			//time.Sleep(time.Duration(time.Duration(p*p*p) * time.Second))
 			log.Printf("Launch p=%d", p)
 			var responseChan chan int
 			var IndexRetChan chan int
@@ -222,7 +233,7 @@ func main() {
 			}
 		fortodo:
 			//for i := 1; i <= todo; i++ {
-			for _, hash := range *testhashes {
+			for _, hash := range testhashes {
 				if spam >= spammer {
 					sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d %d/%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo)
@@ -259,6 +270,12 @@ func main() {
 						break fortodo
 					}
 				}
+				if hash == TESTHASH {
+					log.Printf("p=%d processing hash=%s", p, hash)
+				}
+				if LOCKONLYTEST {
+					continue fortodo
+				}
 
 				if useHashDB {
 					isDup, err := history.History.IndexQuery(hash, IndexRetChan, -1)
@@ -291,7 +308,7 @@ func main() {
 				doa := now // date of article
 				// creates a single history object for a usenet article
 				hobj := &history.HistoryObject{
-					MessageIDHash: &hash,
+					MessageIDHash: hash,
 					Char:          char,
 					StorageToken:  storageToken,
 					Arrival:       now,
@@ -318,7 +335,7 @@ func main() {
 			sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 			log.Printf("End test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d sum=%d/%d errors=%d locked=%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo, errors, locked)
 			P_donechan <- struct{}{}
-		}(p, &testhashes) // end go func parallel
+		}(p, testhashes) // end go func parallel
 	} // end for parallelTest
 
 	// wait for test to finish
@@ -369,12 +386,12 @@ func main() {
 		history.History.CrunchBatchLogs(true)
 	}
 
-	tmax := 0
+	tmax := 3
 	for t := 1; t <= tmax; t++ {
 		history.PrintMemoryStats()
-		log.Printf("runtime.GC() [ %d / %d ] sleep 30 sec", t, tmax)
+		log.Printf("runtime.GC() [ %d / %d ] sleep 10 sec", t, tmax)
 		runtime.GC()
-		time.Sleep(30 * time.Second)
+		time.Sleep(10 * time.Second)
 	}
 } // end func main
 
