@@ -262,7 +262,7 @@ func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64)
 				retmap[k] += v
 			}
 		default:
-			// key is set
+			// key is set, returns retval
 			if _, exists := l1.Counter[char][key]; exists {
 				retval += l1.Counter[char][key]
 			}
