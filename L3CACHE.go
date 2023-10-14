@@ -139,7 +139,7 @@ forever:
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
-func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexpires bool, src string) {
+func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpires bool, src string) {
 	if key == "" {
 		return
 	}
@@ -154,7 +154,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexp
 
 	expires := NoExpiresVal
 	if flagexpires {
-		if len(*offsets) > 0 {
+		if len(offsets) > 0 {
 			l3.Counter[char]["Count_FlagEx"] += 1
 		}
 		expires = utils.UnixTimeSec() + L3CacheExpires
@@ -168,24 +168,24 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets *[]int64, flagexp
 		cachedlen := len(l3.Caches[char].cache[key].offsets)
 		if cachedlen == 0 {
 			// there is an empty offsets-slice cached: set this
-			l3.Caches[char].cache[key].offsets = *offsets
+			l3.Caches[char].cache[key].offsets = offsets
 			return
 		}
-		allexist := allValuesExistInSlice(*offsets, l3.Caches[char].cache[key].offsets)
+		allexist := allValuesExistInSlice(offsets, l3.Caches[char].cache[key].offsets)
 		if allexist {
 			return
 		}
 		cacheex := utils.UnixTimeSec() - l3.Caches[char].cache[key].expires
-		newoffsetslen := len(*offsets)
-		for _, offset := range *offsets {
+		newoffsetslen := len(offsets)
+		for _, offset := range offsets {
 			if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
+				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append key='%s' cached=%d='%#v' set?=%d='%#v' cacheex=%d newexpi=%d !valueExistsInSlice offset=%d src='%s'", char, key, cachedlen, l3.Caches[char].cache[key].offsets, newoffsetslen, offsets, cacheex, expires, offset, src)
 				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
-				log.Printf("INFO L3CACHE [%s] SetOffsets append key='%s' cached=%d='%#v' set?=%d='%#v' cacheex=%d newexpi=%d !valueExistsInSlice offset=%d src='%s'", char, key, cachedlen, l3.Caches[char].cache[key].offsets, newoffsetslen, offsets, cacheex, expires, offset, src)
 			}
 		}
 		return
 	}
-	l3.Caches[char].cache[key] = &L3ITEM{offsets: *offsets, expires: expires}
+	l3.Caches[char].cache[key] = &L3ITEM{offsets: offsets, expires: expires}
 	l3.mapsizes[char].maxmapsize++
 } // end func SetOffsets
 
@@ -208,7 +208,7 @@ func valueExistsInSlice(value int64, slice []int64) bool {
 }
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
-func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets *[]int64) {
+func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets []int64) {
 	if key == "" {
 		log.Printf("ERROR L3CACHEGet key=nil")
 		return
@@ -220,11 +220,11 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets *[]int64) {
 	if l3.Caches[char].cache[key] != nil {
 		l3.Counter[char]["Count_Get"] += 1
 		item := l3.Caches[char].cache[key]
-		offsets = &item.offsets
+		offsets = item.offsets
 		l3.muxers[char].mux.Unlock()
 		return
 	}
-	l3.Counter[char]["Count_GetMiss"] += 1
+	l3.Counter[char]["Count_Mis"] += 1
 	l3.muxers[char].mux.Unlock()
 	return
 } // end func GetOffsets
