@@ -271,7 +271,7 @@ func main() {
 					}
 				}
 				if hash == TESTHASH {
-					log.Printf("p=%d processing hash=%s", p, hash)
+					log.Printf("p=%d processing TESTHASH=%s", p, hash)
 				}
 				if LOCKONLYTEST {
 					continue fortodo
