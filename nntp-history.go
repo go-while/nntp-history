@@ -1,6 +1,3 @@
-//go:build go1.21
-// +build go1.21
-
 package history
 
 import (
@@ -20,8 +17,7 @@ import (
 const (
 	BUCKETSperDB = 256 // can be 16, 256 or 4096
 	ALWAYS       = true
-	//TESTHASH1 string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
-	//TESTHASH2 string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
+
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
 	CaseLock             = 0xFF         // internal cache state. reply with CaseRetry while CaseLock
@@ -35,6 +31,14 @@ const (
 )
 
 var (
+	//TESTHASH1   string = "76d4b3a84c3c72a08a5b4c433f864a29c441a8806a70c02256026ac54a5b726a" // i=651695
+	//TESTHASH2   string = "76d4b3a80f26e7941e6f96da3c76852f249677f53723b7432b3063d56861eafa" // i=659591
+	TESTHASH3   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09" // i=393644
+	TESTHASH           = TESTHASH3
+	TESTCACKEY         = "f0d784ae1"
+	TESTKEY            = "784ae1"
+	TESTBUK            = "0d"
+	TESTDB             = "f"
 	ALLBUCKETS  []string
 	BUFIOBUFFER = 4 * 1024 // a history line is 102 bytes long including LF
 	History     HISTORY
@@ -115,6 +119,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
 		DefaultCacheExpires = BatchFlushEvery * 2 / 1000
+		DefaultCacheExtend = DefaultCacheExpires
 	}
 
 	if DefaultCachePurge <= 0 { // seconds
@@ -313,7 +318,7 @@ func (his *HISTORY) Wait4HashDB() {
 		now := utils.UnixTimeSec()
 		for {
 			time.Sleep(10 * time.Millisecond)
-			if len(BoltHashOpen) == BoltDBs {
+			if len(BoltHashOpen) == intBoltDBs {
 				//logf(DEBUG2, "Booted HashDB")
 				return
 			}
@@ -323,6 +328,7 @@ func (his *HISTORY) Wait4HashDB() {
 				now = utils.UnixTimeSec()
 			}
 		}
+		log.Printf("his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
 	}
 } // end func Wait4HashDB
 
@@ -371,7 +377,7 @@ forever:
 				}
 				break forever
 			}
-			if hobj.MessageIDHash == nil {
+			if hobj.MessageIDHash == "" {
 				log.Printf("ERROR history_Writer hobj.MessageIDHash=nil")
 				break forever
 			}
@@ -383,7 +389,7 @@ forever:
 				hobj.Arrival = utils.UnixTimeSec()
 			}
 			if History.IndexChan != nil {
-				History.IndexChan <- &HistoryIndex{Hash: *hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
+				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
 				select {
 				case isDup, ok := <-indexRetChan:
 					if !ok {
@@ -408,7 +414,7 @@ forever:
 							log.Printf("ERROR history_Writer dw.Flush err='%v'", err)
 							break forever
 						}
-						log.Printf("INFO history_Writer CaseRetry EOF flushed hisDat hash='%s' offset=%d", *hobj.MessageIDHash, his.Offset)
+						log.Printf("INFO history_Writer CaseRetry EOF flushed hisDat hash='%s' offset=%d", hobj.MessageIDHash, his.Offset)
 						continue forever
 					case CaseAdded:
 						// pass
@@ -458,20 +464,21 @@ func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flus
 	if hobj.Expires > 0 {
 		expiresStr = fmt.Sprintf("%010d", hobj.Expires) // leftpad zeros to 10 digit
 	}
-	line := fmt.Sprintf("{%s}\t%010d~%s~%010d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, hobj.StorageToken) // leftpad zeros to 10 digit
+	//if hobj.MessageIDHash == TESTHASH {
+	//	log.Printf("writeHistoryLine TESTHASH='%s' offset=%d", hobj.MessageIDHash, his.Offset)
+	//}
+	line := fmt.Sprintf("{%s}\t%010d~%s~%010d\t%s\n", hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, hobj.StorageToken) // leftpad zeros to 10 digit
 	ll := len(line)
+	// check and flush only complete lines
+	if cerr := checkBufioWriteBuffer(dw, ll, bufferedptr); cerr != nil {
+		log.Printf("ERROR writeHistoryLine checkWriteBuffer cerr='%v'", cerr)
+		return cerr
+	}
 	if wb, err := dw.WriteString(line); err != nil {
 		log.Printf("ERROR history_Writer WriteString err='%v'", err)
 		return err
 	} else {
-		if !flush {
-			// check and flush only complete lines
-			if cerr := checkBufioWriteBuffer(dw, ll, bufferedptr); cerr != nil {
-				log.Printf("ERROR writeHistoryLine checkWriteBuffer cerr='%v'", cerr)
-				return cerr
-			}
-		}
-		logf(DEBUG2, "history_Writer ll=%d wb=%d hash='%s' bufferedptr=%d", len(line), wb, *hobj.MessageIDHash, *bufferedptr)
+		//logf(DEBUG2, "history_Writer ll=%d wb=%d hash='%s' bufferedptr=%d", len(line), wb, hobj.MessageIDHash, *bufferedptr)
 		if wbt != nil {
 			*wbt += uint64(wb)
 		}
@@ -547,7 +554,9 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 	}
 
 	if hash := his.L2Cache.GetHashFromOffset(offset); hash != "" {
-		//his.Sync_upcounter("L2CACHE_Get")
+		//if hash == TESTHASH {
+		//	log.Printf("FseekHistoryMessageHash returned cached hash='%s' @offset=%d", hash, offset)
+		//}
 		return hash, nil
 	}
 
@@ -580,7 +589,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
-			////logf(DEBUG2, "FseekHistoryMessageHash offset=%d hash='%s'", *offset, hash)
+			//logf(hash == TESTHASH, "INFO SeekHistoryMessageHash @offset=%d got hash='%s'", offset, hash)
 			his.L2Cache.SetOffsetHash(offset, hash, FlagExpires)
 			return hash, nil
 		}
@@ -679,7 +688,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
 		lock5, v5 := false, 0
 		if his.useHashDB {
-			lock5, v5 = len(his.batchQueues.Booted) > 0, len(his.batchQueues.Booted)
+			lock5, v5 = len(his.batchQueues.BootCh) > 0, len(his.batchQueues.BootCh)
 		}
 
 		batchQ, batchLOCKS := 0, 0
