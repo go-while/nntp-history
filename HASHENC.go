@@ -16,7 +16,8 @@ func concatInt64(data []int64) []byte {
 	strSlice := make([]string, len(data))
 	for i, value := range data {
 		//strSlice[i] = fmt.Sprintf("%x", strconv.FormatInt(value, 10)) // stores as hex
-		strSlice[i] = strconv.FormatInt(value, 10) // stores digits
+		strSlice[i] = strconv.FormatInt(value, 16) // stores hex
+		//strSlice[i] = strconv.FormatInt(value, 10) // stores digits
 	}
 	retdata := []byte(strings.Join(strSlice, ","))
 	retdata = append(retdata, ',') // adds comma to strings EOL
@@ -34,9 +35,10 @@ transform:
 			//log.Printf("parseByteToSlice ignored i=%d part='%s'", i, part)
 			continue transform
 		}
-		value, err := strconv.ParseInt(string(part), 10, 64)
+		//value, err := strconv.ParseInt(string(part), 10, 64) // reads digits
+		value, err := strconv.ParseInt(string(part), 16, 64) // reads hex
 		if err != nil {
-			log.Printf("ERROR parseByteToSlice err='%v'")
+			log.Printf("ERROR parseByteToSlice err='%v'", err)
 			return nil, err
 		}
 		//log.Printf("parseByteToSlice i=%d part='%s'=>value=%d result='%#v'", i, string(part), value, result)
