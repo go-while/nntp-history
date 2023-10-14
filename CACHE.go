@@ -21,7 +21,7 @@ const (
 
 var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 5  // search only
+	DefaultCacheExpires   int64 = 15 // search only
 	DefaultCacheExtend    int64 = 5  // extends cached items after writes
 	DefaultCachePurge     int64 = 3  // seconds
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
