@@ -1,7 +1,11 @@
 package history
 
 import (
+	"arena"
 	"bufio"
+	// "google.golang.org/protobuf/encoding/prototext"
+	// "google.golang.org/protobuf/encoding/protowire"
+	//"bytes"
 	"fmt"
 	//"github.com/go-while/go-utils"
 	//"golang.org/x/exp/mmap"
@@ -9,69 +13,364 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"os"
+	"runtime"
 	"strings"
+	"time"
 )
 
-func (his *HISTORY) ReplayHistoryDat(quickreplay bool, testmax int) {
+var (
+	ForcedReplay bool
+)
+
+type AHASH struct {
+	hash           string
+	buffer         []byte
+	missing_hashes []string
+	missingoffsets map[string]int64
+	//mmappedData    mmap.MMap
+}
+
+func reverseBytes(data []byte) {
+	for i, j := 0, len(data)-1; i < j; i, j = i+1, j-1 {
+		data[i], data[j] = data[j], data[i]
+	}
+}
+
+func (his *HISTORY) ReplayHisDat() {
+	var bufferSize int64 = 102
+	mem := arena.NewArena()
+	//defer mem.Free()
+	memhash := arena.New[AHASH](mem)
+	memhash.buffer = make([]byte, bufferSize)
+
 	if NoReplayHisDat {
 		return
 	}
-	if !his.useHashDB || his.hisDat == "" {
-		log.Printf("return ReplayHistoryDat !his.useHashDB || his.hisDat empty")
+	if !his.useHashDB {
 		return
 	}
-	if testmax < 1 {
-		testmax = 1
-	}
-	his.wait4HashDB()
-	indexRetChan := make(chan int, 1)
-	// oldestFirst=true checks up to `testmax` lines from oldest to latest.
-	// oldestFirst=false checks from latest and stops if latest (first) hash is in DB.
-	oldestFirst := true
-	if quickreplay {
-		oldestFirst = false
-		testmax = QuickReplayTestMax
-	}
-	lines, err := readLastNLinesFromFile(his.hisDat, testmax, oldestFirst)
-	lenlines := len(lines)
-	if lenlines == 0 {
-		return
-	}
-	log.Printf("ReplayHistoryDat quickreplay=%t testmax=%d lines=%d ", quickreplay, testmax, lenlines)
-	if err != nil {
-		log.Printf("ERROR ReplayHistoryDat err='%#v'", err)
+	if his.hisDat == "" {
+		log.Printf("return ReplayHisDat his.hisDat empty")
 		os.Exit(1)
 	}
-	if lenlines <= 1 { // nothing or header only
-		return
+	his.Wait4HashDB()
+	indexRetChan := make(chan int, 1)
+
+	file, err := os.Open(his.hisDat)
+	if err != nil {
+		log.Printf("ERROR ReplayHisDat os.Open err='%v'", err)
+		os.Exit(1)
 	}
-	ok := 0
-replay:
-	for i, line := range lines {
-		hash := extractHash(line)
-		if hash == "" {
-			log.Printf("ERROR ReplayHistoryDat i=%d hash empty line='%s'", i, line)
+	//defer file.Close()
+	stat, err := file.Stat()
+	if err != nil {
+		log.Printf("ERROR ReplayHisDat file.Stat err='%v'", err)
+		os.Exit(1)
+	}
+	size := stat.Size()
+	mmappedData, err := mmap.Map(file, mmap.RDONLY, 0)
+	if err != nil {
+		log.Printf("ERROR ReplayHisDat mmap.Map err='%v'", err)
+		os.Exit(1)
+	}
+	//defer memhash.mmappedData.Unmap()
+	lineStart := int64(size - 1)
+	lineEnd := lineStart
+	log.Printf("ReplayHisDat file='%s' size=%d ls=%d:le=%d", his.hisDat, size, lineStart, lineEnd)
+	if mmappedData[size-1] != '\n' {
+		log.Printf("ERROR ReplayHisDat: EOF != '\n' file='%s'", his.hisDat)
+		os.Exit(1)
+	}
+	replaytestmax := ReplayDistance
+	if int64(BoltDB_MaxBatchSize) > 0 && int64(BoltDB_MaxBatchSize*2) > ReplayDistance {
+		replaytestmax = int64(BoltDB_MaxBatchSize * 2)
+	}
+	if replaytestmax < DefaultReplayDistance {
+		replaytestmax = DefaultReplayDistance
+	}
+	var checked, ok, missed, skippedBytes, field1End, nlm int64
+	startindex := size - 2
+	memhash.missing_hashes = []string{}
+	memhash.missingoffsets = make(map[string]int64)
+replay: // backwards: from latest hash
+	for offset := startindex; offset >= 0; offset-- { // scan hisDat backwards
+		skippedBytes++
+		//logf(DEBUG2, "A skippedBytes=%03d @offset=%d buffer=%d='%s'", skippedBytes, offset+1, len(buffer), string(buffer))
+		if mmappedData[offset] != '\n' {
+			lineStart--
+			continue replay
+		}
+		if skippedBytes != bufferSize {
+			log.Printf("ERROR ReplayHisDat @offset=%d skipped=%d len(buffer)=%d/%d ls=%d:le=%d", offset+1, skippedBytes, len(memhash.buffer), bufferSize, lineStart, lineEnd)
 			os.Exit(1)
 		}
-		logf(DEBUG, "ReplayHistoryDat: replay hash='%s'", hash)
-		isDup, err := his.IndexQuery(&hash, indexRetChan, -1)
+		//line := mmappedData[lineStart:lineEnd]
+		//memhash.buffer = append(memhash.buffer, line)
+		copy(memhash.buffer, mmappedData[lineStart:lineEnd])
+		if memhash.buffer[0] != '{' {
+			log.Printf("ERROR ReplayHisDat buf[0]!='}' @offset=%d skipped=%d len(buffer)=%d/%d ls=%d:le=%d", offset+1, skippedBytes, len(memhash.buffer), bufferSize, lineStart, lineEnd)
+			os.Exit(1)
+		}
+	getFirstField:
+		for i, c := range memhash.buffer {
+			if c != '\t' {
+				continue getFirstField
+			}
+			//log.Printf("ReplayHisDat getFirstField: i=%d", i)
+			field1End = int64(i) - 1 // accounts for tab
+			break
+		}
+		if memhash.buffer[field1End] != '}' {
+			log.Printf("ERROR ReplayHisDat buf[f1e=%d]!='}'='%s' @offset=%d skipped=%d len(buffer)=%d/%d='%s' ls=%d:le=%d", field1End, string(memhash.buffer[field1End]), offset+1, skippedBytes, len(memhash.buffer), bufferSize, string(memhash.buffer), lineStart, lineEnd)
+			os.Exit(1)
+		}
+
+		switch len(memhash.buffer[1:field1End]) {
+		case 64:
+			// sha256 pass
+		case 40:
+			// sha1 pass
+		case 32:
+			// md5 pass
+		case 128:
+			// sha512 pass
+		default:
+			log.Printf("ERROR ReplayHisDat BAD HASHLEN @offset=%d buf='%s' ls=%d:le=%d", offset+1, string(memhash.buffer), lineStart, lineEnd)
+			os.Exit(1)
+		}
+		checked++ // only if line has valid format in first field
+		//logf.DEBUG2("ReplayHisDat B skippedBytes=%03d' f1s:=%d:f1e:=%d hash='%s'@offset=%d buffer=%d='%s", skippedBytes, field1Start, field1End, memhash, offset+1, len(buffer), string(buffer))
+		memhash.hash = string(memhash.buffer[1:field1End])
+		isDup, err := his.IndexQuery(memhash.hash, indexRetChan, -1)
 		if err != nil {
-			log.Printf("ERROR ReplayHistoryDat IndexQuery hash='%s' err='%v'", hash, err)
+			log.Printf("ERROR ReplayHisDat IndexQuery hash='%s' @offset=%d err='%v'", memhash.hash, offset, err)
 			os.Exit(1)
 		}
 		switch isDup {
+		case CasePass:
+			// hash from history.dat is missing in hashdb
+			missed++
+			// whenever we hit a missing hash
+			//  update nlm and add value of `ok` to it
+			// adding `ok` to it resets the distance calculation
+			nlm = missed + ok // + checked // adding checked to nlm extends the replay a lot
+			memhash.missing_hashes = append(memhash.missing_hashes, memhash.hash)
+			memhash.missingoffsets[memhash.hash] = offset
+			distance := ok - nlm
+			//log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
+			log.Printf("WARN ReplayHisDat NOT!FOUND @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset, checked, missed, ok, nlm, distance, replaytestmax)
+
+			if DEBUG2 {
+				if missed < 10 {
+					time.Sleep(time.Second / 100)
+				} else if missed == 10 {
+					time.Sleep(time.Second * 3)
+				}
+			}
+
 		case CaseDupes:
 			ok++
-			if !oldestFirst && ok == testmax {
+			distance := ok - nlm
+			if distance > replaytestmax {
 				break replay
 			}
+			//log.Printf("INFO ReplayHisDat CaseDupes hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
+			log.Printf("INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset, checked, missed, ok, nlm, distance, replaytestmax)
+
+			if DEBUG2 {
+				if ok < 10 {
+					time.Sleep(time.Second / 100)
+				} else if ok == 10 {
+					time.Sleep(time.Second * 5)
+				}
+			}
+
 		default:
-			log.Printf("Error ReplayHistoryDat bad response from IndexQuery isDup=%x", isDup)
+			log.Printf("ERROR ReplayHisDat bad response from IndexQuery isDup=%x", isDup)
+			os.Exit(1)
+		} // end switch isDup
+		lineEnd -= skippedBytes
+		skippedBytes = 0
+		//clear(buffer)
+		clear(memhash.buffer)
+		//CPUBURN()
+		//mem.Free()
+		//mem = arena.NewArena()
+		//memhash = arena.New[AHASH](mem)
+		//memhash.buffer = make([]byte, bufferSize)
+		//time.Sleep(time.Second)
+
+		/* old idea ate 20G of ram
+		if mmappedData[offset] == '\n' {
+			// skippedBytes should be 102 and posll 101 bytes.
+			posll := lineEnd - lineStart // counts without LF!
+			log.Printf("mmappedData ls=%d le=%d @offset=%d posll=%d skippedBytes=%d", lineStart, lineEnd, offset, posll, skippedBytes)
+			time.Sleep(time.Second / 100)
+			line = string(mmappedData[lineStart:lineEnd])
+			if line == "" {
+				log.Printf("ReplayHisDat extracted line='%s' ls=%d:le=%d @offset=%d skipped=%d", line, lineStart, lineEnd, offset, skippedBytes)
+				os.Exit(1)
+			}
+			lineEnd -= skippedBytes //  beware if code updates: forget a fucking +-1 ?!
+			skippedBytes = 0
+			hash := extractHash(line)
+			if hash == "" {
+				log.Printf("ERROR ReplayHisDat @offset=%d hash empty line='%s'", offset, line)
+				os.Exit(1)
+			}
+			//line = ""
+			checked++ // only if line has valid format in first field
+			//logf(DEBUG, "ReplayHisDat: replay hash='%s' @offset=%d checked=%d", hash, offset, checked)
+
+			isDup, err := his.IndexQuery(&hash, indexRetChan, -1)
+			if err != nil {
+				log.Printf("ERROR ReplayHisDat IndexQuery hash='%s' @offset=%d err='%v'", hash, offset, err)
+				os.Exit(1)
+			}
+			switch isDup {
+			case CasePass:
+				// hash from history.dat is missing in hashdb
+				missed++
+				// whenever we hit a missing hash
+				//  update nlm and add value of `ok` to it
+				// adding `ok` to it resets the distance calculation
+				nlm = missed + ok // + checked // adding checked to nlm extends the replay a lot
+				missing_hashes = append(missing_hashes, hash)
+				missingoffsets[hash] = offset
+				distance := ok - nlm
+				log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", hash, offset, checked, missed, ok, nlm, distance, replaytestmax)
+
+				if DEBUG2 {
+					if missed < 10 {
+						time.Sleep(time.Second / 100)
+					} else if missed == 10 {
+						time.Sleep(time.Second * 3)
+					}
+				}
+
+			case CaseDupes:
+				ok++
+				distance := ok - nlm
+				if distance > replaytestmax {
+					break replay
+				}
+				/,*
+					if ok >= replaytestmax &&
+						(distance > replaytestmax) { // and distance is higher than replaytestmax
+						break replay
+					}
+				*,/
+				//if nlm < missed {
+				//	nlm = missed
+				//}
+				log.Printf("INFO ReplayHisDat CaseDupes hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", hash, offset, checked, missed, ok, nlm, distance, replaytestmax)
+
+				if DEBUG2 {
+					if ok < 10 {
+						time.Sleep(time.Second / 100)
+					} else if ok == 10 {
+						time.Sleep(time.Second * 5)
+					}
+				}
+
+			default:
+				log.Printf("ERROR ReplayHisDat bad response from IndexQuery isDup=%x", isDup)
+				os.Exit(1)
+			} // end switch isDup
+
+		}
+		*/
+		lineStart--
+	} // end for replay
+	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d", checked, ok, missed)
+
+	if len(memhash.missing_hashes) > 0 || ForcedReplay {
+		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
+		// missing is ordered from latest backward
+		// reverse order to have oldestFirst
+		reverseStrings(memhash.missing_hashes)
+		mmappedData.Unmap()
+		mem.Free()
+		//mem.Dispose()
+		//mem = nil
+		file.Close()
+		time.Sleep(1 * time.Second)
+		runtime.GC()
+		//CPUBURN()
+		return
+	}
+	return
+	/*
+	 * TODO loop over missing and pass hash to indexQuery with offset
+	 *
+	 */
+
+	added := 0
+	for _, hash := range memhash.missing_hashes {
+		offset := memhash.missingoffsets[hash]
+		isDup, err := his.IndexQuery(hash, indexRetChan, offset)
+		if err != nil {
+			log.Printf("ERROR ReplayHisDat ADD IndexQuery hash='%s' @offset=%d err='%v'", hash, offset, err)
+			os.Exit(1)
+		}
+		switch isDup {
+		case CasePass:
+			// hash from history.dat is missing in hashdb
+			added++
+			log.Printf("INFO ReplayHisDat added missing hash='%s' @offset=%d added=%d/%d", hash, offset, added, missed)
+		default:
+			log.Printf("ERROR ReplayHisDat bad response from ADD hash='%s' to IndexQuery isDup=%x", hash, isDup)
 			os.Exit(1)
 		}
 	}
-	log.Printf("ReplayHistoryDat ok=%d/%d testmax=%d quickreplay=%t oldestFirst=%t", ok, lenlines, testmax, quickreplay, oldestFirst)
-} // end func ReplayHistoryDat
+
+	/*
+			oldestFirst := true
+			if quickreplay {
+				oldestFirst = false
+				testmax = QuickReplayTestMax
+			}
+			lines, err := readLastNLinesFromFile(his.hisDat, testmax, oldestFirst)
+			lenlines := len(lines)
+			if lenlines == 0 {
+				return
+			}
+			log.Printf("ReplayHisDat quickreplay=%t testmax=%d lines=%d ", quickreplay, testmax, lenlines)
+			if err != nil {
+				log.Printf("ERROR ReplayHisDat err='%#v'", err)
+				os.Exit(1)
+			}
+			if lenlines <= 1 { // nothing or header only
+				return
+			}
+			ok := 0
+		replay:
+			for i, line := range lines {
+				hash := extractHash(line)
+				if hash == "" {
+					log.Printf("ERROR ReplayHisDat i=%d hash empty line='%s'", i, line)
+					os.Exit(1)
+				}
+				logf(DEBUG, "ReplayHisDat: replay hash='%s' i=%d", hash, i)
+				isDup, err := his.IndexQuery(&hash, indexRetChan, -1)
+				if err != nil {
+					log.Printf("ERROR ReplayHisDat IndexQuery hash='%s' err='%v'", hash, err)
+					os.Exit(1)
+				}
+				switch isDup {
+				case CaseDupes:
+					ok++
+					if !oldestFirst && ok == testmax {
+						break replay
+					}
+				default:
+					log.Printf("Error ReplayHisDat bad response from IndexQuery isDup=%x", isDup)
+					os.Exit(1)
+				}
+			}
+	*/
+	log.Printf("ReplayHisDat ok=%d", ok)
+} // end func ReplayHisDat
 
 func extractHash(line string) string {
 	parts := strings.Split(line, "\t") // Split the line at the first tab character
@@ -103,7 +402,7 @@ func (his *HISTORY) RebuildHashDB() error {
 	// assume 102 bytes per line
 	estimate := filesize / 102
 	log.Printf("RebuildHashDB: his.hisDat='%s' filesize=%d estimate=%d", his.hisDat, filesize, estimate)
-	var offset, added, passed, skipped, dupes, retry, did, total int64
+	var offset, added, passed, skippedLines, dupes, retry, did, total int64
 	// Create a scanner to read the file line by line
 	scanner := bufio.NewScanner(file)
 	indexRetChan := make(chan int, 1)
@@ -116,7 +415,7 @@ func (his *HISTORY) RebuildHashDB() error {
 				// Skip lines that don't have correct fields or not { } character in first
 				if offset > 0 { // ignores header line @ offset 0
 					log.Printf("skipped: line @offset=%d ll=%d", offset, ll)
-					skipped++
+					skippedLines++
 				}
 				offset += int64(ll)
 				continue
@@ -127,14 +426,14 @@ func (his *HISTORY) RebuildHashDB() error {
 		if len(hash) < 32 { // at least md5
 			if offset > 0 { // ignores header line @ offset 0
 				log.Printf("skipped: line @offset=%d ll=%d", offset, ll)
-				skipped++
+				skippedLines++
 			}
 			continue
 		}
 		//log.Printf("RebuildHashDB hash='%s' @offset=%d", hash, offset)
 		// pass hash:offset to IndexChan
 
-		isDup, err := his.IndexQuery(&hash, indexRetChan, offset)
+		isDup, err := his.IndexQuery(hash, indexRetChan, offset)
 		if err != nil {
 			log.Printf("ERROR RebuildHashDB IndexQuery hash='%s' err='%v'", hash, err)
 			return err
@@ -163,22 +462,22 @@ func (his *HISTORY) RebuildHashDB() error {
 		did++
 		total++
 	}
-	log.Printf("RebuildHashDB: his.hisDat='%s' added=%d passed=%d skipped=%d dupes=%d retry=%d", his.hisDat, added, passed, skipped, dupes, retry)
+	log.Printf("RebuildHashDB: his.hisDat='%s' added=%d passed=%d skippedLines=%d dupes=%d retry=%d", his.hisDat, added, passed, skippedLines, dupes, retry)
 	return err
 } // end func RebuildHashDB
 
-func boltCreateBucket(db *bolt.DB, char *string, bucket *string) (retbool bool, err error) {
-	if char == nil {
+func boltCreateBucket(db *bolt.DB, char string, bucket string) (retbool bool, err error) {
+	if db == nil {
+		return false, fmt.Errorf("ERROR boltCreateBucket char=%s db=nil", char)
+	}
+	if char == "" {
 		return false, fmt.Errorf("ERROR boltCreateBucket char=nil")
 	}
-	if db == nil {
-		return false, fmt.Errorf("ERROR boltCreateBucket char=%s db=nil", *char)
-	}
-	if bucket == nil {
-		return false, fmt.Errorf("ERROR boltCreateBucket char=%s bucket=nil", *char)
+	if bucket == "" {
+		return false, fmt.Errorf("ERROR boltCreateBucket char=%s bucket=nil", char)
 	}
 	if err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(*bucket)) // _ == bb == *bbolt.Bucket
+		_, err := tx.CreateBucket([]byte(bucket)) // _ == bb == *bbolt.Bucket
 		//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
 		if err != nil {
 			return err
@@ -188,7 +487,7 @@ func boltCreateBucket(db *bolt.DB, char *string, bucket *string) (retbool bool, 
 		return nil
 	}); err != nil {
 		if err != bolt.ErrBucketExists {
-			log.Printf("ERROR boltCreateBucket char=%s bucket='%s' err='%v'", *char, *bucket, err)
+			log.Printf("ERROR boltCreateBucket char=%s bucket='%s' err='%v'", char, bucket, err)
 		}
 		return false, err
 	}
@@ -371,5 +670,18 @@ func reverseStrings(lines []string) {
 	for i := 0; i < len(lines)/2; i++ {
 		j := len(lines) - i - 1
 		lines[i], lines[j] = lines[j], lines[i]
+	}
+}
+
+func CPUBURN() {
+	log.Printf("INFINITE WAIT CPUBURN!")
+	go func() {
+		time.Sleep(time.Second)
+		runtime.GC()
+	}()
+	j := 1
+	for {
+		IsPow2(j)
+		j++
 	}
 }
