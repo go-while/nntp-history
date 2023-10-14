@@ -40,7 +40,7 @@ type L2ITEM struct {
 }
 
 type L2MUXER struct {
-	mux sync.Mutex
+	mux sync.RWMutex
 }
 
 // The L2CACHE_Boot method initializes the L2 cache.
@@ -184,16 +184,19 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64) (hash string) {
 		return
 	}
 	char := l2.OffsetToChar(offset)
-	l2.muxers[char].mux.Lock()
+	l2.muxers[char].mux.RLock()
 	if l2.Caches[char].cache[offset] != nil {
-		l2.Counter[char]["Count_Get"] += 1
+		//l2.Counter[char]["Count_Get"] += 1
 		item := l2.Caches[char].cache[offset]
 		hash = item.hash
-		l2.muxers[char].mux.Unlock()
+		l2.muxers[char].mux.RUnlock()
 		return
 	}
-	l2.Counter[char]["Count_Mis"] += 1
-	l2.muxers[char].mux.Unlock()
+	l2.muxers[char].mux.RUnlock()
+
+	//l2.muxers[char].mux.Lock()
+	//l2.Counter[char]["Count_Mis"] += 1
+	//l2.muxers[char].mux.Unlock()
 	return
 } // end func GetHashFromOffset
 
