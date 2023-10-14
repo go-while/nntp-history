@@ -6,8 +6,8 @@ import (
 )
 
 var (
-	IndexParallel     int = BoltDBs
-	NumQueueWriteChan int = BoltDBs
+	IndexParallel     int = intBoltDBs
+	NumQueueWriteChan int = intBoltDBs
 	HisDatWriteBuffer int = 4 * 1024
 )
 
@@ -35,20 +35,21 @@ type HISTORY struct {
 	BoltDBsMap   map[string]*BOLTDB_PTR              // using a ptr to a struct in the map allows updating the struct values without updating the map
 	//GobDecoder   map[string]GOBDEC
 	//GobEncoder   map[string]GOBENC
-	charsMap    map[string]int
-	useHashDB   bool
-	keyalgo     int
-	keylen      int
-	win         bool
-	Counter     map[string]uint64
-	batchQueues *BQ
-	cacheEvicts map[string]chan *ClearCache
-	adaptBatch  bool // AdaptiveBatchSize
-	WBR         bool // WatchBoltRunning
-	cEvCap      int  // cacheEvictsCapacity
-	wCBBS       int  // CharBucketBatchSize
-	indexPar    int  // IndexParallel
-	cutFirst    int  // used to set startindex for cutHashlen
+	charsMap       map[string]int
+	useHashDB      bool
+	keyalgo        int
+	keylen         int
+	win            bool
+	Counter        map[string]uint64
+	batchQueues    *BQ
+	cacheEvicts    map[string]chan *ClearCache
+	adaptBatch     bool // AdaptiveBatchSize
+	WBR            bool // WatchBoltRunning
+	cEvCap         int  // cacheEvictsCapacity
+	wCBBS          int  // CharBucketBatchSize
+	indexPar       int  // IndexParallel
+	cutFirst       int  // used to set startindex for cutHashlen
+	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
 }
 
 /* builds the history.dat header */
@@ -58,7 +59,7 @@ type HistorySettings struct {
 }
 
 type HistoryObject struct {
-	MessageIDHash *string
+	MessageIDHash string
 	StorageToken  string // "F" = flatstorage | "M" = mongodb | "X" = deleted
 	Char          string
 	Arrival       int64
@@ -80,7 +81,7 @@ type BQ struct {
 	mux    sync.Mutex
 	lock   chan struct{}
 	Maps   map[string]map[string]chan *BatchOffset
-	Booted chan struct{}
+	BootCh chan struct{}
 }
 
 /* used to batch write items to boltDB */
