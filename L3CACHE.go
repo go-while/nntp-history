@@ -1,6 +1,7 @@
 package history
 
 import (
+	//"fmt" // keep here for TEST debugs below...
 	"github.com/go-while/go-utils"
 	"log"
 	"sync"
@@ -140,6 +141,9 @@ forever:
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
 func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpires bool, src string) {
+	//if key == TESTCACKEY {
+	//	log.Printf("L3CAC [%s|  ] SetOffsets key='%s' offsets='%#v' flagexpires=%t src='%s'", char, key, offsets, flagexpires, src)
+	//}
 	if key == "" {
 		return
 	}
@@ -161,7 +165,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	} else {
 		l3.Counter[char]["Count_Set"] += 1
 	}
-
+	//var tailstr string
 	if l3.Caches[char].cache[key] != nil {
 		// cache entry exists
 		l3.Caches[char].cache[key].expires = expires
@@ -171,22 +175,33 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 			l3.Caches[char].cache[key].offsets = offsets
 			return
 		}
-		allexist := allValuesExistInSlice(offsets, l3.Caches[char].cache[key].offsets)
-		if allexist {
-			return
-		}
-		cacheex := utils.UnixTimeSec() - l3.Caches[char].cache[key].expires
-		newoffsetslen := len(offsets)
 		for _, offset := range offsets {
 			if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
-				//logf(DEBUGL3, "INFO L3CACHE [%s] SetOffsets append key='%s' cached=%d='%#v' set?=%d='%#v' cacheex=%d newexpi=%d !valueExistsInSlice offset=%d src='%s'", char, key, cachedlen, l3.Caches[char].cache[key].offsets, newoffsetslen, offsets, cacheex, expires, offset, src)
+				//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
+				//logf(key == TESTKEY, "L3CAC [%s|  ] SetOffsets append %s", char, tailstr)
 				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
 			}
 		}
+		/*
+			// loops in reversed order backwards over new offsets
+			for i := len(offsets) - 1; i >= 0; i-- {
+				// checks cached offsets backwards too
+				if DEBUG {
+				}
+				if !valueExistsInSliceReverseOrder(offsets[i], l3.Caches[char].cache[key].offsets) {
+					logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
+					l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offsets[i])
+				} else {
+					//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets exists %s", char, tailstr)
+					// NOTE with valueExistsInSliceReverseOrder first hit returns fast now
+					//return
+				}
+			}
+		*/
 		return
 	}
 	l3.Caches[char].cache[key] = &L3ITEM{offsets: offsets, expires: expires}
-	l3.mapsizes[char].maxmapsize++
+	//l3.mapsizes[char].maxmapsize++
 } // end func SetOffsets
 
 func allValuesExistInSlice(values []int64, slice []int64) bool {
@@ -207,11 +222,20 @@ func valueExistsInSlice(value int64, slice []int64) bool {
 	return false
 }
 
+func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
+	for i := len(slice) - 1; i >= 0; i-- {
+		if slice[i] == value {
+			return true
+		}
+	}
+	return false
+}
+
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
-func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets []int64) {
+func (l3 *L3CACHE) GetOffsets(key string, char string) []int64 {
 	if key == "" {
 		log.Printf("ERROR L3CACHEGet key=nil")
-		return
+		return nil
 	}
 	if char == "" {
 		char = string(key[0])
@@ -220,13 +244,13 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) (offsets []int64) {
 	if l3.Caches[char].cache[key] != nil {
 		l3.Counter[char]["Count_Get"] += 1
 		item := l3.Caches[char].cache[key]
-		offsets = item.offsets
+		offsets := item.offsets
 		l3.muxers[char].mux.Unlock()
-		return
+		return offsets
 	}
 	l3.Counter[char]["Count_Mis"] += 1
 	l3.muxers[char].mux.Unlock()
-	return
+	return nil
 } // end func GetOffsets
 
 // The DelExtL3batch method deletes multiple cache items from the L3 cache.
@@ -272,8 +296,8 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 	l3.muxers[char].mux.Unlock()
 } // end func DelExtL3batch
 
-func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64) {
-	if key == "" {
+func (l3 *L3CACHE) L3Stats(statskey string) (retval uint64, retmap map[string]uint64) {
+	if statskey == "" {
 		retmap = make(map[string]uint64)
 	}
 	if l3 == nil || l3.muxers == nil {
@@ -281,7 +305,7 @@ func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64)
 	}
 	for _, char := range HEXCHARS {
 		l3.muxers[char].mux.Lock()
-		switch key {
+		switch statskey {
 		case "":
 			// key is empty, get all key=>stats to retmap
 			for k, v := range l3.Counter[char] {
@@ -289,8 +313,8 @@ func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64)
 			}
 		default:
 			// key is set, returns retval
-			if _, exists := l3.Counter[char][key]; exists {
-				retval += l3.Counter[char][key]
+			if _, exists := l3.Counter[char][statskey]; exists {
+				retval += l3.Counter[char][statskey]
 			}
 		}
 		l3.muxers[char].mux.Unlock()
