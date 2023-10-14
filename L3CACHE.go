@@ -35,7 +35,7 @@ type L3ITEM struct {
 }
 
 type L3MUXER struct {
-	mux sync.Mutex
+	mux sync.RWMutex
 }
 
 // The L3CACHE_Boot method initializes the L3 cache.
@@ -240,16 +240,19 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) []int64 {
 	if char == "" {
 		char = string(key[0])
 	}
-	l3.muxers[char].mux.Lock()
+	l3.muxers[char].mux.RLock()
 	if l3.Caches[char].cache[key] != nil {
-		l3.Counter[char]["Count_Get"] += 1
+		//l3.Counter[char]["Count_Get"] += 1
 		item := l3.Caches[char].cache[key]
 		offsets := item.offsets
-		l3.muxers[char].mux.Unlock()
+		l3.muxers[char].mux.RUnlock()
 		return offsets
 	}
-	l3.Counter[char]["Count_Mis"] += 1
-	l3.muxers[char].mux.Unlock()
+	l3.muxers[char].mux.RUnlock()
+
+	//l3.muxers[char].mux.Lock()
+	//l3.Counter[char]["Count_Mis"] += 1
+	//l3.muxers[char].mux.Unlock()
 	return nil
 } // end func GetOffsets
 
