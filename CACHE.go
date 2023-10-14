@@ -28,9 +28,20 @@ var (
 )
 
 func (his *HISTORY) PrintCacheStats() {
-	// L1CACHE
+	/*
+	 * statsKeys := []string{
+	 * 		"Count_Get",
+	 * 		"Count_Mis",
+	 * 		"Count_Locked",
+	 * 		"Count_Set",
+	 * 		"Count_Delete",
+	 * 		"Count_BatchD",
+	 * 		"Count_Growup",
+	 * 		"Count_Shrink"
+	 *		}
+	 */
 
-	//statsKeys := []string{"Count_Get","Count_GetMiss","Count_Locked","Count_Set","Count_Delete","Count_BatchD","Count_Growup","Count_Shrink"}
+	// L1CACHE
 	l1cachesize := 0
 	l1mapsize := 0
 	l1medium := 0
@@ -51,7 +62,7 @@ func (his *HISTORY) PrintCacheStats() {
 	if l1cachesize > 0 {
 		l1medium = l1cachesize / 16
 	}
-	log.Printf("L1: [fex=%d/set:%d] [get=%d/mis=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l1map["Count_FlagEx"], l1map["Count_Set"], l1map["Count_Get"], l1map["Count_GetMiss"], l1map["Count_Delete"], l1map["Count_BatchD"], l1map["Count_Growup"], l1map["Count_Shrink"], l1cachesize, l1medium)
+	log.Printf("L1: [fex=%d/set:%d] [get=%d/mux=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l1map["Count_FlagEx"], l1map["Count_Set"], l1map["Count_Get"], l1map["Count_Locked"], l1map["Count_Delete"], l1map["Count_BatchD"], l1map["Count_Growup"], l1map["Count_Shrink"], l1cachesize, l1medium)
 
 	// L2CACHE
 	l2cachesize := 0
@@ -73,7 +84,7 @@ func (his *HISTORY) PrintCacheStats() {
 	if l2cachesize > 0 {
 		l2medium = l2cachesize / 16
 	}
-	log.Printf("L2: [fex=%d/set:%d] [get=%d/mis=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l2map["Count_FlagEx"], l2map["Count_Set"], l2map["Count_Get"], l2map["Count_GetMiss"], l2map["Count_Delete"], l2map["Count_BatchD"], l2map["Count_Growup"], l2map["Count_Shrink"], l2cachesize, l2medium)
+	log.Printf("L2: [fex=%d/set:%d] [get=%d/mis=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l2map["Count_FlagEx"], l2map["Count_Set"], l2map["Count_Get"], l2map["Count_Mis"], l2map["Count_Delete"], l2map["Count_BatchD"], l2map["Count_Growup"], l2map["Count_Shrink"], l2cachesize, l2medium)
 
 	// L3CACHE
 	l3cachesize := 0
@@ -95,7 +106,7 @@ func (his *HISTORY) PrintCacheStats() {
 	if l3cachesize > 0 {
 		l3medium = l3cachesize / 16
 	}
-	log.Printf("L3: [fex=%d/set:%d] [get=%d/mis=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l3map["Count_FlagEx"], l3map["Count_Set"], l3map["Count_Get"], l3map["Count_GetMiss"], l3map["Count_Delete"], l3map["Count_BatchD"], l3map["Count_Growup"], l3map["Count_Shrink"], l3cachesize, l3medium)
+	log.Printf("L3: [fex=%d/set:%d] [get=%d/mis=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l3map["Count_FlagEx"], l3map["Count_Set"], l3map["Count_Get"], l3map["Count_Mis"], l3map["Count_Delete"], l3map["Count_BatchD"], l3map["Count_Growup"], l3map["Count_Shrink"], l3cachesize, l3medium)
 } // end func PrintCacheStats
 
 // gets called in BBATCH.go:boltBucketPutBatch() after boltTX
