@@ -46,6 +46,7 @@ func main() {
 	var NoSync bool
 	var NoGrowSync bool
 	var NoFreelistSync bool
+	var pprofcpu bool
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit your CPU cores to Threads/2 !")
@@ -71,6 +72,7 @@ func main() {
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
 
 	// experimental flags
+	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -203,12 +205,13 @@ func main() {
 	log.Printf("Pregen Hashes=%d (took %d ms)", len(testhashes), utils.UnixTimeMilliSec()-pregen)
 
 	// start test
-	cpuProfileFile, err := startCPUProfile()
-	if err != nil {
-		log.Fatal("Could not start CPU profile: ", err)
+	if pprofcpu {
+		cpuProfileFile, err := startCPUProfile()
+		if err != nil {
+			log.Fatal("Could not start CPU profile: ", err)
+		}
+		defer stopCPUProfile(cpuProfileFile)
 	}
-	defer stopCPUProfile(cpuProfileFile)
-
 	LOCKONLYTEST := false
 
 	P_donechan := make(chan struct{}, parallelTest)
