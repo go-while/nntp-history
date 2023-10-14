@@ -35,7 +35,7 @@ type L1ITEM struct {
 }
 
 type L1MUXER struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 }
 
 type MAPSIZES struct {
@@ -79,6 +79,9 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 //	CaseDupes == is a duplicate
 //	CasePass == not a duplicate == locked article for processing
 func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bool) int {
+	//if hash == TESTHASH {
+	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d tryLock", char, hash, value)
+	//}
 	if hash == "" {
 		log.Printf("ERROR LockL1Cache hash=nil")
 		return -999
@@ -91,6 +94,9 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		l1.Counter[char]["Count_Get"] += 1
 		retval := l1.Caches[char].cache[hash].value
 		l1.muxers[char].mux.Unlock()
+		//if hash == TESTHASH {
+		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
+		//}
 		return retval
 	}
 
@@ -101,6 +107,9 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	l1.Counter[char]["Count_Locked"] += 1
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
+	//if hash == TESTHASH {
+	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
+	//}
 	return CasePass
 } // end func LockL1Cache
 
@@ -146,6 +155,9 @@ forever:
 					//delete(extends, hash)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now && item.value == CaseDupes {
+					if hash == TESTHASH {
+						log.Printf("L1CAC [%s|  ] ADD2CLEANUP TESTHASH='%s'", char, hash)
+					}
 					cleanup = append(cleanup, hash)
 				}
 			} // end for getexpired
@@ -197,7 +209,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		l1.Caches[char].cache[hash].expires = expires
 		return
 	}
-	l1.mapsizes[char].maxmapsize++
+	//l1.mapsizes[char].maxmapsize++
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
 } // end func Set
 
@@ -246,8 +258,8 @@ func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCach
 	l1.muxers[char].mux.Unlock()
 } // end func DelExtL1batch
 
-func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64) {
-	if key == "" {
+func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]uint64) {
+	if statskey == "" {
 		retmap = make(map[string]uint64)
 	}
 	if l1 == nil || l1.muxers == nil {
@@ -255,7 +267,7 @@ func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64)
 	}
 	for _, char := range HEXCHARS {
 		l1.muxers[char].mux.Lock()
-		switch key {
+		switch statskey {
 		case "":
 			// key is empty, get all key=>stats to retmap
 			for k, v := range l1.Counter[char] {
@@ -263,8 +275,8 @@ func (l1 *L1CACHE) L1Stats(key string) (retval uint64, retmap map[string]uint64)
 			}
 		default:
 			// key is set, returns retval
-			if _, exists := l1.Counter[char][key]; exists {
-				retval += l1.Counter[char][key]
+			if _, exists := l1.Counter[char][statskey]; exists {
+				retval += l1.Counter[char][statskey]
 			}
 		}
 		l1.muxers[char].mux.Unlock()
