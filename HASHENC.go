@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"hash/fnv"
 	"log"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -51,76 +53,111 @@ func createGobDecoder(encodedData []byte) (*gob.Decoder, error) {
 	return decoder, nil
 }
 
-func gobEncodeOffsets(offsets []int64, char string, bucket string, key string, src string, his *HISTORY) ([]byte, error) {
-	//err = his.GobDecoder[*char].GobDecoder.Decode(&decodedOffsets) //gob.NewDecoder(bytes.NewBuffer(encodedData))
-	var buf bytes.Buffer
-	encoder := gob.NewEncoder(&buf)
-	//err := encoder.Encode(GOBOFFSETS{Offsets: offsets})
-	//gobOffsets := GOBOFFSETS{Offsets: offsets}
-	err := encoder.Encode(offsets)
-	if err != nil {
-		log.Printf("ERROR gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", char, bucket, key, offsets, err)
-		return nil, err
+func concatInt64(data []int64) []byte {
+	strSlice := make([]string, len(data))
+	for i, value := range data {
+		strSlice[i] = strconv.FormatInt(value, 10)
 	}
-	if DBG_GOB_TEST {
-		// test costly check retry decode gob encodedData
-		if _, err := gobDecodeOffsets(buf.Bytes(), char, bucket, key, src+":test:gobEncodeOffsets", his); err != nil {
-			log.Printf("ERROR TEST gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", char, bucket, key, offsets, err)
-			return nil, err
-		}
-	}
-	var ret []byte
-	if B64GOB {
-		ret = []byte(base64.StdEncoding.EncodeToString(buf.Bytes()))
-		ret = append(ret, '.')
-		logf(DBG_B64_SIZE, "gobEncodeOffsets input=%d output=%d", len(buf.Bytes()), len(ret))
-	} else {
-		ret = buf.Bytes()
-	}
+	return []byte(strings.Join(strSlice, ","))
+}
 
-	return ret, nil
-} // end func gobEncodeOffsets
+func parseByteToSlice(input []byte) ([]int64, error) {
+	parts := bytes.Split(input, []byte(","))
+	result := make([]int64, len(parts))
 
-func gobDecodeOffsets(encodedData []byte, char string, bucket string, key string, src string, his *HISTORY) (*[]int64, error) {
-	var decodedOffsets []int64
-	//var decoder *gob.Decoder
-	var err error
-	var b64decoded []byte
-	if B64GOB {
-		len_enc := len(encodedData)
-		if encodedData[len_enc-1] != '.' {
-			err := fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E0 encodedData='%s'", char, bucket, key, encodedData)
-			return nil, err
-		}
-		b64decoded, err = base64.StdEncoding.DecodeString(string(encodedData[:len_enc-1]))
-		len_b64 := len(b64decoded)
+	for i, part := range parts {
+		value, err := strconv.ParseInt(string(part), 10, 64)
 		if err != nil {
-			log.Printf("ERROR gobDecodeOffsets [%s|%s] key='%s' base64decode E1 b64decoded=%d='%s' err='%v'", char, bucket, key, len_b64, b64decoded, err)
 			return nil, err
 		}
-		if len_b64 <= 1 {
-			err = fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E2 b64decoded=%d='%s' encodedData=%d='%s'", char, bucket, key, len_b64, b64decoded, len(encodedData), string(encodedData))
-			return nil, err
-		}
-		buf := bytes.NewBuffer(b64decoded)
-		decoder := gob.NewDecoder(buf)
-		err = decoder.Decode(&decodedOffsets)
-	} else {
-		buf := bytes.NewBuffer(encodedData)
-		decoder := gob.NewDecoder(buf)
-		err = decoder.Decode(&decodedOffsets)
+		result[i] = value
 	}
+	return result, nil
+}
+
+/*
+func EncodeOffsets(offsets []int64, char string, bucket string, key string, src string, his *HISTORY) ([]byte, error) {
+	return concatInt64(offsets), nil
+
+		//err = his.GobDecoder[*char].GobDecoder.Decode(&decodedOffsets) //gob.NewDecoder(bytes.NewBuffer(encodedData))
+		var buf bytes.Buffer
+		encoder := gob.NewEncoder(&buf)
+		//err := encoder.Encode(GOBOFFSETS{Offsets: offsets})
+		//gobOffsets := GOBOFFSETS{Offsets: offsets}
+		err := encoder.Encode(offsets)
+		if err != nil {
+			log.Printf("ERROR gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", char, bucket, key, offsets, err)
+			return nil, err
+		}
+		if DBG_GOB_TEST {
+			// test costly check retry decode gob encodedData
+			if _, err := DecodeOffsets(buf.Bytes(), char, bucket, key, src+":test:gobEncodeOffsets", his); err != nil {
+				log.Printf("ERROR TEST gobEncodeOffsets [%s|%s] key='%s' offsets='%#v' err='%v'", char, bucket, key, offsets, err)
+				return nil, err
+			}
+		}
+		//var ret []byte
+		if B64GOB {
+			ret = []byte(base64.StdEncoding.EncodeToString(buf.Bytes()))
+			ret = append(ret, '.')
+			logf(DBG_B64_SIZE, "gobEncodeOffsets input=%d output=%d", len(buf.Bytes()), len(ret))
+		} else {
+			ret = buf.Bytes()
+		}
+
+		return ret, nil
+
+} // end func EncodeOffsets
+*/
+
+func DecodeOffsets(encodedData []byte, char string, bucket string, key string, src string, his *HISTORY) ([]int64, error) {
+	decodedOffsets, err := parseByteToSlice(encodedData)
 	if err != nil {
-		log.Printf("ERROR E9 gobDecodeOffsets [%s|%s] key='%s' b64decoded='%s' encodedData='%#v' len=%d gobOffsets='%#v' err='%v' src=%s",
-			char, bucket, key, b64decoded, encodedData, len(encodedData), decodedOffsets, err, src)
-		//if err == io.EOF {
-		// TODO something is bugging with unexpected EOF, sometimes. 1 in 500M maybe, or not.
-		//	//continue
-		//}
+		log.Printf("ERROR gobDecodeOffsets parseByteToSlice err='%v' encodedData='%s'", err, string(encodedData))
 		return nil, err
 	}
-	return &decodedOffsets, nil
-} // end func gobDecodeOffsets
+	return decodedOffsets, nil
+	/*
+		//var decoder *gob.Decoder
+
+		if B64GOB {
+			var b64decoded []byte
+			len_enc := len(encodedData)
+			if encodedData[len_enc-1] != '.' {
+				err := fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E0 encodedData='%s'", char, bucket, key, encodedData)
+				return nil, err
+			}
+			b64decoded, err = base64.StdEncoding.DecodeString(string(encodedData[:len_enc-1]))
+			len_b64 := len(b64decoded)
+			if err != nil {
+				log.Printf("ERROR gobDecodeOffsets [%s|%s] key='%s' base64decode E1 b64decoded=%d='%s' err='%v'", char, bucket, key, len_b64, b64decoded, err)
+				return nil, err
+			}
+			if len_b64 <= 1 {
+				err = fmt.Errorf("ERROR gobDecodeOffsets [%s|%s] key='%s' E2 b64decoded=%d='%s' encodedData=%d='%s'", char, bucket, key, len_b64, b64decoded, len(encodedData), string(encodedData))
+				return nil, err
+			}
+			buf := bytes.NewBuffer(b64decoded)
+			decoder := gob.NewDecoder(buf)
+			err = decoder.Decode(&decodedOffsets)
+		} else {
+			buf := bytes.NewBuffer(encodedData)
+			decoder := gob.NewDecoder(buf)
+			err = decoder.Decode(&decodedOffsets)
+		}
+		if err != nil {
+			log.Printf("ERROR E9 gobDecodeOffsets err='%v'")
+			//log.Printf("ERROR E9 gobDecodeOffsets [%s|%s] key='%s' b64decoded='%s' encodedData='%#v' len=%d gobOffsets='%#v' err='%v' src=%s",
+			//	char, bucket, key, b64decoded, encodedData, len(encodedData), decodedOffsets, err, src)
+			//if err == io.EOF {
+			// TODO something is bugging with unexpected EOF, sometimes. 1 in 500M maybe, or not.
+			//	//continue
+			//}
+			return nil, err
+		}
+		return decodedOffsets, nil
+	*/
+} // end func DecodeOffsets
 
 func gobEncodeHeader(settings *HistorySettings) (*[]byte, error) {
 	var buf bytes.Buffer
@@ -151,6 +188,7 @@ func gobDecodeHeader(encodedData []byte) (*HistorySettings, error) {
 	return settings, nil
 } // end func gobDecodeHeader
 
+/*
 func FNV32(data *string) (*string, *uint32) {
 	hash := fnv.New32()
 	hash.Write([]byte(*data))
@@ -169,7 +207,7 @@ func FNV64(data *string) (*string, *uint64) {
 
 func FNV32a(data *string) (*string, *uint32) {
 	hash := fnv.New32a()
-	hash.Write([]byte(*data))
+	hash.Write([]byte(data))
 	d := hash.Sum32()
 	hex := fmt.Sprintf("0x%08x", d)
 	return &hex, &d
@@ -182,35 +220,32 @@ func FNV64a(data *string) (*string, *uint64) {
 	hex := fmt.Sprintf("0x%08x", d)
 	return &hex, &d
 } // end func FNV64a
+*/
 
-func FNV32S(data *string) *string {
+func FNV32S(data string) (key string) {
 	hash := fnv.New32()
-	hash.Write([]byte(*data))
-	d := hash.Sum32()
-	s := fmt.Sprintf("%d", d)
-	return &s
+	hash.Write([]byte(data))
+	key = fmt.Sprintf("%d", hash.Sum32())
+	return
 } // end func FNV32S
 
-func FNV32aS(data *string) *string {
+func FNV32aS(data string) (key string) {
 	hash := fnv.New32a()
-	hash.Write([]byte(*data))
-	d := hash.Sum32()
-	s := fmt.Sprintf("%d", d)
-	return &s
+	hash.Write([]byte(data))
+	key = fmt.Sprintf("%d", hash.Sum32())
+	return
 } // end func FNV32aS
 
-func FNV64S(data *string) *string {
+func FNV64S(data string) (key string) {
 	hash := fnv.New64()
-	hash.Write([]byte(*data))
-	d := hash.Sum64()
-	s := fmt.Sprintf("%d", d)
-	return &s
+	hash.Write([]byte(data))
+	key = fmt.Sprintf("%d", hash.Sum64())
+	return
 } // end func FNV64S
 
-func FNV64aS(data *string) *string {
+func FNV64aS(data string) (key string) {
 	hash := fnv.New64a()
-	hash.Write([]byte(*data))
-	d := hash.Sum64()
-	s := fmt.Sprintf("%d", d)
-	return &s
+	hash.Write([]byte(data))
+	key = fmt.Sprintf("%d", hash.Sum64())
+	return
 } // end func FNV64aS
