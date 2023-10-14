@@ -146,6 +146,9 @@ forever:
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
 // It also dynamically grows the cache when necessary.
 func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
+	//if hash == TESTHASH {
+	//	log.Printf("L2CAC Set hash='%s' @offset=%d expires=%t", hash, offset, flagexpires)
+	//}
 	if offset <= 0 || len(hash) < 32 { // at least md5
 		log.Printf("ERROR L2CACHESet nil pointer")
 		return
@@ -171,7 +174,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		return
 	}
 	l2.Caches[char].cache[offset] = &L2ITEM{hash: hash, expires: expires}
-	l2.mapsizes[char].maxmapsize++
+	//l2.mapsizes[char].maxmapsize++
 } // end func SetOffsetHash
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
@@ -267,8 +270,8 @@ func (l2 *L2CACHE) OffsetToChar(offset int64) string {
 	return char
 } // end func OffsetToChar
 
-func (l2 *L2CACHE) L2Stats(key string) (retval uint64, retmap map[string]uint64) {
-	if key == "" {
+func (l2 *L2CACHE) L2Stats(statskey string) (retval uint64, retmap map[string]uint64) {
+	if statskey == "" {
 		retmap = make(map[string]uint64)
 	}
 	if l2 == nil || l2.muxers == nil {
@@ -276,7 +279,7 @@ func (l2 *L2CACHE) L2Stats(key string) (retval uint64, retmap map[string]uint64)
 	}
 	for _, char := range HEXCHARS {
 		l2.muxers[char].mux.Lock()
-		switch key {
+		switch statskey {
 		case "":
 			// key is empty, get all key=>stats to retmap
 			for k, v := range l2.Counter[char] {
@@ -284,8 +287,8 @@ func (l2 *L2CACHE) L2Stats(key string) (retval uint64, retmap map[string]uint64)
 			}
 		default:
 			// key is set, returns retval
-			if _, exists := l2.Counter[char][key]; exists {
-				retval += l2.Counter[char][key]
+			if _, exists := l2.Counter[char][statskey]; exists {
+				retval += l2.Counter[char][statskey]
 			}
 		}
 		l2.muxers[char].mux.Unlock()
