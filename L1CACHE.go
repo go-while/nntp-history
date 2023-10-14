@@ -35,7 +35,7 @@ type L1ITEM struct {
 }
 
 type L1MUXER struct {
-	mux sync.Mutex
+	mux sync.RWMutex
 }
 
 type MAPSIZES struct {
@@ -89,21 +89,28 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	if char == "" {
 		char = string(hash[0])
 	}
-	l1.muxers[char].mux.Lock()
+	l1.muxers[char].mux.RLock()
 	if l1.Caches[char].cache[hash] != nil {
-		l1.Counter[char]["Count_Get"] += 1
+		//l1.Counter[char]["Count_Get"] += 1
 		retval := l1.Caches[char].cache[hash].value
-		l1.muxers[char].mux.Unlock()
+		l1.muxers[char].mux.RUnlock()
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
 		return retval
 	}
+	l1.muxers[char].mux.RUnlock()
 
 	if !useHashDB {
 		value = CaseDupes
 	}
 
+	l1.muxers[char].mux.Lock()
+	if l1.Caches[char].cache[hash] != nil {
+		retval := l1.Caches[char].cache[hash].value
+		l1.muxers[char].mux.Unlock()
+		return retval
+	}
 	l1.Counter[char]["Count_Locked"] += 1
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
