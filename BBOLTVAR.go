@@ -158,7 +158,7 @@ replay: // backwards: from latest hash
 			memhash.missingoffsets[memhash.hash] = offset
 			distance := ok - nlm
 			//log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
-			log.Printf("WARN ReplayHisDat NOT!FOUND @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset, checked, missed, ok, nlm, distance, replaytestmax)
+			log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash.hash, offset+1, checked, missed, ok, nlm, distance, replaytestmax)
 
 			if DEBUG2 {
 				if missed < 10 {
@@ -175,7 +175,7 @@ replay: // backwards: from latest hash
 				break replay
 			}
 			//log.Printf("INFO ReplayHisDat CaseDupes hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
-			log.Printf("INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset, checked, missed, ok, nlm, distance, replaytestmax)
+			log.Printf("INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset+1, checked, missed, ok, nlm, distance, replaytestmax)
 
 			if DEBUG2 {
 				if ok < 10 {
