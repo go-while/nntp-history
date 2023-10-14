@@ -11,15 +11,15 @@ import (
 )
 
 var (
-	DBG_BS_LOG           bool                 // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
-	DBG_ABS1             bool                 // debugs adaptive batchsize in boltBucketPutBatch
-	DBG_ABS2             bool                 // debugs adaptive batchsize forbatchqueue in boltDB_Worker
-	AdaptBatch           bool                 // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
-	BatchFlushEvery      int64         = 5000 // flushes boltDB in batch every N milliseconds (500-15000)
-	BoltDB_MaxBatchDelay time.Duration        // default value from boltdb:db.go = 10 * time.Millisecond
-	BoltDB_MaxBatchSize  int           = 16   // default value from boltdb:db.go = 1000
-	CharBucketBatchSize  int           = 16   // default batchsize per 16*16 queues (buckets) in *16 char dbs = 65536 total hashes queued for writing
-	emptyStr             string               // used as pointer
+	DBG_BS_LOG           bool                           // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
+	DBG_ABS1             bool                           // debugs adaptive batchsize in boltBucketPutBatch
+	DBG_ABS2             bool                           // debugs adaptive batchsize forbatchqueue in boltDB_Worker
+	AdaptBatch           bool                           // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
+	BatchFlushEvery      int64  = 5000                  // flushes boltDB in batch every N milliseconds (500-15000)
+	BoltDB_MaxBatchDelay        = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
+	BoltDB_MaxBatchSize  int    = 16                    // default value from boltdb:db.go = 1000
+	CharBucketBatchSize  int    = 16                    // default batchsize per char:bucket batchqueues
+	emptyStr             string                         // used as pointer
 )
 
 func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
@@ -100,37 +100,31 @@ fetchbatch:
 	//var freelist int
 	var inserted uint64
 	if len(batch1) > 0 {
-		if db == nil {
-			log.Printf("WARN boltBucketPutBatch db=nil")
-			time.Sleep(time.Second * 5)
-			his.boltmux.Lock()
-			if his.BoltDBsMap[char].BoltDB != nil {
-				db = his.BoltDBsMap[char].BoltDB
-			}
-			his.boltmux.Unlock()
+		/*
 			if db == nil {
-				return Q, 0, fmt.Errorf("boltBucketPutBatch [%s] db=nil", char), false
+				log.Printf("WARN boltBucketPutBatch db=nil")
+				//time.Sleep(time.Second * 5)
+				his.boltmux.Lock()
+				if his.BoltDBsMap[char].BoltDB != nil {
+					db = his.BoltDBsMap[char].BoltDB
+				}
+				his.boltmux.Unlock()
+				if db == nil {
+					return Q, 0, fmt.Errorf("boltBucketPutBatch [%s] db=nil", char), true // closed
+				}
 			}
-		}
-
+		*/
 		// experimental sync mutexing the batchqueue?!
 		//his.batchQueues.mux.Lock()
 		start1 := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
-			/*
-				if DEBUG {
-					p, err := tx.allocate((tx.db.freelist.size() / tx.db.pageSize) + 1)
-					if err != nil {
-						log.Printf("ERROR boltBucketPutBatch tx.allocate freelist err='%v'", err)
-						return err
-					}
-					freelist = p
-				}
-			*/
 		batch1insert:
 			for _, bo := range batch1 {
+				//if bo.key == TESTKEY {
+				//	log.Printf("DEBUG [%s|%s] db.Batch TESTKEY='%s' TESTBUK='%s' offsets='%s' bo='%#v'", char, bucket, bo.key, TESTBUK, string(bo.encodedOffsets), bo)
+				//}
 				puterr := b.Put([]byte(bo.key), bo.encodedOffsets)
 				if puterr != nil {
 					err = puterr
@@ -142,7 +136,7 @@ fetchbatch:
 		}); err != nil {
 			//his.batchQueues.mux.Unlock()
 			log.Printf("ERROR boltBucketPutBatch [%s|%s] db.Batch err='%v'", char, bucket, err)
-			return 0, inserted, err, closed
+			return 0, inserted, err, true // closed
 		}
 		//his.batchQueues.mux.Unlock()
 		// batch insert to boltDB done, pass to CacheEvict
@@ -152,7 +146,7 @@ fetchbatch:
 			//	continue
 			//}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
-			his.DoCacheEvict(bo.char, bo.hash, 0, bo.bucket+bo.key)
+			his.DoCacheEvict(bo.char, bo.hash, 0, bo.char+bo.bucket+bo.key)
 			for _, offset := range bo.offsets {
 				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
 				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
@@ -172,8 +166,6 @@ fetchbatch:
 	//if freelist > 0 {
 	//	log.Printf("INFO boltBucketPutBatch freelist=%d", freelist)
 	//}
-	//took := utils.UnixTimeMicroSec() - start
-	//logf(DEBUG9, "BATCHED boltBucketPutBatch [%s|%s] ins=%d Q=%d f=%t src=%s (took %d micros) ", char, bucket, inserted, len(batchQueue), forced, src, took)
 	return len(batchQueue), inserted, err, closed
 } // end func boltBucketPutBatch
 
