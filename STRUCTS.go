@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	IndexParallel     int = 16
-	NumQueueWriteChan int = 16
+	IndexParallel     int = BoltDBs
+	NumQueueWriteChan int = BoltDBs
+	HisDatWriteBuffer int = 4 * 1024
 )
 
 type HISTORY struct {
@@ -45,6 +46,9 @@ type HISTORY struct {
 	adaptBatch  bool // AdaptiveBatchSize
 	WBR         bool // WatchBoltRunning
 	cEvCap      int  // cacheEvictsCapacity
+	wCBBS       int  // CharBucketBatchSize
+	indexPar    int  // IndexParallel
+	cutFirst    int  // used to set startindex for cutHashlen
 }
 
 /* builds the history.dat header */
@@ -55,8 +59,8 @@ type HistorySettings struct {
 
 type HistoryObject struct {
 	MessageIDHash *string
-	StorageToken  *string // "F" = flatstorage | "M" = mongodb | "X" = deleted
-	Char          *string
+	StorageToken  string // "F" = flatstorage | "M" = mongodb | "X" = deleted
+	Char          string
 	Arrival       int64
 	Expires       int64
 	Date          int64
@@ -65,8 +69,8 @@ type HistoryObject struct {
 
 /* used to query the index */
 type HistoryIndex struct {
-	Hash         *string
-	Char         *string
+	Hash         string
+	Char         string
 	Offset       int64
 	IndexRetChan chan int
 }
@@ -74,18 +78,19 @@ type HistoryIndex struct {
 /* BatchQueue */
 type BQ struct {
 	mux    sync.Mutex
+	lock   chan struct{}
 	Maps   map[string]map[string]chan *BatchOffset
 	Booted chan struct{}
 }
 
 /* used to batch write items to boltDB */
 type BatchOffset struct {
-	bucket            *string
-	key               *string
-	gobEncodedOffsets *[]byte  // gob encoded offsets for this key
-	hash              *string  // for cache eviction
-	char              *string  // for cache eviction
-	offsets           *[]int64 // stored for this key
+	bucket         string
+	key            string
+	encodedOffsets []byte  // gob encoded offsets for this key
+	hash           string  // for cache eviction
+	char           string  // for cache eviction
+	offsets        []int64 // stored for this key
 }
 
 /*
