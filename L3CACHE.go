@@ -179,7 +179,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		newoffsetslen := len(offsets)
 		for _, offset := range offsets {
 			if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
-				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append key='%s' cached=%d='%#v' set?=%d='%#v' cacheex=%d newexpi=%d !valueExistsInSlice offset=%d src='%s'", char, key, cachedlen, l3.Caches[char].cache[key].offsets, newoffsetslen, offsets, cacheex, expires, offset, src)
+				//logf(DEBUGL3, "INFO L3CACHE [%s] SetOffsets append key='%s' cached=%d='%#v' set?=%d='%#v' cacheex=%d newexpi=%d !valueExistsInSlice offset=%d src='%s'", char, key, cachedlen, l3.Caches[char].cache[key].offsets, newoffsetslen, offsets, cacheex, expires, offset, src)
 				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
 			}
 		}
@@ -288,7 +288,7 @@ func (l3 *L3CACHE) L3Stats(key string) (retval uint64, retmap map[string]uint64)
 				retmap[k] += v
 			}
 		default:
-			// key is set
+			// key is set, returns retval
 			if _, exists := l3.Counter[char][key]; exists {
 				retval += l3.Counter[char][key]
 			}
