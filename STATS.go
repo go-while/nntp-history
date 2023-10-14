@@ -164,11 +164,11 @@ func (his *HISTORY) getBucketStats(db *bolt.DB, bucket string) (bolt.BucketStats
 		return stats, fmt.Errorf("ERROR getBucketStats db=nil")
 	}
 	err := db.View(func(tx *bolt.Tx) error {
-		bucket := tx.Bucket([]byte(bucket))
-		if bucket == nil {
+		b := tx.Bucket([]byte(bucket))
+		if b == nil {
 			return fmt.Errorf("Bucket not found: %s", bucket)
 		}
-		stats = bucket.Stats()
+		stats = b.Stats()
 		return nil
 	})
 
