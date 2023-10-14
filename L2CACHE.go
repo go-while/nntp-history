@@ -283,7 +283,7 @@ func (l2 *L2CACHE) L2Stats(key string) (retval uint64, retmap map[string]uint64)
 				retmap[k] += v
 			}
 		default:
-			// key is set
+			// key is set, returns retval
 			if _, exists := l2.Counter[char][key]; exists {
 				retval += l2.Counter[char][key]
 			}
