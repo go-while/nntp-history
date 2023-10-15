@@ -186,19 +186,22 @@ func main() {
 	// pregen hashes
 	log.Printf("Pregen Hashes")
 	pregen := utils.UnixTimeMilliSec()
+
 	testhashes := []string{} // sequential
-	for i := 1; i <= todo; i++ {
-		hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
-		//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-		//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-		//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
-		//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
-		testhashes = append(testhashes, hash)
-		if hash == TESTHASH {
-			log.Printf("DEBUG main TESTHASH='%s' i=%d", hash, i)
+	/*
+		for i := 1; i <= todo; i++ {
+			hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+			//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
+			//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+			//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+			//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
+			testhashes = append(testhashes, hash)
+			if hash == TESTHASH {
+				log.Printf("DEBUG main TESTHASH='%s' i=%d", hash, i)
+			}
 		}
-	}
-	//shuffleStrings(testhashes) // randomize order
+		//shuffleStrings(testhashes) // randomize order
+	*/
 	log.Printf("Pregen Hashes=%d (took %d ms)", len(testhashes), utils.UnixTimeMilliSec()-pregen)
 
 	// start test
@@ -232,8 +235,13 @@ func main() {
 				spammer = uint64(todo) / 25 // spams every 25%
 			}
 		fortodo:
-			//for i := 1; i <= todo; i++ {
-			for _, hash := range testhashes {
+			for i := 1; i <= todo; i++ {
+				//for _, hash := range testhashes {
+				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 				if spam >= spammer {
 					sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d %d/%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo)
@@ -245,33 +253,12 @@ func main() {
 				}
 				//log.Printf("hash=%s", hash)
 				char := string(hash[0])
-				if useHashDB || useL1Cache {
-					retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
-					switch retval {
-					case history.CasePass:
-						//history.History.Sync_upcounter("L1CACHE_Lock")
-						locked++
-						// pass
-					case history.CaseLock:
-						// cache hits, already in processing
-						cLock++
-						continue fortodo
-					case history.CaseDupes:
-						cdupes++
-						continue fortodo
-					case history.CaseWrite:
-						cretry1++
-						continue fortodo
-					case history.CaseRetry:
-						cretry2++
-						continue fortodo
-					default:
-						log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
-						break fortodo
-					}
-				}
+				//if useHashDB || useL1Cache {
+				//if useHashDB || useL1Cache {
+
+				//}
 				if hash == TESTHASH {
-					log.Printf("p=%d processing TESTHASH=%s", p, hash)
+					log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 				}
 				if LOCKONLYTEST {
 					continue fortodo
@@ -297,6 +284,30 @@ func main() {
 						break fortodo
 					}
 				} // end if useHashDB
+
+				retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
+				switch retval {
+				case history.CasePass:
+					//history.History.Sync_upcounter("L1CACHE_Lock")
+					locked++
+					// pass
+				case history.CaseLock:
+					// cache hits, already in processing
+					cLock++
+					continue fortodo
+				case history.CaseDupes:
+					cdupes++
+					continue fortodo
+				case history.CaseWrite:
+					cretry1++
+					continue fortodo
+				case history.CaseRetry:
+					cretry2++
+					continue fortodo
+				default:
+					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
+					break fortodo
+				}
 
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
