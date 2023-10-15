@@ -37,7 +37,7 @@ func reverseBytes(data []byte) {
 }
 
 func (his *HISTORY) ReplayHisDat() {
-	var bufferSize int64 = 102
+	var bufferSize int64 = 192
 	mem := arena.NewArena()
 	//defer mem.Free()
 	memhash := arena.New[AHASH](mem)
@@ -88,28 +88,38 @@ func (his *HISTORY) ReplayHisDat() {
 	if replaytestmax < DefaultReplayDistance {
 		replaytestmax = DefaultReplayDistance
 	}
-	var checked, ok, missed, skippedBytes, field1End, nlm int64
+	var checked, tmpchk, ok, missed, skippedBytes, field1End, nlm int64
 	startindex := size - 2
 	memhash.missing_hashes = []string{}
 	memhash.missingoffsets = make(map[string]int64)
+
+	// try to determine the hashing used in history.dat from last line
+	// and jump offsets in greater ranges and not read byte by byte
+	var baselen int64 = 38 // payload after {hash}
+	var skiplen int64 = 0  // with sha256 base line is 102 - (64 sha256) = 38 payload?
 	start := utils.UnixTimeSec()
+	offset := startindex
 replay: // backwards: from latest hash
-	for offset := startindex; offset >= 0; offset-- { // scan hisDat backwards
-		skippedBytes++
+	//for offset := startindex; offset >= 0; offset-- { // scan hisDat backwards
+	for offset >= 0 { // scan hisDat backwards
+		//log.Printf("Replay offset=%d", offset)
+		if skiplen > 0 {
+			skippedBytes = skiplen
+		} else {
+			skippedBytes++
+		}
 		//logf(DEBUG, "A skippedBytes=%03d @offset=%d buffer=%d='%s'", skippedBytes, offset+1, len(memhash.buffer), string(memhash.buffer))
 		if mmappedData[offset] != '\n' {
 			lineStart--
+			offset--
 			continue replay
 		}
-		if skippedBytes != bufferSize {
-			log.Printf("ERROR ReplayHisDat @offset=%d skipped=%d len(buffer)=%d/%d ls=%d:le=%d", offset+1, skippedBytes, len(memhash.buffer), bufferSize, lineStart, lineEnd)
-			os.Exit(1)
-		}
-		//line := mmappedData[lineStart:lineEnd]
-		//memhash.buffer = append(memhash.buffer, line)
-		copy(memhash.buffer, mmappedData[lineStart:lineEnd])
+		// HIT LF
+		//log.Printf("DEBUG1 ReplayHisDat @offset=%d skipped=%d buf='%s' ls=%d:le=%d", offset+1, skippedBytes, memhash.buffer, lineStart, lineEnd)
+		copy(memhash.buffer, mmappedData[lineStart:lineEnd-baselen+4]) // +4 because {sha256}\t are 3 + 1 more to cut from slice correctly
+		//log.Printf("DEBUG2 ReplayHisDat @offset=%d skipped=%d buf='%s' ls=%d:le=%d d=%d", offset+1, skippedBytes, memhash.buffer, lineStart, lineEnd, lineEnd-lineStart)
 		if memhash.buffer[0] != '{' {
-			log.Printf("ERROR ReplayHisDat buf[0]!='}' @offset=%d skipped=%d len(buffer)=%d/%d ls=%d:le=%d", offset+1, skippedBytes, len(memhash.buffer), bufferSize, lineStart, lineEnd)
+			log.Printf("ERROR ReplayHisDat buf[0]!='{' @offset=%d skipped=%d buf='%s' ls=%d:le=%d", offset+1, skippedBytes, memhash.buffer, lineStart, lineEnd)
 			os.Exit(1)
 		}
 	getFirstField:
@@ -122,25 +132,39 @@ replay: // backwards: from latest hash
 			break
 		}
 		if memhash.buffer[field1End] != '}' {
-			log.Printf("ERROR ReplayHisDat buf[f1e=%d]!='}'='%s' @offset=%d skipped=%d len(buffer)=%d/%d='%s' ls=%d:le=%d", field1End, string(memhash.buffer[field1End]), offset+1, skippedBytes, len(memhash.buffer), bufferSize, string(memhash.buffer), lineStart, lineEnd)
+			log.Printf("ERROR ReplayHisDat buf[f1e=%d]!='}' is '%s' @offset=%d skipped=%d len(buffer)=%d/%d='%s' ls=%d:le=%d", field1End, string(memhash.buffer[field1End]), offset+1, skippedBytes, len(memhash.buffer), bufferSize, string(memhash.buffer), lineStart, lineEnd)
 			os.Exit(1)
 		}
 
 		switch len(memhash.buffer[1:field1End]) {
 		case 64:
 			// sha256 pass
+			if checked == 0 {
+				skiplen = baselen + 64
+			}
 		case 40:
 			// sha1 pass
+			if checked == 0 {
+				skiplen = baselen + 40
+			}
 		case 32:
 			// md5 pass
+			if checked == 0 {
+				skiplen = baselen + 32
+			}
 		case 128:
 			// sha512 pass
+			if checked == 0 {
+				skiplen = baselen + 128
+			}
 		default:
 			log.Printf("ERROR ReplayHisDat BAD HASHLEN @offset=%d buf='%s' ls=%d:le=%d", offset+1, string(memhash.buffer), lineStart, lineEnd)
 			os.Exit(1)
 		}
 		checked++ // only if line has valid format in first field
+		tmpchk++
 		memhash.hash = string(memhash.buffer[1:field1End])
+
 		//logf(DEBUG2, "ReplayHisDat B skippedBytes=%03d field1End=%d hash='%s'@offset=%d",
 		//	skippedBytes, field1End, memhash.hash, offset+1)
 		isDup, err := his.IndexQuery(memhash.hash, indexRetChan, -1)
@@ -162,15 +186,6 @@ replay: // backwards: from latest hash
 			//log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
 			log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)",
 				memhash.hash, offset+1, checked, missed, ok, nlm, distance, replaytestmax)
-			/*
-				if DEBUG2 {
-					if missed < 10 {
-						time.Sleep(time.Second / 100)
-					} else if missed == 10 {
-						time.Sleep(time.Second * 3)
-					}
-				}
-			*/
 
 		case CaseDupes:
 			ok++
@@ -178,25 +193,30 @@ replay: // backwards: from latest hash
 			if distance > replaytestmax {
 				break replay
 			}
-			//log.Printf("INFO ReplayHisDat CaseDupes hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
-			logf(DEBUG2, "INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset+1, checked, missed, ok, nlm, distance, replaytestmax)
-			/*
-				if DEBUG2 {
-					if ok < 10 {
-						time.Sleep(time.Second / 100)
-					} else if ok == 10 {
-						time.Sleep(time.Second * 5)
-					}
-				}
-			*/
+			if tmpchk >= 32768 {
+				logf(DEBUG, "INFO ReplayHisDat CaseDupes (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", checked, missed, ok, nlm, distance, replaytestmax)
+				//logf(DEBUG2, "INFO ReplayHisDat CaseDupes (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)\n  buf=%d='%s'\n  hash='%s'\n", checked, missed, ok, nlm, distance, replaytestmax, len(memhash.buffer), memhash.buffer, memhash.hash)
+				//logf(DEBUG2, "INFO lineStart=%d lineEnd=%d len=%d nextOffset=%d skiplen=%d", lineStart, lineEnd, lineEnd-lineStart, offset, skiplen)
+				tmpchk = 0
+			}
+			//logf(DEBUG, "INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset+1, checked, missed, ok, nlm, distance, replaytestmax)
 
 		default:
 			log.Printf("ERROR ReplayHisDat bad response from IndexQuery isDup=%x", isDup)
 			os.Exit(1)
 		} // end switch isDup
-		lineStart--
-		lineEnd -= skippedBytes
+		if checked == 0 {
+			offset--
+			lineStart--
+			lineEnd = lineEnd - skippedBytes
+		} else {
+			lineStart = lineStart - skiplen
+			lineEnd = lineEnd - skiplen
+			offset = offset - skiplen
+		}
+		//log.Printf("END HIT LF lineStart=%d lineEnd=%d len=%d nextOffset=%d skiplen=%d", lineStart, lineEnd, lineEnd-lineStart, offset, skiplen)
 		skippedBytes = 0
+		// end HIT LF
 		clear(memhash.buffer)
 	} // end for replay
 	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d (took %d sec)", checked, ok, missed, utils.UnixTimeSec()-start)
@@ -205,11 +225,9 @@ replay: // backwards: from latest hash
 		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
 		// missing is ordered from latest backward
 		// reverse order to have oldestFirst
-		reverseStrings(memhash.missing_hashes)
+		//reverseStrings(memhash.missing_hashes)
 		mmappedData.Unmap()
 		mem.Free()
-		//mem.Dispose()
-		//mem = nil
 		file.Close()
 		time.Sleep(1 * time.Second)
 		runtime.GC()
@@ -527,61 +545,6 @@ func boltGetAllKeys(db *bolt.DB, char *string, bucket *string) (retkeys *[]*stri
 	retkeys = &keys
 	return
 } // end func boltGetAllKeys
-
-func readLastNLinesFromFile(filePath string, n int, oldestFirst bool) ([]string, error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	stat, err := file.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	size := stat.Size()
-	mmappedData, err := mmap.Map(file, mmap.RDONLY, 0)
-	if err != nil {
-		return nil, err
-	}
-	defer mmappedData.Unmap()
-
-	lines := make([]string, 0, n)
-	lineStart := int64(size - 1)
-	lineEnd := lineStart
-	log.Printf("readLastNLinesFromFile file='%s' size=%d ls=%d le=%d", filePath, size, lineStart, lineEnd)
-	if mmappedData[size-1] != '\n' {
-		log.Printf("ERROR readLastNLinesFromFile: EOF != '\n' file='%s'", filePath)
-		os.Exit(1)
-	}
-	startindex := size - 2
-	var skipped int64
-	for i := startindex; i >= 0; i-- { // scan backwards
-		if mmappedData[i] == '\n' {
-			//log.Printf("mmappedData ls=%d le=%d i=%d", lineStart, lineEnd, i)
-			line := string(mmappedData[lineStart:lineEnd])
-			if line == "" {
-				log.Printf("extracted line='%s' ls=%d le=%d i=%d skipped=%d", line, lineStart, lineEnd, i, skipped)
-				os.Exit(1)
-			}
-			lines = append(lines, line)
-			if len(lines) >= n {
-				break
-			}
-			lineEnd -= skipped
-			skipped = 0
-		} else {
-			skipped++
-		}
-		lineStart--
-	}
-	if oldestFirst {
-		// Reverse the order of lines. if reversed: start check from oldest else will check from latest.
-		reverseStrings(lines)
-	}
-	return lines, nil
-} // end func readLastNLinesFromFile
 
 func reverseStrings(lines []string) {
 	for i := 0; i < len(lines)/2; i++ {
