@@ -104,9 +104,11 @@ forever:
 			for key, item := range l3.Caches[char].cache {
 				if extends[key] {
 					if len(item.offsets) > 0 {
-						l3.Caches[char].cache[key].offsets = item.offsets
+						//l3.Caches[char].cache[key].offsets = item.offsets
 						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
 						l3.Counter[char]["Count_BatchD"]++
+					} else {
+						log.Printf("ERROR L3CACHE [%s] extending empty offset key=%s", char, key)
 					}
 					//delete(extends, key)
 					continue getexpired
@@ -175,16 +177,6 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 			l3.Caches[char].cache[key].offsets = offsets
 			return
 		}
-		/*
-			for _, offset := range offsets {
-				if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
-					//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
-					//logf(key == TESTKEY, "L3CAC [%s|  ] SetOffsets append %s", char, tailstr)
-					l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
-				}
-			}
-		*/
-
 		// loops in reversed order backwards over new offsets
 		for i := len(offsets) - 1; i >= 0; i-- {
 			if offsets[i] <= 0 {
@@ -192,8 +184,8 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 				continue
 			}
 			// checks cached offsets backwards too
+			//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
 			if !valueExistsInSliceReverseOrder(offsets[i], l3.Caches[char].cache[key].offsets) {
-				//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
 				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
 				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offsets[i])
 			} else {
