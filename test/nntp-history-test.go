@@ -116,7 +116,7 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		//history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
-		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
+		history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
 		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
 		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
@@ -135,7 +135,7 @@ func main() {
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 128 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        128 * 1024,
+			PageSize:        1024 * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
 			FreelistType:   bolt.FreelistMapType,
 			NoSync:         NoSync,
@@ -236,33 +236,26 @@ func main() {
 			}
 		fortodo:
 			for i := 1; i <= todo; i++ {
-				//for _, hash := range testhashes {
-				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
+				if isleep > 0 {
+					time.Sleep(time.Duration(isleep) * time.Millisecond)
+				}
 				if spam >= spammer {
 					sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
 					log.Printf("RUN test p=%d nntp-history added=%d dupes=%d cLock=%d addretry=%d retry=%d adddupes=%d cdupes=%d cretry1=%d cretry2=%d %d/%d", p, added, dupes, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, sum, todo)
 					spam = 0
 				}
 				spam++
-				if isleep > 0 {
-					time.Sleep(time.Duration(isleep) * time.Millisecond)
-				}
-				//log.Printf("hash=%s", hash)
-				char := string(hash[0])
-				//if useHashDB || useL1Cache {
-				//if useHashDB || useL1Cache {
+				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
 
+				char := string(hash[0])
+				//log.Printf("hash=%s char=%s", hash, char)
+				//if hash == TESTHASH {
+				//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 				//}
-				if hash == TESTHASH {
-					log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
-				}
-				if LOCKONLYTEST {
-					continue fortodo
-				}
 
 				if useHashDB {
 					isDup, err := history.History.IndexQuery(hash, IndexRetChan, -1)
@@ -307,6 +300,10 @@ func main() {
 				default:
 					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
 					break fortodo
+				}
+
+				if LOCKONLYTEST {
+					continue fortodo
 				}
 
 				// if we are here, hash is not a duplicate in hashdb.
