@@ -43,7 +43,7 @@ func (his *HISTORY) PrintCacheStats() {
 
 	// L1CACHE
 	l1cachesize := 0
-	l1mapsize := 0
+	//l1mapsize := 0
 	l1medium := 0
 	l1map := make(map[string]uint64)
 
@@ -53,7 +53,7 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L1Cache.muxers[char].mux.Lock()
 		l1cachesize += len(his.L1Cache.Caches[char].cache)
-		l1mapsize += his.L1Cache.mapsizes[char].maxmapsize
+		//l1mapsize += his.L1Cache.mapsizes[char].maxmapsize
 		for k, v := range his.L1Cache.Counter[char] {
 			l1map[k] += v
 		}
@@ -66,7 +66,7 @@ func (his *HISTORY) PrintCacheStats() {
 
 	// L2CACHE
 	l2cachesize := 0
-	l2mapsize := 0
+	//l2mapsize := 0
 	l2medium := 0
 	l2map := make(map[string]uint64)
 	for _, char := range HEXCHARS {
@@ -75,7 +75,7 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L2Cache.muxers[char].mux.Lock()
 		l2cachesize += len(his.L2Cache.Caches[char].cache)
-		l2mapsize += his.L2Cache.mapsizes[char].maxmapsize
+		//l2mapsize += his.L2Cache.mapsizes[char].maxmapsize
 		for k, v := range his.L2Cache.Counter[char] {
 			l2map[k] += v
 		}
@@ -88,7 +88,7 @@ func (his *HISTORY) PrintCacheStats() {
 
 	// L3CACHE
 	l3cachesize := 0
-	l3mapsize := 0
+	//l3mapsize := 0
 	l3medium := 0
 	l3map := make(map[string]uint64)
 	for _, char := range HEXCHARS {
@@ -96,7 +96,7 @@ func (his *HISTORY) PrintCacheStats() {
 			continue
 		}
 		his.L3Cache.muxers[char].mux.Lock()
-		l3mapsize += his.L3Cache.mapsizes[char].maxmapsize
+		//l3mapsize += his.L3Cache.mapsizes[char].maxmapsize
 		l3cachesize += len(his.L3Cache.Caches[char].cache)
 		for k, v := range his.L3Cache.Counter[char] {
 			l3map[k] += v
