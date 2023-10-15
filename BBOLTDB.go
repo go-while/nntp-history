@@ -398,7 +398,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				if LOCKfunc(his.batchQueues.BootCh, "his.batchQueues.BootCh c="+char) {
 					break wait
 				}
-				//time.Sleep(time.Second * 5)
 				if wt <= 0 {
 					log.Printf("FATAL ERROR LOCKFUNC batchQueues!!!")
 					return // deadfail
@@ -432,13 +431,11 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					logf(DBG_ABS2, "INFO forbatchqueue [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t timer=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, timer, lft, now-lastflush, err)
 				}
 				if closed { // received nil pointer
-					logf(DEBUG2, "Closed gofunc forbatchqueue [%s|%s]", char, bucket)
-					//time.Sleep(time.Second * 5)
+					logf(DEBUG, "Closed gofunc forbatchqueue [%s|%s]", char, bucket)
 					break forbatchqueue // this go func
 				}
 				if err != nil {
 					log.Printf("gofunc char=%s boltBucketPutBatch err='%v'", char, err)
-					//time.Sleep(time.Second * 5)
 					break forbatchqueue // this go func
 				}
 				//time.Sleep(time.Nanosecond)
@@ -595,23 +592,6 @@ forever:
 				reopen = true
 				break forever
 			}
-			/*
-				if tmpadded >= maxadded {
-					log.Printf("boltDB_Worker [%s] reopening DB", char)
-					reopen = true
-					newDB, err := his.boltSyncClose(db, char, reopen, boltOpts)
-					if err != nil || newDB == nil {
-						break forever
-					}
-					if newDB != nil {
-						log.Printf("boltDB_Worker [%s] got newDB", char)
-						db = newDB
-					}
-					reopen = false
-					tmpadded = 0
-					continue forever
-				}
-			*/
 			if boltOpts.NoSync == true {
 				if added >= BoltSyncEveryN || (added > 0 && lastsync <= utils.UnixTimeSec()-BoltSyncEveryS) {
 					err := his.BoltSync(db, char, reopen)
@@ -636,7 +616,7 @@ forever:
 	//logf(DEBUG2, "Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, added, dupes, processed, searches, retry)
 	//his.Sync_upcounterN("searches", searches)
 
-	logf(DEBUG2, "Wait Close ReOpen=%t boltDB_Worker [%s]", reopen, char)
+	logf(DEBUG, "Wait Close ReOpen=%t boltDB_Worker [%s]", reopen, char)
 waiter:
 	for {
 		if len(closedBuckets) == BUCKETSperDB {
@@ -650,14 +630,13 @@ waiter:
 		historyfile.Close()
 		his.boltSyncClose(db, char, false, nil)
 		his.returnBoltHashOpen()
-		//time.Sleep(time.Second * 5)
 		go his.boltDB_Worker(char, i, indexchan, boltOpts)
 		return
 	}
 
 	historyfile.Close()
 	his.boltSyncClose(db, char, false, nil)
-	time.Sleep(time.Duration(10 * BoltDB_MaxBatchDelay))
+	//time.Sleep(time.Duration(10 * BoltDB_MaxBatchDelay))
 	his.returnBoltHashOpen()
 } // end func boltDB_Worker
 
