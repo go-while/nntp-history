@@ -50,8 +50,6 @@ var (
 	LOCKHISTORY        = make(chan struct{}, 1)
 	HEXCHARS           = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash     string = "EOF"
-	upcounter          = make(chan *UPCOUNTER, 128)
-	getcounter         = make(chan string, 16)
 )
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -71,7 +69,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if useHashDB {
 		his.useHashDB = true
 	}
-	go his.GoCounter()
 	go his.startSocket()
 	switch BUCKETSperDB {
 	// BUCKETSperDB defines startindex cutFirst for cutHashlen!
