@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DEBUGL1         bool
+	DEBUGL1         bool  = false
 	L1CacheExpires  int64 = DefaultCacheExpires
 	L1ExtendExpires int64 = DefaultCacheExtend
 	L1Purge         int64 = DefaultCachePurge
@@ -17,12 +17,12 @@ var (
 )
 
 type L1CACHE struct {
-	Caches   map[string]*L1CACHEMAP
-	Extend   map[string]chan string
-	muxers   map[string]*L1MUXER
-	mapsizes map[string]*MAPSIZES
-	mux      sync.Mutex
-	Counter  map[string]map[string]uint64
+	Caches map[string]*L1CACHEMAP
+	Extend map[string]chan string
+	muxers map[string]*L1MUXER
+	//mapsizes map[string]*MAPSIZES
+	mux     sync.Mutex
+	Counter map[string]map[string]uint64
 }
 
 type L1CACHEMAP struct {
@@ -54,13 +54,13 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.Caches = make(map[string]*L1CACHEMAP, 16)
 	l1.Extend = make(map[string]chan string, 16)
 	l1.muxers = make(map[string]*L1MUXER, 16)
-	l1.mapsizes = make(map[string]*MAPSIZES, 16)
+	//l1.mapsizes = make(map[string]*MAPSIZES, 16)
 	l1.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = make(chan string, his.cEvCap)
 		l1.muxers[char] = &L1MUXER{}
-		l1.mapsizes[char] = &MAPSIZES{maxmapsize: L1InitSize}
+		//l1.mapsizes[char] = &MAPSIZES{maxmapsize: L1InitSize}
 		l1.Counter[char] = make(map[string]uint64)
 	}
 	time.Sleep(time.Millisecond)
@@ -125,7 +125,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	l1.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l1.mux.Unlock()
-	logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
+	//logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
 	cleanup := []string{}
 	l1purge := L1Purge
 	if l1purge < 1 {
@@ -161,9 +161,9 @@ forever:
 					//delete(extends, hash)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now && item.value == CaseDupes {
-					if hash == TESTHASH {
-						log.Printf("L1CAC [%s|  ] ADD2CLEANUP TESTHASH='%s'", char, hash)
-					}
+					//if hash == TESTHASH {
+					//	log.Printf("L1CAC [%s|  ] ADD2CLEANUP TESTHASH='%s'", char, hash)
+					//}
 					cleanup = append(cleanup, hash)
 				}
 			} // end for getexpired
@@ -177,12 +177,12 @@ forever:
 					delete(l1.Caches[char].cache, hash)
 					l1.Counter[char]["Count_Delete"] += 1
 				}
-				max := l1.mapsizes[char].maxmapsize
+				//max := l1.mapsizes[char].maxmapsize
 				l1.muxers[char].mux.Unlock()
-				logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d max=%d", char, len(cleanup), maplen, max)
+				logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
 			}
-			logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+			//logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
 		} // end select
 	} // end for
