@@ -410,84 +410,84 @@ func boltCreateBucket(db *bolt.DB, char string, bucket string) (retbool bool, er
 	return
 } // end func boltCreateBucket
 
-func boltBucketPutString(db *bolt.DB, char *string, bucket *string, key *string, val *string) (err error) {
-	if char == nil {
+func boltBucketPutString(db *bolt.DB, char string, bucket string, key string, val string) (err error) {
+	if db == nil {
+		return fmt.Errorf("ERROR boltBucketPut char=%s db=nil", char)
+	}
+	if char == "" {
 		return fmt.Errorf("ERROR boltBucketPut char=nil")
 	}
-	if db == nil {
-		return fmt.Errorf("ERROR boltBucketPut char=%s db=nil", *char)
+	if bucket == "" {
+		return fmt.Errorf("ERROR boltBucketPut char=%s bucket=nil", char)
 	}
-	if bucket == nil {
-		return fmt.Errorf("ERROR boltBucketPut char=%s bucket=nil", *char)
+	if key == "" {
+		return fmt.Errorf("ERROR boltBucketPut [%s|%s] key=nil", char, bucket)
 	}
-	if key == nil {
-		return fmt.Errorf("ERROR boltBucketPut [%s|%s] key=nil", *char, *bucket)
-	}
-	if val == nil {
-		return fmt.Errorf("ERROR boltBucketPut [%s|%s] val=nil", *char, *bucket)
+	if val == "" {
+		return fmt.Errorf("ERROR boltBucketPut [%s|%s] val=nil", char, bucket)
 	}
 	if err := db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(*bucket))
-		err := b.Put([]byte(*key), []byte(*val))
+		b := tx.Bucket([]byte(bucket))
+		err := b.Put([]byte(key), []byte(val))
 		return err
 	}); err != nil {
-		log.Printf("ERROR boltBucketPut [%s|%s] key=%s val=%s err='%v'", *char, *bucket, *key, *val, err)
+		log.Printf("ERROR boltBucketPut [%s|%s] key=%s val=%s err='%v'", char, bucket, key, val, err)
 		return err
 	}
 	return
 } // end func boltBucketPutString
 
-func boltBucketGetBytes(db *bolt.DB, char *string, bucket *string, key *string) (retval *[]byte, err error) {
-	if char == nil {
+func boltBucketGetBytes(db *bolt.DB, char string, bucket string, key string) (retval []byte, err error) {
+	if db == nil {
+		return nil, fmt.Errorf("ERROR boltBucketGet char=%s db=nil", char)
+	}
+	if char == "" {
 		return nil, fmt.Errorf("ERROR boltBucketGet char=nil")
 	}
-	if db == nil {
-		return nil, fmt.Errorf("ERROR boltBucketGet char=%s db=nil", *char)
+	if bucket == "" {
+		return nil, fmt.Errorf("ERROR boltBucketGet char=%s bucket=nil", char)
 	}
-	if bucket == nil || *bucket == "" {
-		return nil, fmt.Errorf("ERROR boltBucketGet char=%s bucket=nil", *char)
-	}
-	if key == nil || *key == "" {
-		return nil, fmt.Errorf("ERROR boltBucketGet [%s|%s] key=nil", *char, *bucket)
+	if key == "" {
+		return nil, fmt.Errorf("ERROR boltBucketGet [%s|%s] key=nil", char, bucket)
 	}
 	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(*bucket))
-		v := b.Get([]byte(*key))
+		b := tx.Bucket([]byte(bucket))
+		v := b.Get([]byte(key))
 		if v == nil {
-			log.Printf("NOTFOUND boltBucketGet [%s|%s] key=%s", *char, *bucket, *key)
+			log.Printf("NOTFOUND boltBucketGet [%s|%s] key=%s", char, bucket, key)
 			return nil
 		}
 		//log.Printf("GOT boltBucketGet [%s|%s] key=%s val='%s'", *char, *bucket, *key, string(v))
-		retval = &v
+		retval = v
 		return nil
 	}); err != nil {
-		log.Printf("ERROR boltBucketGet [%s|%s] key=%s err='%v'", *char, *bucket, *key, err)
+		log.Printf("ERROR boltBucketGet [%s|%s] key=%s err='%v'", char, bucket, key, err)
 		return nil, err
 	}
 	return
 } // end func boltBucketGetBytes
 
-func boltGetAllKeysVals(db *bolt.DB, char *string, bucket *string) (keyvals map[*string]*[]byte, err error) {
-	if char == nil {
+func boltGetAllKeysVals(db *bolt.DB, char string, bucket string) (keyvals map[string][]byte, err error) {
+	if db == nil {
+		return nil, fmt.Errorf("ERROR boltGetAllKeysVals char=%s db=nil", char)
+	}
+	if char == "" {
 		return nil, fmt.Errorf("ERROR boltGetAllKeysVals char=nil")
 	}
-	if db == nil {
-		return nil, fmt.Errorf("ERROR boltGetAllKeysVals char=%s db=nil", *char)
-	}
-	if bucket == nil || *bucket == "" {
+	if bucket == "" {
 		return nil, fmt.Errorf("ERROR boltGetAllKeysVals char=%s bucket=nil", char)
 	}
-	keyvals = make(map[*string]*[]byte)
+	keyvals = make(map[string][]byte)
 	if err := db.View(func(tx *bolt.Tx) error {
 		// Assume bucket exists and has keys
-		b := tx.Bucket([]byte(*bucket))
+		b := tx.Bucket([]byte(bucket))
 
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			//fmt.Printf("key=%s, value=%s\n", k, v)
 			key := string(k)
-			keyvals[&key] = &v
+			keyvals[key] = v
 			//*keys = append(*keys, &key)
 			//*vals = append(*vals, &v)
 		}
