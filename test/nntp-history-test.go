@@ -63,9 +63,14 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
+
+	// NoSync: When set to true, the database skips fsync() calls after each commit. This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
+
+	// NoGrowSync: When true, skips the truncate call when growing the database, but it's only safe on non-ext3/ext4 systems.
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
+
+	// NoFreelistSync: When true, the database skips syncing the freelist to disk. This can improve write performance but may require a full database re-sync during recovery.
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
 
 	// experimental flags
@@ -73,6 +78,7 @@ func main() {
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
@@ -115,9 +121,14 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		//history.BoltDB_MaxBatchSize = 16 // 0 disables boltdb internal batching. default: 1000
-		history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
-		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
+		history.BoltDB_MaxBatchSize = 256 // 0 disables boltdb internal batching. default: 1000
+		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
+
+		// AllocSize is the amount of space allocated when the database
+		// needs to create new pages. This is done to amortize the cost
+		// of truncate() and fsync() when growing the data file.
+		history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
+
 		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
@@ -146,7 +157,7 @@ func main() {
 			//PreLoadFreelist: ?,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
-			//MmapFlags: syscall.MAP_POPULATE,
+			MmapFlags: syscall.MAP_POPULATE,
 		}
 		boltOpts = &bO
 	}
