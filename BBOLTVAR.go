@@ -7,7 +7,7 @@ import (
 	// "google.golang.org/protobuf/encoding/protowire"
 	//"bytes"
 	"fmt"
-	//"github.com/go-while/go-utils"
+	"github.com/go-while/go-utils"
 	//"golang.org/x/exp/mmap"
 	"github.com/edsrzf/mmap-go"
 	bolt "go.etcd.io/bbolt"
@@ -76,7 +76,7 @@ func (his *HISTORY) ReplayHisDat() {
 	//defer memhash.mmappedData.Unmap()
 	lineStart := int64(size - 1)
 	lineEnd := lineStart
-	log.Printf("ReplayHisDat file='%s' size=%d ls=%d:le=%d", his.hisDat, size, lineStart, lineEnd)
+	log.Printf("ReplayHisDat file='%s' size=%d", his.hisDat, size)
 	if mmappedData[size-1] != '\n' {
 		log.Printf("ERROR ReplayHisDat: EOF != '\n' file='%s'", his.hisDat)
 		os.Exit(1)
@@ -92,6 +92,7 @@ func (his *HISTORY) ReplayHisDat() {
 	startindex := size - 2
 	memhash.missing_hashes = []string{}
 	memhash.missingoffsets = make(map[string]int64)
+	start := utils.UnixTimeSec()
 replay: // backwards: from latest hash
 	for offset := startindex; offset >= 0; offset-- { // scan hisDat backwards
 		skippedBytes++
@@ -178,7 +179,7 @@ replay: // backwards: from latest hash
 				break replay
 			}
 			//log.Printf("INFO ReplayHisDat CaseDupes hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
-			log.Printf("INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset+1, checked, missed, ok, nlm, distance, replaytestmax)
+			logf(DEBUG2, "INFO ReplayHisDat CaseDupes @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", offset+1, checked, missed, ok, nlm, distance, replaytestmax)
 			/*
 				if DEBUG2 {
 					if ok < 10 {
@@ -198,7 +199,7 @@ replay: // backwards: from latest hash
 		skippedBytes = 0
 		clear(memhash.buffer)
 	} // end for replay
-	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d", checked, ok, missed)
+	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d (took %d sec)", checked, ok, missed, utils.UnixTimeSec()-start)
 
 	if len(memhash.missing_hashes) > 0 || ForcedReplay {
 		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
