@@ -31,6 +31,7 @@ const (
 )
 
 var (
+	TESTHASH0   string = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
 	TESTHASH1   string = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8" // i=393644
 	TESTHASH2   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09" // i=393644
 	TESTHASH           = TESTHASH2
@@ -49,6 +50,8 @@ var (
 	LOCKHISTORY        = make(chan struct{}, 1)
 	HEXCHARS           = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
 	eofhash     string = "EOF"
+	upcounter          = make(chan *UPCOUNTER, 128)
+	getcounter         = make(chan string, 16)
 )
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -65,6 +68,11 @@ var (
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
+	if useHashDB {
+		his.useHashDB = true
+	}
+	go his.GoCounter()
+	go his.startSocket()
 	switch BUCKETSperDB {
 	// BUCKETSperDB defines startindex cutFirst for cutHashlen!
 	case 16:
@@ -274,8 +282,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	his.L1Cache.L1CACHE_Boot(his)
 	his.CacheEvictThread()
 
-	if useHashDB {
-		his.useHashDB = true
+	if his.useHashDB {
 		his.boltDB_Init(boltOpts)
 	}
 
@@ -327,7 +334,8 @@ func (his *HISTORY) Wait4HashDB() {
 				now = utils.UnixTimeSec()
 			}
 		}
-		log.Printf("his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
+		log.Printf("Wait4HashDB OK his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
+		time.Sleep(time.Second * 5)
 	}
 } // end func Wait4HashDB
 
@@ -551,13 +559,12 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		}
 		defer file.Close()
 	}
-
+	logf(offset == 1019995695, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
 	if hash := his.L2Cache.GetHashFromOffset(offset); hash != "" {
-		//if hash == TESTHASH {
-		//	log.Printf("FseekHistoryMessageHash returned cached hash='%s' @offset=%d", hash, offset)
-		//}
+		//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
 		return hash, nil
 	}
+	logf(offset == 1019995695, "FSEEK [%s|%s] notfound L2 offset=%d", char, bucket, offset)
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
@@ -565,12 +572,14 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
 		return "", seekErr
 	}
+	logf(offset == 1019995695, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
 
 	reader := bufio.NewReaderSize(file, 67)
-
+	logf(offset == 1019995695, "FSEEK [%s|%s] reading offset=%d", char, bucket, offset)
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
 	if err != nil {
+		log.Printf("ERROR FSEEK err='%v'", err)
 		if err == io.EOF {
 			his.Sync_upcounter("FSEEK_EOF")
 			return eofhash, nil
@@ -578,10 +587,10 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		return "", err
 	}
 	his.Sync_upcounter("FSEEK")
-	//log.Printf("FseekHistoryMessageHash offset=%d", *offset)
-
 	//result := strings.Split(line, "\t")[0]
 	result = strings.TrimSuffix(result, "\t")
+	logf(offset == 1019995695, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
+
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
 			return "", fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", offset, result)
@@ -757,28 +766,3 @@ func IsPow2(n int) bool {
 	}
 	return true
 } // end func isPow2
-
-func (his *HISTORY) Sync_upcounter(counter string) {
-	if !DEBUG {
-		return
-	}
-	his.cmux.Lock()
-	his.Counter[counter] += 1
-	his.cmux.Unlock()
-} // end func sync_upcounter
-
-func (his *HISTORY) Sync_upcounterN(counter string, value uint64) {
-	if !DEBUG {
-		return
-	}
-	his.cmux.Lock()
-	his.Counter[counter] += value
-	his.cmux.Unlock()
-} // end func Sync_upcounterN
-
-func (his *HISTORY) GetCounter(counter string) uint64 {
-	his.cmux.Lock()
-	retval := his.Counter[counter]
-	his.cmux.Unlock()
-	return retval
-} // end func GetCounter
