@@ -5,7 +5,6 @@ import (
 	//"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"log"
-	"os"
 	"time"
 )
 
@@ -13,100 +12,26 @@ func (his *HISTORY) Sync_upcounter(k string) {
 	if !DEBUG {
 		return
 	}
-	//his.cmux.Lock()
-	//his.Counter[k]++
-	//his.cmux.Unlock()
-	/*
-		if len(upcounter) == cap(upcounter) {
-			log.Printf("ERROR Sync_upcounter upcounter chan full %d/%d", len(upcounter), cap(upcounter))
-			//os.Exit(1)
-			//return
-		}
-	*/
-	upcounter <- &UPCOUNTER{K: k, V: 1}
+	his.cmux.Lock()
+	his.Counter[k]++
+	his.cmux.Unlock()
 } // end func sync_upcounter
 
 func (his *HISTORY) Sync_upcounterN(k string, v uint64) {
 	if !DEBUG {
 		return
 	}
-	/*
-		if len(upcounter) == cap(upcounter) {
-			log.Printf("ERROR Sync_upcounterN upcounter chan full")
-			return
-		}
-	*/
-	upcounter <- &UPCOUNTER{K: k, V: v}
-	//his.cmux.Lock()
-	//his.Counter[counter] += value
-	//his.cmux.Unlock()
+	his.cmux.Lock()
+	his.Counter[k] += v
+	his.cmux.Unlock()
 } // end func Sync_upcounterN
 
-/*
 func (his *HISTORY) GetCounter(k string) uint64 {
-	//his.cmux.Lock()
-	//retval := his.Counter[k]
-	//his.cmux.Unlock()
-	//return retval
-	return his.GetGoCounter(k)
+	his.cmux.Lock()
+	retval := his.Counter[k]
+	his.cmux.Unlock()
+	return retval
 } // end func GetCounter
-*/
-
-type UPCOUNTER struct {
-	K string
-	V uint64
-}
-
-func (his *HISTORY) GetCounter(k string) (v uint64) {
-	his.cmux.Lock()
-	if his.counterRetChan == nil {
-		log.Printf("ERROR GetGoCounter his.counterRetChan=nil")
-		return 0
-	}
-
-	getcounter <- k
-	v = <-his.counterRetChan
-	his.cmux.Unlock()
-	return v
-} // end func GetGoCounter
-
-func (his *HISTORY) GoCounter() {
-	log.Printf("Booting GoCounter wait locking")
-	//his.mux.Lock()
-	//his.mux.Unlock()
-
-	his.cmux.Lock()
-	if his.counterRetChan != nil {
-		his.cmux.Unlock()
-		return
-	}
-	if his.counterRetChan == nil {
-		his.counterRetChan = make(chan uint64, 1)
-	}
-	his.cmux.Unlock()
-	logf(DEBUG2, "Booted GoCounter")
-	//os.Exit(1)
-	cm := make(map[string]uint64) // TODO replace strings with magicnumbers as keys
-	for {
-		select {
-		case k, ok := <-getcounter:
-			if !ok || his.counterRetChan == nil {
-				break
-			}
-			//v = cm[k]
-			//logf(DEBUG2, "GoCounter GET k='%s' = v=%d retch=%d/%d", k, v, len(his.counterRetChan), cap(his.counterRetChan))
-			his.counterRetChan <- cm[k]
-		case c, ok := <-upcounter:
-			//logf(DEBUG2, "GoCounter ADD k='%s' + v=%d upcounterCh=%d/%d", c.K, c.V, len(upcounter), cap(upcounter))
-			if !ok {
-				break
-			}
-			cm[c.K] += c.V
-		}
-	}
-	log.Printf("STOP GoCounter")
-	os.Exit(1)
-} // end func GoCounter
 
 func (his *HISTORY) WatchBolt() {
 	his.mux.Lock()
