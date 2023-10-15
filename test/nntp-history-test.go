@@ -64,13 +64,16 @@ func main() {
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
 
-	// NoSync: When set to true, the database skips fsync() calls after each commit. This can be useful for bulk loading data, but it's not recommended for normal use.
+	// NoSync: When set to true, the database skips fsync() calls after each commit.
+	// This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
 
-	// NoGrowSync: When true, skips the truncate call when growing the database, but it's only safe on non-ext3/ext4 systems.
+	// NoGrowSync: When true, skips the truncate call when growing the database,
+	//  but it's only safe on non-ext3/ext4 systems.
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
 
-	// NoFreelistSync: When true, the database skips syncing the freelist to disk. This can improve write performance but may require a full database re-sync during recovery.
+	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
+	// This can improve write performance but may require a full database re-sync during recovery.
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
 
 	// experimental flags
