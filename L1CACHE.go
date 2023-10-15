@@ -126,7 +126,6 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	l1.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l1.mux.Unlock()
 	logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
-	//lastshrink := utils.UnixTimeSec()
 	cleanup := []string{}
 	l1purge := L1Purge
 	if l1purge < 1 {
@@ -206,10 +205,10 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 
 	expires := NoExpiresVal
 	if flagexpires {
-		l1.Counter[char]["Count_FlagEx"] += 1
+		l1.Counter[char]["Count_FlagEx"]++
 		expires = utils.UnixTimeSec() + L1CacheExpires
 	} else if !flagexpires && value == CaseWrite {
-		l1.Counter[char]["Count_Set"] += 1
+		l1.Counter[char]["Count_Set"]++
 	}
 
 	if l1.Caches[char].cache[hash] != nil {
