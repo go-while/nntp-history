@@ -213,7 +213,7 @@ func (his *HISTORY) boltDB_Index() {
 						default:
 							his.IndexChan <- nil
 						}
-						log.Printf("Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, his.indexPar)
+						logf(DEBUG2, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, his.indexPar)
 						break forever
 					}
 					if hi.Offset == 0 {
