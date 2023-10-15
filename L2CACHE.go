@@ -22,10 +22,9 @@ var (
 )
 
 type L2CACHE struct {
-	Caches map[string]*L2CACHEMAP
-	Extend map[string]chan *ClearCache
-	muxers map[string]*L2MUXER
-	//mapsizes map[string]*MAPSIZES
+	Caches  map[string]*L2CACHEMAP
+	Extend  map[string]chan *ClearCache
+	muxers  map[string]*L2MUXER
 	mux     sync.Mutex
 	Counter map[string]map[string]uint64
 }
@@ -40,7 +39,7 @@ type L2ITEM struct {
 }
 
 type L2MUXER struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 }
 
 // The L2CACHE_Boot method initializes the L2 cache.
@@ -55,14 +54,13 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 	l2.Caches = make(map[string]*L2CACHEMAP, 16)
 	l2.Extend = make(map[string]chan *ClearCache, 16)
 	l2.muxers = make(map[string]*L2MUXER, 16)
-	//l2.mapsizes = make(map[string]*MAPSIZES, 16)
 	l2.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = make(chan *ClearCache, his.cEvCap)
 		l2.muxers[char] = &L2MUXER{}
-		//l2.mapsizes[char] = &MAPSIZES{maxmapsize: L2InitSize}
 		l2.Counter[char] = make(map[string]uint64)
+
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -114,7 +112,6 @@ forever:
 				if extends[offset] {
 					l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
 					l2.Counter[char]["Count_BatchD"] += 1
-					//delete(extends, offset)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now {
 					//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v' age=%d l2exp=%d", char, offset, item, now-item.addtime, L2CacheExpires)
@@ -122,20 +119,17 @@ forever:
 				}
 			} // end for getexpired
 			maplen := len(l2.Caches[char].cache)
-			l2.muxers[char].mux.Unlock()
-			clear(extends)
 			if len(cleanup) > 0 {
 				maplen -= len(cleanup)
-				l2.muxers[char].mux.Lock()
 				for _, offset := range cleanup {
 					delete(l2.Caches[char].cache, offset)
 					l2.Counter[char]["Count_Delete"] += 1
 				}
-				//max := l2.mapsizes[char].maxmapsize
-				l2.muxers[char].mux.Unlock()
 				logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
 			}
+			l2.muxers[char].mux.Unlock()
+			clear(extends)
 			//logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
 		} // end select
@@ -155,6 +149,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	}
 	char := l2.OffsetToChar(offset)
 	//start := utils.UnixTimeMilliSec()
+
 	l2.muxers[char].mux.Lock()
 	defer l2.muxers[char].mux.Unlock()
 
@@ -174,7 +169,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		return
 	}
 	l2.Caches[char].cache[offset] = &L2ITEM{hash: hash, expires: expires}
-	//l2.mapsizes[char].maxmapsize++
 } // end func SetOffsetHash
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
@@ -184,19 +178,16 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64) (hash string) {
 		return
 	}
 	char := l2.OffsetToChar(offset)
-	l2.muxers[char].mux.RLock()
+
+	l2.muxers[char].mux.Lock()
+	defer l2.muxers[char].mux.Unlock()
+
 	if l2.Caches[char].cache[offset] != nil {
-		//l2.Counter[char]["Count_Get"]++
-		item := l2.Caches[char].cache[offset]
-		hash = item.hash
-		l2.muxers[char].mux.RUnlock()
+		l2.Counter[char]["Count_Get"]++
+		hash = l2.Caches[char].cache[offset].hash
 		return
 	}
-	l2.muxers[char].mux.RUnlock()
-
-	//l2.muxers[char].mux.Lock()
-	//l2.Counter[char]["Count_Mis"]++
-	//l2.muxers[char].mux.Unlock()
+	l2.Counter[char]["Count_Mis"]++
 	return
 } // end func GetHashFromOffset
 
@@ -263,7 +254,8 @@ func (l2 *L2CACHE) OffsetToChar(offset int64) string {
 	//char := string(fmt.Sprintf("%x", *offset)[0])
 
 	// get last char from hex: the last char is more random
-	hex := fmt.Sprintf("%x", offset)
+	//hex := fmt.Sprintf("%x", offset)
+	hex := strconv.FormatInt(offset, 16)
 	char := string(hex[len(hex)-1])
 	if char == "" {
 		log.Printf("ERROR L2CACHE.OffsetToChar char empty fallback 0")
