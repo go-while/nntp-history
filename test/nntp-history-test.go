@@ -63,7 +63,6 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
 
-
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
@@ -271,27 +270,6 @@ func main() {
 				//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 				//}
 
-				if useHashDB {
-					isDup, err := history.History.IndexQuery(hash, IndexRetChan, -1)
-					if err != nil {
-						log.Printf("FALSE IndexQuery hash=%s", hash)
-						break fortodo
-					}
-					switch isDup {
-					case history.CasePass:
-						// pass
-					case history.CaseDupes:
-						dupes++
-						continue fortodo
-					case history.CaseRetry:
-						retry++
-						continue fortodo
-					default:
-						log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
-						break fortodo
-					}
-				} // end if useHashDB
-
 				retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
 				switch retval {
 				case history.CasePass:
@@ -318,6 +296,25 @@ func main() {
 
 				if LOCKONLYTEST {
 					continue fortodo
+				}
+
+				isDup, err := history.History.IndexQuery(hash, IndexRetChan, -1)
+				if err != nil {
+					log.Printf("FALSE IndexQuery hash=%s", hash)
+					break fortodo
+				}
+				switch isDup {
+				case history.CasePass:
+					// pass
+				case history.CaseDupes:
+					dupes++
+					continue fortodo
+				case history.CaseRetry:
+					retry++
+					continue fortodo
+				default:
+					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
+					break fortodo
 				}
 
 				// if we are here, hash is not a duplicate in hashdb.
