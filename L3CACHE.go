@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	DEBUGL3         bool
+	DEBUGL3         bool  = false
 	L3CacheExpires  int64 = DefaultCacheExpires
 	L3ExtendExpires int64 = DefaultCacheExtend
 	L3Purge         int64 = DefaultCachePurge
@@ -17,12 +17,12 @@ var (
 )
 
 type L3CACHE struct {
-	Caches   map[string]*L3CACHEMAP
-	Extend   map[string]chan string
-	muxers   map[string]*L3MUXER
-	mapsizes map[string]*MAPSIZES
-	mux      sync.Mutex
-	Counter  map[string]map[string]uint64
+	Caches map[string]*L3CACHEMAP
+	Extend map[string]chan string
+	muxers map[string]*L3MUXER
+	//mapsizes map[string]*MAPSIZES
+	mux     sync.Mutex
+	Counter map[string]map[string]uint64
 }
 
 type L3CACHEMAP struct {
@@ -50,13 +50,13 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Caches = make(map[string]*L3CACHEMAP, 16)
 	l3.Extend = make(map[string]chan string, 16)
 	l3.muxers = make(map[string]*L3MUXER, 16)
-	l3.mapsizes = make(map[string]*MAPSIZES, 16)
+	//l3.mapsizes = make(map[string]*MAPSIZES, 16)
 	l3.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = make(chan string, his.cEvCap)
 		l3.muxers[char] = &L3MUXER{}
-		l3.mapsizes[char] = &MAPSIZES{maxmapsize: L3InitSize}
+		//l3.mapsizes[char] = &MAPSIZES{maxmapsize: L3InitSize}
 		l3.Counter[char] = make(map[string]uint64)
 	}
 	time.Sleep(time.Millisecond)
@@ -72,7 +72,7 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
-	logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
+	//logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
 	//lastshrink := utils.UnixTimeSec()
 	cleanup := []string{}
 	l3purge := L3Purge
@@ -131,7 +131,7 @@ forever:
 				logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
 			}
-			logf(DEBUGL3, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+			//logf(DEBUGL3, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
 		} // end select
 	} // end for
