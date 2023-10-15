@@ -106,7 +106,7 @@ forever:
 					if len(item.offsets) > 0 {
 						l3.Caches[char].cache[key].offsets = item.offsets
 						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
-						l3.Counter[char]["Count_BatchD"] += 1
+						l3.Counter[char]["Count_BatchD"]++
 					}
 					//delete(extends, key)
 					continue getexpired
@@ -124,7 +124,7 @@ forever:
 				l3.muxers[char].mux.Lock()
 				for _, key := range cleanup {
 					delete(l3.Caches[char].cache, key)
-					l3.Counter[char]["Count_Delete"] += 1
+					l3.Counter[char]["Count_Delete"]++
 				}
 				//max := l3.mapsizes[char].maxmapsize
 				l3.muxers[char].mux.Unlock()
@@ -159,11 +159,11 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	expires := NoExpiresVal
 	if flagexpires {
 		if len(offsets) > 0 {
-			l3.Counter[char]["Count_FlagEx"] += 1
+			l3.Counter[char]["Count_FlagEx"]++
 		}
 		expires = utils.UnixTimeSec() + L3CacheExpires
 	} else {
-		l3.Counter[char]["Count_Set"] += 1
+		l3.Counter[char]["Count_Set"]++
 	}
 	//var tailstr string
 	if l3.Caches[char].cache[key] != nil {
@@ -175,29 +175,34 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 			l3.Caches[char].cache[key].offsets = offsets
 			return
 		}
-		for _, offset := range offsets {
-			if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
-				//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
-				//logf(key == TESTKEY, "L3CAC [%s|  ] SetOffsets append %s", char, tailstr)
-				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
-			}
-		}
 		/*
-			// loops in reversed order backwards over new offsets
-			for i := len(offsets) - 1; i >= 0; i-- {
-				// checks cached offsets backwards too
-				if DEBUG {
-				}
-				if !valueExistsInSliceReverseOrder(offsets[i], l3.Caches[char].cache[key].offsets) {
-					logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
-					l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offsets[i])
-				} else {
-					//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets exists %s", char, tailstr)
-					// NOTE with valueExistsInSliceReverseOrder first hit returns fast now
-					//return
+			for _, offset := range offsets {
+				if !valueExistsInSlice(offset, l3.Caches[char].cache[key].offsets) {
+					//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
+					//logf(key == TESTKEY, "L3CAC [%s|  ] SetOffsets append %s", char, tailstr)
+					l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offset)
 				}
 			}
 		*/
+
+		// loops in reversed order backwards over new offsets
+		for i := len(offsets) - 1; i >= 0; i-- {
+			if offsets[i] <= 0 {
+				log.Printf("ERROR L3CACHE SetOffsets offsets[i]=%d", offsets[i])
+				continue
+			}
+			// checks cached offsets backwards too
+			if !valueExistsInSliceReverseOrder(offsets[i], l3.Caches[char].cache[key].offsets) {
+				//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
+				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
+				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offsets[i])
+			} else {
+				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets exists %s", char, tailstr)
+				// NOTE with valueExistsInSliceReverseOrder first hit returns fast now
+				return
+			}
+		}
+
 		return
 	}
 	l3.Caches[char].cache[key] = &L3ITEM{offsets: offsets, expires: expires}
@@ -242,7 +247,7 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) []int64 {
 	}
 	l3.muxers[char].mux.RLock()
 	if l3.Caches[char].cache[key] != nil {
-		//l3.Counter[char]["Count_Get"] += 1
+		//l3.Counter[char]["Count_Get"]++
 		item := l3.Caches[char].cache[key]
 		offsets := item.offsets
 		l3.muxers[char].mux.RUnlock()
@@ -251,7 +256,7 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) []int64 {
 	l3.muxers[char].mux.RUnlock()
 
 	//l3.muxers[char].mux.Lock()
-	//l3.Counter[char]["Count_Mis"] += 1
+	//l3.Counter[char]["Count_Mis"]++
 	//l3.muxers[char].mux.Unlock()
 	return nil
 } // end func GetOffsets
