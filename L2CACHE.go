@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	DEBUGL2         bool
+	DEBUGL2         bool  = false
 	L2CacheExpires  int64 = DefaultCacheExpires
 	L2ExtendExpires int64 = DefaultCacheExtend
 	L2Purge         int64 = DefaultCachePurge
@@ -22,12 +22,12 @@ var (
 )
 
 type L2CACHE struct {
-	Caches   map[string]*L2CACHEMAP
-	Extend   map[string]chan *ClearCache
-	muxers   map[string]*L2MUXER
-	mapsizes map[string]*MAPSIZES
-	mux      sync.Mutex
-	Counter  map[string]map[string]uint64
+	Caches map[string]*L2CACHEMAP
+	Extend map[string]chan *ClearCache
+	muxers map[string]*L2MUXER
+	//mapsizes map[string]*MAPSIZES
+	mux     sync.Mutex
+	Counter map[string]map[string]uint64
 }
 
 type L2CACHEMAP struct {
@@ -55,13 +55,13 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 	l2.Caches = make(map[string]*L2CACHEMAP, 16)
 	l2.Extend = make(map[string]chan *ClearCache, 16)
 	l2.muxers = make(map[string]*L2MUXER, 16)
-	l2.mapsizes = make(map[string]*MAPSIZES, 16)
+	//l2.mapsizes = make(map[string]*MAPSIZES, 16)
 	l2.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = make(chan *ClearCache, his.cEvCap)
 		l2.muxers[char] = &L2MUXER{}
-		l2.mapsizes[char] = &MAPSIZES{maxmapsize: L2InitSize}
+		//l2.mapsizes[char] = &MAPSIZES{maxmapsize: L2InitSize}
 		l2.Counter[char] = make(map[string]uint64)
 	}
 	time.Sleep(time.Millisecond)
@@ -77,7 +77,7 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 func (l2 *L2CACHE) L2Cache_Thread(char string) {
 	l2.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l2.mux.Unlock()
-	logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
+	//logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
 	//lastshrink := utils.UnixTimeSec()
 	cleanup := []int64{}
 	l2purge := L2Purge
@@ -131,12 +131,12 @@ forever:
 					delete(l2.Caches[char].cache, offset)
 					l2.Counter[char]["Count_Delete"] += 1
 				}
-				max := l2.mapsizes[char].maxmapsize
+				//max := l2.mapsizes[char].maxmapsize
 				l2.muxers[char].mux.Unlock()
-				logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d/%d max=%d", char, len(cleanup), maplen, max)
+				logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
 			}
-			logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+			//logf(DEBUGL2, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
 		} // end select
 	} // end for
