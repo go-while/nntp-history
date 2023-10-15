@@ -22,8 +22,8 @@ const (
 var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 15 // search only
-	DefaultCacheExtend    int64 = 5  // extends cached items after writes
-	DefaultCachePurge     int64 = 3  // seconds
+	DefaultCacheExtend    int64 = 15 // extends cached items after writes
+	DefaultCachePurge     int64 = 5  // seconds
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
 
@@ -53,7 +53,6 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L1Cache.muxers[char].mux.Lock()
 		l1cachesize += len(his.L1Cache.Caches[char].cache)
-		//l1mapsize += his.L1Cache.mapsizes[char].maxmapsize
 		for k, v := range his.L1Cache.Counter[char] {
 			l1map[k] += v
 		}
@@ -75,7 +74,6 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L2Cache.muxers[char].mux.Lock()
 		l2cachesize += len(his.L2Cache.Caches[char].cache)
-		//l2mapsize += his.L2Cache.mapsizes[char].maxmapsize
 		for k, v := range his.L2Cache.Counter[char] {
 			l2map[k] += v
 		}
@@ -96,7 +94,6 @@ func (his *HISTORY) PrintCacheStats() {
 			continue
 		}
 		his.L3Cache.muxers[char].mux.Lock()
-		//l3mapsize += his.L3Cache.mapsizes[char].maxmapsize
 		l3cachesize += len(his.L3Cache.Caches[char].cache)
 		for k, v := range his.L3Cache.Counter[char] {
 			l3map[k] += v
