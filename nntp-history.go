@@ -556,12 +556,12 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		}
 		defer file.Close()
 	}
-	logf(offset == 1019995695, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
+	//logf(offset == 1019995695, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
 	if hash := his.L2Cache.GetHashFromOffset(offset); hash != "" {
 		//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
 		return hash, nil
 	}
-	logf(offset == 1019995695, "FSEEK [%s|%s] notfound L2 offset=%d", char, bucket, offset)
+	//logf(offset == 1019995695, "FSEEK [%s|%s] notfound L2 offset=%d", char, bucket, offset)
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
@@ -569,10 +569,11 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
 		return "", seekErr
 	}
-	logf(offset == 1019995695, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
+	//logf(offset == 1019995695, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
 
-	reader := bufio.NewReaderSize(file, 67)
-	logf(offset == 1019995695, "FSEEK [%s|%s] reading offset=%d", char, bucket, offset)
+	reader := bufio.NewReaderSize(file, 67) // {sha256}\t
+	//logf(offset == 1019995695, "FSEEK [%s|%s] reading offset=%d", char, bucket, offset)
+
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
 	if err != nil {
@@ -584,9 +585,8 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		return "", err
 	}
 	his.Sync_upcounter("FSEEK")
-	//result := strings.Split(line, "\t")[0]
 	result = strings.TrimSuffix(result, "\t")
-	logf(offset == 1019995695, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
+	//logf(offset == 1019995695, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
 
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
@@ -594,7 +594,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		}
 		hash := result[1 : len(result)-1]
 		if len(hash) >= 32 { // at least md5
-			//logf(hash == TESTHASH, "INFO SeekHistoryMessageHash @offset=%d got hash='%s'", offset, hash)
+			//logf(hash == TESTHASH, "FSEEK [%s|%s] @offset=%d => hash='%s'", char, bucket, offset, hash)
 			his.L2Cache.SetOffsetHash(offset, hash, FlagExpires)
 			return hash, nil
 		}
