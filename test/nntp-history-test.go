@@ -336,7 +336,7 @@ func main() {
 					ResponseChan:  responseChan,
 				}
 
-				isDup := history.History.AddHistory(hobj, useL1Cache)
+				isDup = history.History.AddHistory(hobj, useL1Cache)
 				switch isDup {
 				case history.CaseAdded:
 					added++
