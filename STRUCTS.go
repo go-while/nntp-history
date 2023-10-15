@@ -50,6 +50,7 @@ type HISTORY struct {
 	indexPar       int  // IndexParallel
 	cutFirst       int  // used to set startindex for cutHashlen
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
+	counterRetChan chan uint64
 }
 
 /* builds the history.dat header */
