@@ -48,7 +48,12 @@ func (his *HISTORY) WatchBolt() {
 	var batchins uint64
 	var searches uint64
 	ticker := time.NewTicker(time.Duration(WatchBoltTimer) * time.Second)
+	runs := 0
 	for range ticker.C {
+		if runs == 0 { // ignores the first measurement
+			runs++
+			continue
+		}
 		insertednow := his.GetCounter("inserted")
 		batchinsnow := his.GetCounter("batchins")
 		searchesnow := his.GetCounter("searches")
@@ -73,14 +78,21 @@ func (his *HISTORY) WatchBolt() {
 			log.Printf("WatchBolt: (searches %d/s) (+%d searches in 10s)", pps, diff)
 			searches = searchesnow
 		}
+
 	}
+	log.Printf("ERROR WatchBolt returned!")
 } // end func WatchBolt
 
 func (his *HISTORY) PrintBoltPerformance() {
 	var tmpTX int
 	ticker := time.NewTicker(time.Duration(WatchBoltTimer) * time.Second)
 	prevTimestamp := time.Now()
+	runs := 0
 	for range ticker.C {
+		if runs == 0 { // ignores the first measurement
+			runs++
+			continue
+		}
 		his.PrintCacheStats()
 
 		currentTimestamp := time.Now()
@@ -96,7 +108,9 @@ func (his *HISTORY) PrintBoltPerformance() {
 			log.Printf("BoltSpeed: %.2f tx/s ( did=%d in %.1f sec ) totalTX=%d otx=%d", performance, did, passed, tx, otx)
 		}
 		tmpTX = tx
+		runs++
 	}
+	log.Printf("ERROR PrintBoltPerformance returned")
 } // end func PrintBoltPerformance
 
 func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) {
