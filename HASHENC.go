@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
+	"hash/crc32"
+	//"encoding/hex"
 	"fmt"
 	"hash/fnv"
 	"log"
@@ -12,15 +14,21 @@ import (
 	//"time"
 )
 
-func concatInt64(data []int64) []byte {
-	strSlice := make([]string, len(data))
-	for i, value := range data {
-		//strSlice[i] = fmt.Sprintf("%x", strconv.FormatInt(value, 10)) // stores as hex
-		strSlice[i] = strconv.FormatInt(value, 16) // stores hex
-		//strSlice[i] = strconv.FormatInt(value, 10) // stores digits
+var (
+	ADDCRC bool = false
+)
+
+func concatInt64(input []int64) []byte {
+	strSlice := make([]string, len(input))
+	for i, value := range input {
+		strSlice[i] = strconv.FormatInt(value, 16) // stores int64 as hex string
+		//if ADDCRC {
+		//	_, _ = CRC(strSlice[i])
+		//}
 	}
 	retdata := []byte(strings.Join(strSlice, ","))
 	retdata = append(retdata, ',') // adds comma to strings EOL
+	//log.Printf("concatInt64 input='%#v' ret='%s'", input, retdata)
 	return retdata
 }
 
@@ -35,7 +43,6 @@ transform:
 			//log.Printf("parseByteToSlice ignored i=%d part='%s'", i, part)
 			continue transform
 		}
-		//value, err := strconv.ParseInt(string(part), 10, 64) // reads digits
 		value, err := strconv.ParseInt(string(part), 16, 64) // reads hex
 		if err != nil {
 			log.Printf("ERROR parseByteToSlice err='%v'", err)
@@ -104,3 +111,16 @@ func FNV64aS(data string) (key string) {
 	key = fmt.Sprintf("%d", hash.Sum64())
 	return
 } // end func FNV64aS
+
+func CRC(input string) (string, error) {
+	// Convert the string to bytes.
+	hash := crc32.NewIEEE()
+	_, err := hash.Write([]byte(input))
+	if err != nil {
+		return "", err
+	}
+	crc := hash.Sum32()
+	checksumStr := strconv.FormatInt(int64(crc), 16) // as hex
+	log.Printf("CRC input='%s' output='%s' crc=%d", input, checksumStr, crc)
+	return checksumStr, nil
+} // end func CRC
