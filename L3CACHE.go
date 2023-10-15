@@ -17,10 +17,9 @@ var (
 )
 
 type L3CACHE struct {
-	Caches map[string]*L3CACHEMAP
-	Extend map[string]chan string
-	muxers map[string]*L3MUXER
-	//mapsizes map[string]*MAPSIZES
+	Caches  map[string]*L3CACHEMAP
+	Extend  map[string]chan string
+	muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]map[string]uint64
 }
@@ -35,7 +34,7 @@ type L3ITEM struct {
 }
 
 type L3MUXER struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 }
 
 // The L3CACHE_Boot method initializes the L3 cache.
@@ -50,13 +49,11 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Caches = make(map[string]*L3CACHEMAP, 16)
 	l3.Extend = make(map[string]chan string, 16)
 	l3.muxers = make(map[string]*L3MUXER, 16)
-	//l3.mapsizes = make(map[string]*MAPSIZES, 16)
 	l3.Counter = make(map[string]map[string]uint64)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = make(chan string, his.cEvCap)
 		l3.muxers[char] = &L3MUXER{}
-		//l3.mapsizes[char] = &MAPSIZES{maxmapsize: L3InitSize}
 		l3.Counter[char] = make(map[string]uint64)
 	}
 	time.Sleep(time.Millisecond)
@@ -99,18 +96,17 @@ forever:
 			timeout = true
 			start = utils.UnixTimeMilliSec()
 			now := int64(start / 1000)
+
 			l3.muxers[char].mux.Lock()
 		getexpired:
 			for key, item := range l3.Caches[char].cache {
 				if extends[key] {
 					if len(item.offsets) > 0 {
-						//l3.Caches[char].cache[key].offsets = item.offsets
 						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
 						l3.Counter[char]["Count_BatchD"]++
 					} else {
 						log.Printf("ERROR L3CACHE [%s] extending empty offset key=%s", char, key)
 					}
-					//delete(extends, key)
 					continue getexpired
 				} else if item.expires > 0 && item.expires < now {
 					//logf(DEBUG, "L3 expire [%s] key='%#v' item='%#v'", char, key, item)
@@ -118,21 +114,17 @@ forever:
 				}
 			} // end for getexpired
 			maplen := len(l3.Caches[char].cache)
-			//oldmax := l3.mapsizes[char].maxmapsize
-			l3.muxers[char].mux.Unlock()
-			clear(extends)
 			if len(cleanup) > 0 {
 				maplen -= len(cleanup)
-				l3.muxers[char].mux.Lock()
 				for _, key := range cleanup {
 					delete(l3.Caches[char].cache, key)
 					l3.Counter[char]["Count_Delete"]++
 				}
-				//max := l3.mapsizes[char].maxmapsize
-				l3.muxers[char].mux.Unlock()
 				logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
 			}
+			l3.muxers[char].mux.Unlock()
+			clear(extends)
 			//logf(DEBUGL3, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			continue forever
 		} // end select
@@ -198,35 +190,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		return
 	}
 	l3.Caches[char].cache[key] = &L3ITEM{offsets: offsets, expires: expires}
-	//l3.mapsizes[char].maxmapsize++
 } // end func SetOffsets
-
-func allValuesExistInSlice(values []int64, slice []int64) bool {
-	for _, v := range values {
-		if !valueExistsInSlice(v, slice) {
-			return false
-		}
-	}
-	return true
-}
-
-func valueExistsInSlice(value int64, slice []int64) bool {
-	for _, v := range slice {
-		if v == value {
-			return true
-		}
-	}
-	return false
-}
-
-func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
-	for i := len(slice) - 1; i >= 0; i-- {
-		if slice[i] == value {
-			return true
-		}
-	}
-	return false
-}
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
 func (l3 *L3CACHE) GetOffsets(key string, char string) []int64 {
@@ -237,19 +201,18 @@ func (l3 *L3CACHE) GetOffsets(key string, char string) []int64 {
 	if char == "" {
 		char = string(key[0])
 	}
-	l3.muxers[char].mux.RLock()
+	l3.muxers[char].mux.Lock()
+	defer l3.muxers[char].mux.Unlock()
+
 	if l3.Caches[char].cache[key] != nil {
-		//l3.Counter[char]["Count_Get"]++
+		l3.Counter[char]["Count_Get"]++
 		item := l3.Caches[char].cache[key]
 		offsets := item.offsets
-		l3.muxers[char].mux.RUnlock()
+
 		return offsets
 	}
-	l3.muxers[char].mux.RUnlock()
 
-	//l3.muxers[char].mux.Lock()
-	//l3.Counter[char]["Count_Mis"]++
-	//l3.muxers[char].mux.Unlock()
+	l3.Counter[char]["Count_Mis"]++
 	return nil
 } // end func GetOffsets
 
@@ -321,3 +284,12 @@ func (l3 *L3CACHE) L3Stats(statskey string) (retval uint64, retmap map[string]ui
 	}
 	return
 } // end func L3Stats
+
+func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
+	for i := len(slice) - 1; i >= 0; i-- {
+		if slice[i] == value {
+			return true
+		}
+	}
+	return false
+}
