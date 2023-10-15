@@ -35,11 +35,7 @@ type L1ITEM struct {
 }
 
 type L1MUXER struct {
-	mux sync.RWMutex
-}
-
-type MAPSIZES struct {
-	maxmapsize int
+	mux sync.Mutex
 }
 
 // The L1CACHE_Boot method initializes the cache system.
@@ -60,7 +56,6 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = make(chan string, his.cEvCap)
 		l1.muxers[char] = &L1MUXER{}
-		//l1.mapsizes[char] = &MAPSIZES{maxmapsize: L1InitSize}
 		l1.Counter[char] = make(map[string]uint64)
 	}
 	time.Sleep(time.Millisecond)
@@ -89,28 +84,30 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	if char == "" {
 		char = string(hash[0])
 	}
-	l1.muxers[char].mux.RLock()
+	l1.muxers[char].mux.Lock()
+	//l1.muxers[char].mux.RLock()
 	if l1.Caches[char].cache[hash] != nil {
 		//l1.Counter[char]["Count_Get"] += 1
 		retval := l1.Caches[char].cache[hash].value
-		l1.muxers[char].mux.RUnlock()
+		//l1.muxers[char].mux.RUnlock()
+		l1.muxers[char].mux.Unlock()
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
 		return retval
 	}
-	l1.muxers[char].mux.RUnlock()
+	//l1.muxers[char].mux.RUnlock()
 
 	if !useHashDB {
 		value = CaseDupes
 	}
-
-	l1.muxers[char].mux.Lock()
-	if l1.Caches[char].cache[hash] != nil {
-		retval := l1.Caches[char].cache[hash].value
-		l1.muxers[char].mux.Unlock()
-		return retval
-	}
+	/*
+		l1.muxers[char].mux.Lock()
+		if l1.Caches[char].cache[hash] != nil {
+			retval := l1.Caches[char].cache[hash].value
+			l1.muxers[char].mux.Unlock()
+			return retval
+		}*/
 	l1.Counter[char]["Count_Locked"] += 1
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	l1.muxers[char].mux.Unlock()
@@ -177,7 +174,6 @@ forever:
 					delete(l1.Caches[char].cache, hash)
 					l1.Counter[char]["Count_Delete"] += 1
 				}
-				//max := l1.mapsizes[char].maxmapsize
 				l1.muxers[char].mux.Unlock()
 				logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				cleanup = nil
@@ -215,7 +211,6 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		l1.Caches[char].cache[hash].expires = expires
 		return
 	}
-	//l1.mapsizes[char].maxmapsize++
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
 } // end func Set
 
