@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	BoltDBreopenEveryN       = 0     // reopens boltDB every N added (not batchins) // very experimental!
+	BoltDBreopenEveryN       = 0x0   // reopens boltDB every N added (not batchins) // very experimental!
 	WatchBoltTimer     int64 = 10    // prints bolts stats every N seconds. only with DEBUG
 	NoReplayHisDat     bool  = false // can be set before booting to not replay history.dat
 	// stop replay HisDat if we got this many OKs with a distance to missing
@@ -79,6 +79,7 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 			// for frequent access betters supply a indexRetChan
 			indexRetChan = make(chan int, 1)
 		}
+		//logf(hash == TESTHASH0, "IndexQuery hash='%s' indexRetChan='%#v' offset=%d his.IndexChan=%d/%d", hash, indexRetChan, offset, len(his.IndexChan), cap(his.IndexChan))
 		if offset > 0 {
 			his.IndexChan <- &HistoryIndex{Hash: hash, Offset: offset, IndexRetChan: indexRetChan}
 		} else {
@@ -212,7 +213,7 @@ func (his *HISTORY) boltDB_Index() {
 						default:
 							his.IndexChan <- nil
 						}
-						//logf(DEBUG2, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, his.indexPar)
+						log.Printf("Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, his.indexPar)
 						break forever
 					}
 					if hi.Offset == 0 {
@@ -227,6 +228,9 @@ func (his *HISTORY) boltDB_Index() {
 						// hex.EncodeToString returns a lowercased string of a hashsum
 						C1 = strings.ToLower(string(hi.Hash[0]))
 					}
+					//logf(hi.Hash == TESTHASH0, "boltDB_Index hash='%s' hi.Offset=%d C1=%s chan=%d/%d",
+					//	hi.Hash, hi.Offset, C1, len(his.indexChans[his.charsMap[C1]]), cap(his.indexChans[his.charsMap[C1]]))
+
 					if his.indexChans[his.charsMap[C1]] != nil {
 						his.indexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
 					} else {
@@ -545,7 +549,7 @@ forever:
 			case HashFNV64a:
 				key = FNV64aS(hi.Hash)
 			}
-			//logf(DEBUG2, "HDBZW [%s|%s] key=%s hash=%s @0x%010x|%d|%x", char, bucket, key, hi.Hash, hi.Offset, hi.Offset, hi.Offset)
+			//logf(hi.Hash == TESTHASH0, "HDBZW [%s|%s] key='%s' hash='%s' @0x%010x|%d|%x", char, bucket, key, hi.Hash, hi.Offset, hi.Offset, hi.Offset)
 			isDup, err := his.DupeCheck(db, char, bucket, key, hi.Hash, hi.Offset, false, historyfile, his.batchQueues.Maps[char][bucket])
 			if err != nil {
 				if err != io.EOF {
@@ -561,6 +565,7 @@ forever:
 			}
 
 			if hi.IndexRetChan != nil {
+				//logf(hi.Hash == TESTHASH0, "HDBZW [%s|%s] key='%s' hash='%s' hi.IndexRetChan <- isDup=%d|%x", char, bucket, key, hi.Hash, isDup, isDup)
 				hi.IndexRetChan <- isDup
 			}
 			if hi.Offset == -1 {
@@ -682,12 +687,17 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
 		}
 	*/
+
+	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s'", char, bucket, key, hash)
+
 	offsets, err := his.boltBucketGetOffsets(db, char, bucket, key, offset)
 	if err != nil {
 		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets [%s|%s] key=%s hash='%s' err='%v'", char, bucket, key, hash, err)
 		return -999, err
 	}
+
 	len_offsets := len(offsets)
+	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' got offsets=%d", char, bucket, key, hash, len_offsets)
 	if len_offsets == 0 { // no offsets stored for numhash
 		if offset == -1 { // search only
 			return CasePass, nil // pass, not a duplicate
@@ -721,9 +731,10 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 			}
 		}
 	}
+	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' check offsets=%d", char, bucket, key, hash, len_offsets)
 	for _, check_offset := range offsets {
 		// check history for duplicate hash / evades collissions
-		//logf(key == TESTKEY, "HDBZW [%s|%s] checkFSEEK key='%s' hash='%s' lo=%d check_offset=%d", char, bucket, key, hash, len_offsets, check_offset)
+		//logf(key == TESTKEY || hash == TESTHASH0, "HDBZW [%s|%s] checkFSEEK key='%s' hash='%s' lo=%d check_offset=%d", char, bucket, key, hash, len_offsets, check_offset)
 		historyHash, err := his.FseekHistoryMessageHash(file, check_offset, char, bucket)
 		if historyHash == "" && err == nil {
 			log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", char, bucket, err, hash)
@@ -755,7 +766,10 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 			return -999, fmt.Errorf("ERROR DupeCheck historyHash=nil check_offset=%d", check_offset)
 		}
 	}
+
+	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' checked offsets=%d", char, bucket, key, hash, len_offsets)
 	if offset == -1 {
+		//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' return CasePass", char, bucket, key, hash)
 		// search did not find a match in check_offset over range offsets
 		return CasePass, nil // pass, not a duplicate
 	}
