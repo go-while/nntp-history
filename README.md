@@ -110,7 +110,7 @@ The remaining portion of the hash (after the first two characters) is used as th
 
 # Test   1M inserts with `KeyLen` = 6 (`i` hashes): appoffset=4 trymultioffsets=8
 # Test  10M inserts with `KeyLen` = 6 (`i` hashes): appoffset=748 trymultioffsets=1496
-# Test 100M inserts with `KeyLen` = 6 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
+# Test 100M inserts with `KeyLen` = 6 (`i` hashes): appoffset=16511583 trymultioffsets=XXXX
 
 # Test   1M inserts with `KeyLen` = 8 (`i` hashes): appoffset=0 trymultioffsets=0
 # Test  10M inserts with `KeyLen` = 8 (`i` hashes): appoffset=4 trymultioffsets=8
