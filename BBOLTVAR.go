@@ -5,7 +5,7 @@ import (
 	"bufio"
 	// "google.golang.org/protobuf/encoding/prototext"
 	// "google.golang.org/protobuf/encoding/protowire"
-	//"bytes"
+	"bytes"
 	"fmt"
 	"github.com/go-while/go-utils"
 	//"golang.org/x/exp/mmap"
@@ -90,9 +90,9 @@ func (his *HISTORY) ReplayHisDat() {
 	}
 	var checked, tmpchk, ok, missed, skippedBytes, field1End, nlm int64
 	startindex := size - 2
+	f1end := 0
 	memhash.missing_hashes = []string{}
 	memhash.missingoffsets = make(map[string]int64)
-
 	// try to determine the hashing used in history.dat from last line
 	// and jump offsets in greater ranges and not read byte by byte
 	var baselen int64 = 38 // payload after {hash}
@@ -122,17 +122,15 @@ replay: // backwards: from latest hash
 			log.Printf("ERROR ReplayHisDat buf[0]!='{' @offset=%d skipped=%d buf='%s' ls=%d:le=%d", offset+1, skippedBytes, memhash.buffer, lineStart, lineEnd)
 			os.Exit(1)
 		}
-	getFirstField:
-		for i, c := range memhash.buffer {
-			if c != '\t' {
-				continue getFirstField
-			}
-			//logf(DEBUG2, "ReplayHisDat getFirstField: i=%d hash", i)
-			field1End = int64(i) - 1 // accounts for tab
-			break
+		// getFirstField
+		f1end = bytes.Index(memhash.buffer, []byte("\t"))
+		if f1end <= 33 {
+			log.Printf("ERROR ReplayHisDat f1end=%d @offset=%d skipped=%d buf='%s' ls=%d:le=%d", f1end, string(memhash.buffer[field1End]), offset+1, skippedBytes, string(memhash.buffer), lineStart, lineEnd)
+			os.Exit(1)
 		}
+		field1End = int64(f1end) - 1 // accounts for tab
 		if memhash.buffer[field1End] != '}' {
-			log.Printf("ERROR ReplayHisDat buf[f1e=%d]!='}' is '%s' @offset=%d skipped=%d len(buffer)=%d/%d='%s' ls=%d:le=%d", field1End, string(memhash.buffer[field1End]), offset+1, skippedBytes, len(memhash.buffer), bufferSize, string(memhash.buffer), lineStart, lineEnd)
+			log.Printf("ERROR ReplayHisDat buf[f1e=%d]!='}' is '%s' @offset=%d skipped=%d buf='%s' ls=%d:le=%d", field1End, string(memhash.buffer[field1End]), offset+1, skippedBytes, string(memhash.buffer), lineStart, lineEnd)
 			os.Exit(1)
 		}
 
