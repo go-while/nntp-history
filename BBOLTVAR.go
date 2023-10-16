@@ -206,6 +206,8 @@ replay: // backwards: from latest hash
 			os.Exit(1)
 		} // end switch isDup
 		if checked == 0 {
+			// reads the very last line by byte
+			//  to determine the hashlen and jump in bigger steps
 			offset--
 			lineStart--
 			lineEnd = lineEnd - skippedBytes
