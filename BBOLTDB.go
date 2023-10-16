@@ -58,10 +58,6 @@ var (
 	empty_offsets        []int64                                   // just nothing
 )
 
-type BOLTDB_PTR struct {
-	BoltDB *bolt.DB
-}
-
 func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
 	if !his.useHashDB {
 		log.Printf("INFO return IndexQuery !his.useHashDB")
@@ -107,13 +103,14 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.L3Cache.L3CACHE_Boot(his)
 
 	his.batchQueues = &BQ{}
-	his.batchQueues.BootCh = make(chan struct{}, 16*BUCKETSperDB)        // char [0-9a-f] * bucket [0-9a-f]
-	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset) // maps char : bucket => chan
-	his.BoltDBsMap = make(map[string]*BOLTDB_PTR)                        // maps char => boltDB pointer
+	his.batchQueues.BootCh = make(chan struct{}, 16*BUCKETSperDB)                    // char [0-9a-f] * bucket [0-9a-f]
+	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, intBoltDBs) // maps char : bucket => chan
+	//his.BoltDBsMap = make(map[string]*BOLTDB_PTR)                        // maps char => boltDB pointer
+	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
 
 	for _, char := range HEXCHARS {
 		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset) // maps bucket => chan
-		his.BoltDBsMap[char] = &BOLTDB_PTR{BoltDB: nil}                 // pointer to boltDB
+		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}           // pointer to boltDB
 	}
 	his.IndexChan = make(chan *HistoryIndex, QIndexChan) // main index chan to query the index
 	his.charsMap = make(map[string]int, intBoltDBs)      // maps char from HEXCHARS to i
@@ -273,11 +270,11 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	if boltOpts == nil {
 		defboltOpts := bolt.Options{
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 128 * 1024 * 1024 * 1024, // yes 128gb! avoids fragmentation on growing?
+			InitialMmapSize: 1024 * 1024 * 1024, // yes 128gb! avoids fragmentation on growing?
 			PageSize:        64 * 1024,
 			// https://github.com/etcd-io/bbolt/issues/401#issuecomment-1424484221
-			NoFreelistSync: true,
-			FreelistType:   bolt.FreelistMapType,
+			//NoFreelistSync: true,
+			FreelistType: bolt.FreelistMapType,
 			//FreelistType:    bolt.FreelistArrayType,
 		}
 		boltOpts = &defboltOpts
@@ -301,9 +298,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		db.AllocSize = BoltDB_AllocSize
 	}
 	//logf(DEBUG2, "HDBZW: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
-	his.boltmux.Lock()
-	his.BoltDBsMap[char].BoltDB = db
-	his.boltmux.Unlock()
+	his.BoltDBsMap.dbptr[char].mux.Lock()
+	his.BoltDBsMap.dbptr[char].BoltDB = db
+	his.BoltDBsMap.dbptr[char].mux.Unlock()
 	tocheck, checked, created := BUCKETSperDB, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
@@ -616,10 +613,8 @@ forever:
 		logf(DEBUG2, "FINAL-BATCH HDBZW [%s|%s]", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, his.batchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:[%s|%s]", char, bucket), -1, -1)
 	}
-	//logf(DEBUG2, "Quit HDBZW char=%s added=%d dupes=%d processed=%d searches=%d retry=%d", char, added, dupes, processed, searches, retry)
+	logf(DEBUG2, "Quit HDBZW [%s] ReOpen=%t added=%d dupes=%d processed=%d searches=%d retry=%d", char, reopen, added, dupes, processed, searches, retry)
 	//his.Sync_upcounterN("searches", searches)
-
-	logf(DEBUG, "Wait Close ReOpen=%t boltDB_Worker [%s]", reopen, char)
 waiter:
 	for {
 		if len(closedBuckets) == BUCKETSperDB {
@@ -649,9 +644,11 @@ waiter:
 // It also handles the creation of new hash entries in the bucket when needed.
 func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key string, hash string, offset int64, setempty bool, file *os.File, batchQueue chan *BatchOffset) (int, error) {
 	// return -999 with err only
-	if db == nil {
-		return -999, fmt.Errorf("ERROR DupeCheck db=nil")
-	}
+	/*
+		if db == nil {
+			return -999, fmt.Errorf("ERROR DupeCheck db=nil")
+		}
+	*/
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s'", char, bucket, key, hash)
 	var offsets []int64 // retrieves offsets from boltBucketGetOffsets into this
 	if _, err := his.boltBucketGetOffsets(db, char, bucket, key, offset, &offsets); err != nil {
@@ -756,22 +753,24 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 } // end func DupeCheck
 
 func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket string, key string, hash string, offset int64, offsets []int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
-	if db == nil {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s db=nil", char)
-	}
 	/*
-		if char == nil {
+		if db == nil {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s db=nil", char)
+		}
+
+		if char == "" {
 			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=nil")
 		}
-		if bucket == nil || *bucket == "" {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=nil", *char)
+		if bucket == "" {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=nil", char)
 		}
-		if key == nil || *key == "" {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] key=nil", *char, *bucket)
-		}*/
-	if offsets == nil {
-		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsets=nil", char, bucket)
-	}
+		if key == "" {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] key=nil", char, bucket)
+		}
+		if offsets == nil {
+			return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsets=nil", char, bucket)
+		}
+	*/
 	if !setempty && len(offsets) == 0 {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsetsN=0 setempty=%t", char, bucket, setempty)
 	}
@@ -823,12 +822,24 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 
 // func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64) (offsets []int64, err error) {
 func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64, returnoffsets *[]int64) (int, error) {
-	if db == nil {
-		return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
-	}
-	if returnoffsets == nil {
-		return 0, fmt.Errorf("ERROR boltBucketGetOffsets returnoffsets=nil")
-	}
+	/*
+		if db == nil {
+			return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
+		}
+		if returnoffsets == nil {
+			return 0, fmt.Errorf("ERROR boltBucketGetOffsets returnoffsets=nil")
+		}
+		if char == "" {
+			return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=nil")
+		}
+		if bucket == "" {
+			return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=nil", char)
+		}
+		if key == "" {
+			return 0, fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key=nil", char, bucket)
+		}
+	*/
+
 	//if key == TESTKEY {
 	//	log.Printf("bBGOs [%s|%s] TESTKEY=%s newoffset=%d", char, bucket, key, newoffset)
 	//}
@@ -934,11 +945,11 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string, reopen bool) error {
 		return fmt.Errorf("ERROR BoltSync db=nil char=nil")
 	}
 	if db == nil && char != "" {
-		his.boltmux.Lock()
-		if his.BoltDBsMap[char].BoltDB != nil {
-			db = his.BoltDBsMap[char].BoltDB
+		his.BoltDBsMap.dbptr[char].mux.Lock()
+		if his.BoltDBsMap.dbptr[char].BoltDB != nil {
+			db = his.BoltDBsMap.dbptr[char].BoltDB
 		}
-		his.boltmux.Unlock()
+		his.BoltDBsMap.dbptr[char].mux.Unlock()
 	}
 	if db == nil {
 		return fmt.Errorf("ERROR BoltSync [%s] db=nil", char)
@@ -978,8 +989,10 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string, reopen bool, boltOpt
 		log.Printf("ERROR boltSyncClose [%s] err='%v'", char, err)
 		return nil, err
 	}
-	his.boltmux.Lock()
-	his.BoltDBsMap[char].BoltDB = nil
+	his.BoltDBsMap.dbptr[char].mux.Lock()
+	defer his.BoltDBsMap.dbptr[char].mux.Unlock()
+
+	his.BoltDBsMap.dbptr[char].BoltDB = nil
 	if reopen == true && boltOpts != nil {
 		his.LockAllBatchLocks(char)
 
@@ -990,11 +1003,11 @@ func (his *HISTORY) boltSyncClose(db *bolt.DB, char string, reopen bool, boltOpt
 			return nil, err
 		}
 		db = nil
-		his.BoltDBsMap[char].BoltDB = newDB
+		his.BoltDBsMap.dbptr[char].BoltDB = newDB
 		his.returnLockAllBatchLocks(char)
 		return newDB, nil
 	}
-	his.boltmux.Unlock()
+
 	logf(DEBUG2, "BoltDB boltSyncClose [%s]", char)
 	return nil, err
 } // end func boltSyncClose
