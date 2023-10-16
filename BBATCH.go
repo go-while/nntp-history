@@ -147,7 +147,7 @@ fetchbatch:
 			his.DoCacheEvict(bo.char, bo.hash, 0, bo.char+bo.bucket+bo.key)
 			for _, offset := range bo.offsets {
 				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
-				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
+				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset, nil), emptyStr, offset, emptyStr)
 			}
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
