@@ -82,6 +82,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		char = string(hash[0])
 	}
 	l1.muxers[char].mux.Lock()
+	defer l1.muxers[char].mux.Unlock()
 
 	if _, exists := l1.Caches[char].cache[hash]; exists {
 		l1.Counter[char].Counter["Count_Get"]++
@@ -89,7 +90,6 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
-		l1.muxers[char].mux.Unlock()
 		return retval
 	}
 
@@ -101,7 +101,6 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
 	//}
-	l1.muxers[char].mux.Unlock()
 	return CasePass
 } // end func LockL1Cache
 
@@ -120,67 +119,79 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	extends := []string{}
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 	timeout := false
-	breakfast, bf := 10000, 0
-forever:
-	for {
-		if timeout {
-			timeout = false
-			timer.Reset(time.Duration(l1purge) * time.Second)
-		}
-		select {
-		case hash := <-l1.Extend[char].ch: // receives stuff from DelExtL1batch()
-			// got hash we will extend in next timer.C run
-			//extends[hash] = &emptyStruct
-			extends = append(extends, hash)
-		case <-timer.C:
-			timeout = true
-			start := utils.UnixTimeMilliSec()
-			now := int64(start / 1000)
-			l1.muxers[char].mux.Lock()
-			//doExtends:
-			for _, hash := range extends {
-				if _, exists := l1.Caches[char].cache[hash]; exists {
-					l1.Caches[char].cache[hash].expires = now + L1ExtendExpires
-					l1.Caches[char].cache[hash].value = CaseDupes
-					l1.Counter[char].Counter["Count_BatchD"]++
-				}
+	breakfast, bf := 5000, 0
+	var mux sync.Mutex
+
+	go func(mux *sync.Mutex, extends *[]string) {
+		for {
+			select {
+			case hash := <-l1.Extend[char].ch: // receives stuff from DelExtL1batch()
+				// got hash we will extend in next timer.C run
+				mux.Lock()
+				*extends = append(*extends, hash)
+				mux.Unlock()
 			}
-			l1.muxers[char].mux.Unlock()
+		}
+	}(&mux, &extends)
 
-			//logf(DEBUGL1 && len(extends) > 0, "L1 [%s] extends=%d", char, len(extends))
-			extends = nil
+	go func(mux *sync.Mutex, timer *time.Timer, extends *[]string) {
+		//forever:
+		for {
+			if timeout {
+				timeout = false
+				timer.Reset(time.Duration(l1purge) * time.Second)
+			}
+			select {
+			case <-timer.C:
+				timeout = true
+				start := utils.UnixTimeMilliSec()
+				now := int64(start / 1000)
 
-			l1.muxers[char].mux.Lock()
-		getexpired:
-			for hash, item := range l1.Caches[char].cache {
-				if item.expires > 0 && item.expires < now && item.value == CaseDupes {
-					//if hash == TESTHASH {
-					//	log.Printf("L1CAC [%s|  ] ADD2CLEANUP TESTHASH='%s'", char, hash)
-					//}
-					cleanup = append(cleanup, hash)
-					bf++
-					if bf >= breakfast {
-						timeout, bf = false, 0
-						timer.Reset(10 * time.Millisecond)
-						break getexpired
+				l1.muxers[char].mux.Lock()
+				//doExtends:
+				mux.Lock()
+				for _, hash := range *extends {
+					if _, exists := l1.Caches[char].cache[hash]; exists {
+						l1.Caches[char].cache[hash].expires = now + L1ExtendExpires
+						l1.Caches[char].cache[hash].value = CaseDupes
+						l1.Counter[char].Counter["Count_BatchD"]++
 					}
 				}
-			} // end for getexpired
-			maplen := len(l1.Caches[char].cache)
-			if len(cleanup) > 0 {
-				maplen -= len(cleanup)
-				for _, hash := range cleanup {
-					delete(l1.Caches[char].cache, hash)
-					l1.Counter[char].Counter["Count_Delete"]++
+				//logf(DEBUGL1 && len(extends) > 0, "L1 [%s] extends=%d", char, len(extends))
+				*extends = nil
+				mux.Unlock()
+
+			getexpired:
+				for hash, item := range l1.Caches[char].cache {
+					if item.expires > 0 && item.expires < now && item.value == CaseDupes {
+						//if hash == TESTHASH {
+						//	log.Printf("L1CAC [%s|  ] ADD2CLEANUP TESTHASH='%s'", char, hash)
+						//}
+						cleanup = append(cleanup, hash)
+						bf++
+						if bf >= breakfast {
+							timeout, bf = false, 0
+							timer.Reset(100 * time.Millisecond)
+							break getexpired
+						}
+					}
+				} // end for getexpired
+
+				maplen := len(l1.Caches[char].cache)
+				if len(cleanup) > 0 {
+					maplen -= len(cleanup)
+					for _, hash := range cleanup {
+						delete(l1.Caches[char].cache, hash)
+						l1.Counter[char].Counter["Count_Delete"]++
+					}
+					logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
-				logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
-			}
-			l1.muxers[char].mux.Unlock()
-			cleanup = nil
-			//logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-			continue forever
-		} // end select
-	} // end for
+				l1.muxers[char].mux.Unlock()
+				cleanup = nil
+				//logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+			} // end select
+		} // end for
+	}(&mux, timer, &extends)
 } //end func L1Cache_Thread
 
 // The Set method is used to set a value in the cache.
@@ -207,6 +218,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 
 	if _, exists := l1.Caches[char].cache[hash]; exists {
 		l1.Caches[char].cache[hash].expires = expires
+		l1.Caches[char].cache[hash].value = value
 		return
 	}
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
