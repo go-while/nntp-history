@@ -82,7 +82,6 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		char = string(hash[0])
 	}
 	l1.muxers[char].mux.Lock()
-	defer l1.muxers[char].mux.Unlock()
 
 	if _, exists := l1.Caches[char].cache[hash]; exists {
 		l1.Counter[char].Counter["Count_Get"]++
@@ -90,6 +89,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
+		l1.muxers[char].mux.Unlock()
 		return retval
 	}
 
@@ -101,6 +101,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
 	//}
+	l1.muxers[char].mux.Unlock()
 	return CasePass
 } // end func LockL1Cache
 
@@ -206,7 +207,6 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	}
 	//start := utils.UnixTimeMilliSec()
 	l1.muxers[char].mux.Lock()
-	defer l1.muxers[char].mux.Unlock()
 
 	expires := NoExpiresVal
 	if flagexpires {
@@ -219,9 +219,11 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	if _, exists := l1.Caches[char].cache[hash]; exists {
 		l1.Caches[char].cache[hash].expires = expires
 		l1.Caches[char].cache[hash].value = value
+		l1.muxers[char].mux.Unlock()
 		return
 	}
 	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
+	l1.muxers[char].mux.Unlock()
 } // end func Set
 
 // The DelExtL1batch method deletes multiple cache items from the L1 cache.
@@ -251,9 +253,8 @@ func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCach
 		return
 	}
 	now := utils.UnixTimeSec()
-	l1.muxers[char].mux.Lock()
-	defer l1.muxers[char].mux.Unlock()
 
+	l1.muxers[char].mux.Lock()
 	for _, item := range tmpHash {
 		if item.hash != "" {
 			if _, exists := l1.Caches[char].cache[item.hash]; exists {
@@ -270,6 +271,7 @@ func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCach
 			}
 		}
 	}
+	l1.muxers[char].mux.Unlock()
 } // end func DelExtL1batch
 
 func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]uint64) {
