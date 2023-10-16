@@ -69,7 +69,6 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
 	//logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
-	//lastshrink := utils.UnixTimeSec()
 	cleanup := []string{}
 	l3purge := L3Purge
 	if l3purge < 1 {
@@ -81,8 +80,7 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	timeout := false
 	start := utils.UnixTimeMilliSec()
 	breakfast, bf := 5000, 0
-	//var Count_BatchD, Count_Delete int64
-	//var Count_FlagEx, Count_Set int64
+	//bfsleep :=  time.Duration(50)
 	var mux sync.Mutex
 
 	go func(mux *sync.Mutex, extends *[]string) {
@@ -131,24 +129,24 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 						bf++
 						if bf >= breakfast {
 							timeout, bf = false, 0
-							timer.Reset(100 * time.Millisecond)
+							//timer.Reset(bfsleep * time.Millisecond)
 							break getexpired
 						}
 					}
 				} // end for getexpired
 
-				maplen := len(l3.Caches[char].cache)
+				//maplen := len(l3.Caches[char].cache)
 				if len(cleanup) > 0 {
-					maplen -= len(cleanup)
+					//maplen -= len(cleanup)
 					for _, key := range cleanup {
 						delete(l3.Caches[char].cache, key)
 						l3.Counter[char].Counter["Count_Delete"]++
 					}
-					logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+					//logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
 				l3.muxers[char].mux.Unlock()
 				cleanup = nil
-				//logf(DEBUGL3, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+				//logf(DEBUG, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			} // end select
 		} // end for
 	}(&mux, timer, &extends)
