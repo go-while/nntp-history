@@ -15,8 +15,7 @@ import (
 )
 
 const (
-	BUCKETSperDB = 256 // can be 16, 256 or 4096 !4K is insane!
-	ALWAYS       = true
+	ALWAYS = true
 
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
@@ -232,27 +231,28 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		os.Exit(1)
 	}
 	dw := bufio.NewWriterSize(fh, BUFIOBUFFER)
+	var headerdata []byte
 	if new {
 		// create history.dat
-		data, err := gobEncodeHeader(history_settings)
+		_, err := gobEncodeHeader(&headerdata, history_settings)
 		if err != nil {
 			log.Printf("ERROR History_Boot gobEncodeHeader err='%v'", err)
 			os.Exit(1)
 		}
-		if err := writeHistoryHeader(dw, data, &his.Offset, true); err != nil {
+		if err := writeHistoryHeader(dw, headerdata, &his.Offset, true); err != nil {
 			log.Printf("ERROR History_Boot writeHistoryHeader err='%v'", err)
 			os.Exit(1)
 		}
 	} else {
+		var header []byte
 		// read history.dat header history_settings
-		header, err := his.FseekHistoryHeader()
-		if err != nil || header == nil {
+		if b, err := his.FseekHistoryHeader(&header); b == 0 || err != nil {
 			log.Printf("ERROR History_Boot header FseekHistoryLine err='%v' header='%v'", err, header)
 			os.Exit(1)
 		}
 		logf(DEBUG0, "History_Boot history.dat headerBytes='%v'", header)
-		history_settings, err = gobDecodeHeader(*header)
-		if err != nil {
+
+		if err := gobDecodeHeader(&header, history_settings); err != nil {
 			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}
@@ -284,7 +284,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.boltDB_Init(boltOpts)
 	}
 
-	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires)
+	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='#%v'", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
@@ -513,18 +513,18 @@ func checkBufioWriteBuffer(dw *bufio.Writer, lenline int, bufferedptr *int) erro
 	return nil
 } // end func checkBufioWriteBuffer
 
-func writeHistoryHeader(dw *bufio.Writer, data *[]byte, offset *int64, flush bool) error {
+func writeHistoryHeader(dw *bufio.Writer, data []byte, offset *int64, flush bool) error {
 	if dw == nil {
 		return fmt.Errorf("ERROR writeHistoryHeader dw=nil")
 	}
-	if data == nil {
+	if len(data) != 254 { // ZEROPADLEN
 		return fmt.Errorf("ERROR writeHistoryHeader data=nil")
 	}
 	if offset == nil {
-		return fmt.Errorf("ERROR writeHistoryHeader offset=nil")
+		return fmt.Errorf("ERROR writeHistoryHeader offset!=0")
 	}
-	*data = append(*data, '\n')
-	if wb, err := dw.Write(*data); err != nil {
+	data = append(data, '\n')
+	if wb, err := dw.Write(data); err != nil {
 		log.Printf("ERROR writeHistoryHeader Write err='%v'", err)
 		return err
 	} else {
@@ -580,12 +580,12 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 	if err != nil {
 		log.Printf("ERROR FSEEK err='%v'", err)
 		if err == io.EOF {
-			his.Sync_upcounter("FSEEK_EOF")
+			go his.Sync_upcounter("FSEEK_EOF")
 			return eofhash, nil
 		}
 		return "", err
 	}
-	his.Sync_upcounter("FSEEK")
+	go his.Sync_upcounter("FSEEK")
 	result = strings.TrimSuffix(result, "\t")
 	//logf(offset == 1019995695, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
 
@@ -603,25 +603,27 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 	return "", nil
 } // end func FseekHistoryMessageHash
 
-func (his *HISTORY) FseekHistoryHeader() (*[]byte, error) {
+func (his *HISTORY) FseekHistoryHeader(output *[]byte) (int, error) {
+	if output == nil {
+		log.Printf("ERROR FseekHistoryHeader output=nil")
+	}
 	file, err := os.OpenFile(his.hisDat, os.O_RDONLY, 0666)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
 	defer file.Close()
 	reader := bufio.NewReader(file)
-	var result []byte
 	for {
 		char, err := reader.ReadByte()
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 		if char == '\n' {
 			break
 		}
-		result = append(result, char)
+		*output = append(*output, char)
 	}
-	return &result, nil
+	return len(*output), nil
 } // end func FseekHistoryHeader
 
 func (his *HISTORY) FseekHistoryLine(offset int64) (string, error) {
