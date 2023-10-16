@@ -1,7 +1,7 @@
 package history
 
 import (
-	//"encoding/gob"
+	bolt "go.etcd.io/bbolt"
 	"sync"
 )
 
@@ -37,7 +37,8 @@ type HISTORY struct {
 	BatchLogs    BatchLOGGER
 	//BatchLocks   map[string]map[string]chan struct{} // used to lock char:bucket in BoltSync and boltBucketPutBatch
 	BatchLocks map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
-	BoltDBsMap map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
+	//BoltDBsMap map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
+	BoltDBsMap *BoltDBs // using a ptr to a struct in the map allows updating the struct values without updating the map
 	//GobDecoder   map[string]GOBDEC
 	//GobEncoder   map[string]GOBENC
 	charsMap       map[string]int
@@ -72,6 +73,16 @@ type HistoryObject struct {
 	Expires       int64
 	Date          int64
 	ResponseChan  chan int // receives a 0,1,2 :: pass|duplicate|retrylater
+}
+
+type BoltDBs struct {
+	mux   sync.Mutex
+	dbptr map[string]*BOLTDB_PTR
+}
+
+type BOLTDB_PTR struct {
+	BoltDB *bolt.DB
+	mux    sync.Mutex
 }
 
 /* used to query the index */
