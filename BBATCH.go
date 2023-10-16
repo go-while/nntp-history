@@ -119,7 +119,7 @@ fetchbatch:
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
-			//b.FillPercent = 0.3
+			b.FillPercent = 0.2
 		batch1insert:
 			for _, bo := range batch1 {
 				//if bo.key == TESTKEY {
@@ -159,8 +159,8 @@ fetchbatch:
 		logf(DBG_ABS1, "INFO bboltPutBatch [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 	}
 	if inserted > 0 {
-		his.Sync_upcounterN("inserted", inserted) // +N
-		his.Sync_upcounter("batchins")            // ++
+		go his.Sync_upcounterN("inserted", inserted) // +N
+		go his.Sync_upcounter("batchins")            // ++
 	}
 	//if freelist > 0 {
 	//	log.Printf("INFO boltBucketPutBatch freelist=%d", freelist)
