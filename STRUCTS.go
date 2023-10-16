@@ -5,6 +5,10 @@ import (
 	"sync"
 )
 
+const (
+	FlagSearch = -1
+)
+
 var (
 	IndexParallel     int = intBoltDBs
 	NumQueueWriteChan int = intBoltDBs
