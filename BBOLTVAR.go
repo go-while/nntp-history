@@ -563,5 +563,6 @@ func CPUBURN() {
 	for {
 		IsPow2(j)
 		j++
+		runtime.Gosched()
 	}
 }
