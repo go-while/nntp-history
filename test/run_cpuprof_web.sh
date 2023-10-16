@@ -8,4 +8,5 @@ export GOEXPERIMENT=arenas
 #go tool pprof cpu.pprof.webgrab http://127.0.0.1:1234/debug/pprof/profile
 file=cpu.pprof.out
 test ! -z "$1" && file="$1"
+ls -lh "$file"
 go tool pprof -http=:8000 "$file"
