@@ -65,11 +65,11 @@ func main() {
 
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
-	flag.BoolVar(&NoSync, "NoSync", true, "bbolt.NoSync")
+	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
 
 	// NoGrowSync: When true, skips the truncate call when growing the database,
 	//  but it's only safe on non-ext3/ext4 systems.
-	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync")
+	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync: default false!")
 
 	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
 	// This can improve write performance but may require a full database re-sync during recovery.
@@ -123,7 +123,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BoltDB_MaxBatchSize = 256                    // 0 disables boltdb internal batching. default: 1000
+		history.BoltDB_MaxBatchSize = 256                    // = history.BUCKETSperDB // 0 disables boltdb internal batching. default: 1000
 		history.BoltDB_MaxBatchDelay = 32 * time.Millisecond // default: 10 * time.Millisecond
 
 		// AllocSize is the amount of space allocated when the database
@@ -148,7 +148,7 @@ func main() {
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        16 * 1024,
+			PageSize:        128 * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
 			FreelistType:   bolt.FreelistMapType,
 			NoSync:         NoSync,
