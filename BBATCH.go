@@ -6,7 +6,6 @@ import (
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"math"
-	"os"
 	"time"
 )
 
@@ -46,7 +45,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 		return Q, 0, nil, false
 	}
 
-	his.BatchLocks[char][bucket] <- struct{}{}
+	his.BatchLocks[char].bl[bucket].ch <- struct{}{}
 	defer his.returnBatchLock(char, bucket)
 
 	var err error
@@ -169,13 +168,16 @@ fetchbatch:
 } // end func boltBucketPutBatch
 
 func (his *HISTORY) returnBatchLock(char string, bucket string) {
-	select {
-	case _ = <-his.BatchLocks[char][bucket]:
-		// pass
-	default:
-		log.Printf("ERROR returnBatchLock char=%s BatchLocks empty!?", char)
-		os.Exit(1)
-	}
+	<-his.BatchLocks[char].bl[bucket].ch
+	/*
+		select {
+		case _ = <-his.BatchLocks[char].bl[bucket].ch:
+			// pass
+		default:
+			log.Printf("ERROR returnBatchLock char=%s BatchLocks empty!? CLOSE_HISTORY", char)
+			his.CLOSE_HISTORY()
+		}
+	*/
 } // end func returnBatchLock
 
 func (his *HISTORY) batchLog(log *BatchLOG) {
