@@ -16,7 +16,6 @@ import (
 
 const (
 	ALWAYS = true
-
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
 	CaseLock             = 0xFF         // internal cache state. reply with CaseRetry while CaseLock
@@ -31,15 +30,15 @@ const (
 
 var (
 	TESTHASH0   string = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
-	TESTHASH1   string = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8" // i=393644
-	TESTHASH2   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09" // i=393644
+	TESTHASH1   string = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
+	TESTHASH2   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
 	TESTHASH           = TESTHASH2
 	TESTCACKEY         = "f0d784ae1"
 	TESTKEY            = "784ae1"
 	TESTBUK            = "0d"
 	TESTDB             = "f"
 	ALLBUCKETS  []string
-	BUFIOBUFFER = 4 * 1024 // a history line is 102 bytes long including LF
+	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History     HISTORY
 	DEBUG       bool   = true
 	DEBUG0      bool   = false
@@ -545,30 +544,35 @@ func writeHistoryHeader(dw *bufio.Writer, data []byte, offset *int64, flush bool
 // It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
 // If a valid hash is found, it returns the hash as a string without curly braces.
 // If the end of the file (EOF) is reached, it returns a special EOF marker.
-func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char string, bucket string) (string, error) {
-	if offset <= 0 {
-		return "", fmt.Errorf("ERROR FseekHistoryMessageHash offset<=0")
+func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char string, bucket string, rethash *string) error {
+	if offset <= 0 || rethash == nil {
+		return fmt.Errorf("ERROR FseekHistoryMessageHash io nil")
 	}
 	if file == nil {
 		var err error
 		file, err = os.OpenFile(his.hisDat, os.O_RDONLY, 0666)
 		if err != nil {
-			return "", err
+			return err
 		}
 		defer file.Close()
 	}
+	//var hash string
 	//logf(offset == 1019995695, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
-	if hash := his.L2Cache.GetHashFromOffset(offset); hash != "" {
-		//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
-		return hash, nil
+	his.L2Cache.GetHashFromOffset(offset, rethash)
+	if *rethash != "" {
+		return nil
 	}
+	//if hash := his.L2Cache.GetHashFromOffset(offset, &hash); hash != "" {
+	//	//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
+	//	return hash, nil
+	//}
 	//logf(offset == 1019995695, "FSEEK [%s|%s] notfound L2 offset=%d", char, bucket, offset)
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
 	if seekErr != nil {
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
-		return "", seekErr
+		return seekErr
 	}
 	//logf(offset == 1019995695, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
 
@@ -581,9 +585,10 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		log.Printf("ERROR FSEEK err='%v'", err)
 		if err == io.EOF {
 			go his.Sync_upcounter("FSEEK_EOF")
-			return eofhash, nil
+			*rethash = eofhash
+			return nil
 		}
-		return "", err
+		return err
 	}
 	go his.Sync_upcounter("FSEEK")
 	result = strings.TrimSuffix(result, "\t")
@@ -591,16 +596,16 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
-			return "", fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", offset, result)
+			return fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", offset, result)
 		}
-		hash := result[1 : len(result)-1]
-		if len(hash) >= 32 { // at least md5
+		if len(result[1:len(result)-1]) >= 32 { // at least md5
 			//logf(hash == TESTHASH, "FSEEK [%s|%s] @offset=%d => hash='%s'", char, bucket, offset, hash)
-			his.L2Cache.SetOffsetHash(offset, hash, FlagExpires)
-			return hash, nil
+			*rethash = result[1 : len(result)-1]
+			his.L2Cache.SetOffsetHash(offset, *rethash, FlagExpires)
+			return nil
 		}
 	}
-	return "", nil
+	return nil
 } // end func FseekHistoryMessageHash
 
 func (his *HISTORY) FseekHistoryHeader(output *[]byte) (int, error) {
@@ -704,7 +709,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 			for _, char := range HEXCHARS {
 				for _, bucket := range ALLBUCKETS {
 					batchQ += len(his.batchQueues.Maps[char][bucket])
-					batchLOCKS += len(his.BatchLocks[char][bucket])
+					batchLOCKS += len(his.BatchLocks[char].bl[bucket].ch)
 				}
 			}
 		}
