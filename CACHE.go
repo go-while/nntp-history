@@ -14,18 +14,33 @@ const (
 	FlagNeverExpires bool  = false
 	NoExpiresVal     int64 = -1
 	// CacheEvictThread => his.LXCache.DelExtLXbatch
-	FlagCacheSyncExtend = 0x42
-	FlagCacheSyncDelete = 0x66
-	FlagCacheChanExtend = 0x99
+	FlagCacheSyncExtend = 0x66
+	FlagCacheSyncDelete = 0x99
+	FlagCacheChanExtend = 0x42
 )
 
 var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 15 // search only
 	DefaultCacheExtend    int64 = 15 // extends cached items after writes
-	DefaultCachePurge     int64 = 5  // seconds
+	DefaultCachePurge     int64 = 1  // seconds
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
+
+// CharCacheCounter
+type CCC struct {
+	Counter map[string]uint64 // counter key: value
+}
+
+// StrExtendChan
+type StrECH struct {
+	ch chan string
+}
+
+// IntExtendChan
+type IntECH struct {
+	ch chan int64
+}
 
 func (his *HISTORY) PrintCacheStats() {
 	/*
@@ -53,7 +68,7 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L1Cache.muxers[char].mux.Lock()
 		l1cachesize += len(his.L1Cache.Caches[char].cache)
-		for k, v := range his.L1Cache.Counter[char] {
+		for k, v := range his.L1Cache.Counter[char].Counter {
 			l1map[k] += v
 		}
 		his.L1Cache.muxers[char].mux.Unlock()
@@ -74,7 +89,7 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L2Cache.muxers[char].mux.Lock()
 		l2cachesize += len(his.L2Cache.Caches[char].cache)
-		for k, v := range his.L2Cache.Counter[char] {
+		for k, v := range his.L2Cache.Counter[char].Counter {
 			l2map[k] += v
 		}
 		his.L2Cache.muxers[char].mux.Unlock()
@@ -95,7 +110,7 @@ func (his *HISTORY) PrintCacheStats() {
 		}
 		his.L3Cache.muxers[char].mux.Lock()
 		l3cachesize += len(his.L3Cache.Caches[char].cache)
-		for k, v := range his.L3Cache.Counter[char] {
+		for k, v := range his.L3Cache.Counter[char].Counter {
 			l3map[k] += v
 		}
 		his.L3Cache.muxers[char].mux.Unlock()
@@ -128,15 +143,16 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 		return
 	}
 	// pass ClearCache object to evictChan in CacheEvictThread()
-	if DEBUG {
-		lench := len(his.cacheEvicts[char])
-		limit := int(float64(his.cEvCap) * 0.50)
-		if lench > limit {
-			log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d near-full", char, lench, his.cEvCap, limit)
-		} else {
-			//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
-		}
-	}
+	/*
+		if DEBUG {
+			lench := len(his.cacheEvicts[char])
+			limit := int(float64(his.cEvCap) * 0.50)
+			if lench > limit {
+				log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d near-full", char, lench, his.cEvCap, limit)
+			} else {
+				//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
+			}
+		}*/
 	// pass down to CacheEvictThread
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
