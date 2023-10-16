@@ -18,6 +18,9 @@ var (
 	ADDCRC bool = false
 )
 
+// idea: create a struct to catch N lastchar of the hash
+//   place the lastchar(s) with the stored offset (lastchar|offset,lastchar|offset,...) in boltdb with key[1:keylen]
+//   so we can ignore offsets not matching the last char when checking if a hash exists in hisDat
 func concatInt64(input []int64) []byte {
 	strSlice := make([]string, len(input))
 	for i, value := range input {
