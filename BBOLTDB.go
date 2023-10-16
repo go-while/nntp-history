@@ -143,8 +143,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		QindexChans = 1
 	}
 
-	if DefaultEvictsCapacity < 4 {
-		DefaultEvictsCapacity = 4
+	if DefaultEvictsCapacity < 64 {
+		DefaultEvictsCapacity = 64
 	}
 
 	his.cEvCap = DefaultEvictsCapacity
@@ -152,13 +152,14 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.adaptBatch = AdaptBatch
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
 	his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
-	his.BatchLocks = make(map[string]map[string]chan struct{})
+	//his.BatchLocks = make(map[string]map[string]chan struct{})
+	his.BatchLocks = make(map[string]*BATCHLOCKS)
 	for i, char := range HEXCHARS {
 		his.charsMap[char] = i
 		his.indexChans[i] = make(chan *HistoryIndex, QindexChans)
-		his.BatchLocks[char] = make(map[string]chan struct{})
+		his.BatchLocks[char] = &BATCHLOCKS{bl: make(map[string]*BLCH)}
 		for _, bucket := range ALLBUCKETS {
-			his.BatchLocks[char][bucket] = make(chan struct{}, 1)
+			his.BatchLocks[char].bl[bucket] = &BLCH{ch: make(chan struct{}, 1)}
 		}
 	}
 	time.Sleep(time.Millisecond)
@@ -232,12 +233,17 @@ func (his *HISTORY) boltDB_Index() {
 					//logf(hi.Hash == TESTHASH0, "boltDB_Index hash='%s' hi.Offset=%d C1=%s chan=%d/%d",
 					//	hi.Hash, hi.Offset, C1, len(his.indexChans[his.charsMap[C1]]), cap(his.indexChans[his.charsMap[C1]]))
 
-					if his.indexChans[his.charsMap[C1]] != nil {
-						his.indexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
-					} else {
-						log.Printf("ERROR boltDB_Index IndexChan C1=%s=nil", C1)
-						break forever
-					}
+					// sends object to hash boltDB_Worker char
+					his.indexChans[his.charsMap[C1]] <- hi
+
+					/*
+						if his.indexChans[his.charsMap[C1]] != nil {
+							his.indexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
+						} else {
+							log.Printf("ERROR boltDB_Index IndexChan C1=%s=nil", C1)
+							break forever
+						}
+					*/
 				} // end select
 			} // end for
 			<-waitchan
@@ -671,7 +677,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 
 	// got offset(s) stored for numhash
 	//if len_offsets > 0 {
-	if offset > 0 { // is not a search
+	if offset > 0 { // is not a FlagSearch
 		//logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", char, key, hash, len_offsets, offsets, offset)
 		if len_offsets > 0 {
 			go his.Sync_upcounter("appoffset")
@@ -691,7 +697,8 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 	for _, check_offset := range offsets {
 		// check history for duplicate hash / evades collissions
 		//logf(key == TESTKEY || hash == TESTHASH0, "HDBZW [%s|%s] checkFSEEK key='%s' hash='%s' lo=%d check_offset=%d", char, bucket, key, hash, len_offsets, check_offset)
-		historyHash, err := his.FseekHistoryMessageHash(file, check_offset, char, bucket)
+		var historyHash string
+		err := his.FseekHistoryMessageHash(file, check_offset, char, bucket, &historyHash)
 		if historyHash == "" && err == nil {
 			log.Printf("ERROR HDBZW char=%s CHECK DUP bucket=%s historyHash=nil err=nil hash=%s", char, bucket, err, hash)
 			return -999, fmt.Errorf("ERROR historyHash=nil err=nil @offset=%d +offset=%d", historyHash, check_offset, offset)
@@ -711,9 +718,9 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 			} else if historyHash == hash {
 				// hash is a duplicate in history.dat
 				if offset > 0 { // not a search
-					//logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d +offset='%d'", *historyHash, check_offset, offset)
+					//logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d +offset='%d'", historyHash, check_offset, offset)
 				} else { // is a search
-					//logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d", *historyHash, check_offset)
+					//logf(DEBUG2, "INFO HDBZW DUPLICATE historyHash=%s @offset=%d", historyHash, check_offset)
 				}
 				his.L1Cache.Set(hash, char, CaseDupes, FlagExpires)
 				return CaseDupes, nil
@@ -914,7 +921,7 @@ func (his *HISTORY) LockAllBatchLocks(char string) {
 		logf(DEBUG9, "LOCKING BoltSync BatchLocks")
 		for _, bucket := range ALLBUCKETS {
 			// locks every bucket in this char db for syncing
-			his.BatchLocks[char][bucket] <- struct{}{}
+			his.BatchLocks[char].bl[bucket].ch <- struct{}{}
 
 		}
 		logf(DEBUG9, "LOCKED BoltSync BatchLocks")
