@@ -180,7 +180,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	//start := utils.UnixTimeMilliSec()
 
 	l2.muxers[char].mux.Lock()
-	defer l2.muxers[char].mux.Unlock()
 
 	expires := NoExpiresVal
 	if flagexpires {
@@ -195,9 +194,11 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		//	return
 		//}
 		l2.Caches[char].cache[offset].expires = expires
+		l2.muxers[char].mux.Unlock()
 		return
 	}
 	l2.Caches[char].cache[offset] = &L2ITEM{hash: hash, expires: expires}
+	l2.muxers[char].mux.Unlock()
 } // end func SetOffsetHash
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
@@ -210,14 +211,15 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64, rethash *string) {
 	l2.OffsetToChar(offset, &char)
 
 	l2.muxers[char].mux.RLock()
-	defer l2.muxers[char].mux.RUnlock()
 
 	if _, exists := l2.Caches[char].cache[offset]; exists {
 		//l2.Counter[char].Counter["Count_Get"]++
 		hash := l2.Caches[char].cache[offset].hash
 		rethash = &hash
+		l2.muxers[char].mux.RUnlock()
 		return
 	}
+	l2.muxers[char].mux.RUnlock()
 	//l2.Counter[char].Counter["Count_Mis"]++
 	return
 } // end func GetHashFromOffset
