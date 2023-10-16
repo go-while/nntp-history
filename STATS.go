@@ -103,13 +103,13 @@ func (his *HISTORY) PrintBoltPerformance() {
 } // end func PrintBoltPerformance
 
 func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) {
-	if !his.useHashDB {
+	if !his.useHashDB || char == "" {
 		return
 	}
-	his.boltmux.Lock()
-	defer his.boltmux.Unlock()
-	if his.BoltDBsMap[char].BoltDB != nil {
-		dbstats, err := his.getDBStats(his.BoltDBsMap[char].BoltDB)
+	his.BoltDBsMap.dbptr[char].mux.Lock()
+	defer his.BoltDBsMap.dbptr[char].mux.Unlock()
+	if his.BoltDBsMap.dbptr[char].BoltDB != nil {
+		dbstats, err := his.getDBStats(his.BoltDBsMap.dbptr[char].BoltDB)
 		if err != nil {
 			log.Printf("ERROR BoltStats [%s] err='%v'", char, err)
 			return
@@ -148,8 +148,8 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 	}
 	if char != "" {
 		for _, bucket := range ALLBUCKETS {
-			if his.BoltDBsMap[char].BoltDB != nil {
-				stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
+			if his.BoltDBsMap.dbptr[char].BoltDB != nil {
+				stats, err := his.getBucketStats(his.BoltDBsMap.dbptr[char].BoltDB, bucket)
 				if print {
 					log.Printf("BoltStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
 				}
@@ -158,8 +158,8 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 	}
 	for _, char := range HEXCHARS {
 		for _, bucket := range ALLBUCKETS {
-			if his.BoltDBsMap[char].BoltDB != nil {
-				stats, err := his.getBucketStats(his.BoltDBsMap[char].BoltDB, bucket)
+			if his.BoltDBsMap.dbptr[char].BoltDB != nil {
+				stats, err := his.getBucketStats(his.BoltDBsMap.dbptr[char].BoltDB, bucket)
 				if print {
 					log.Printf("BucketStats [%s|%s]:'%+v' err='%#v'", char, bucket, stats, err)
 				}
