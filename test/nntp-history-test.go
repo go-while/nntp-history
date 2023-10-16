@@ -19,6 +19,7 @@ import (
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -148,9 +149,9 @@ func main() {
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        128 * 1024,
+			PageSize:        16 * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
-			FreelistType:   bolt.FreelistMapType,
+			//FreelistType:   bolt.FreelistMapType,
 			NoSync:         NoSync,
 			NoGrowSync:     NoGrowSync,
 			NoFreelistSync: NoFreelistSync,
@@ -228,7 +229,7 @@ func main() {
 				spammer = uint64(todo) / 25 // spams every 25%
 			}
 		fortodo:
-			for i := 1; i <= todo; i++ {
+			for i := int64(1); i <= int64(todo); i++ {
 				if isleep > 0 {
 					time.Sleep(time.Duration(isleep) * time.Millisecond)
 				}
@@ -238,11 +239,12 @@ func main() {
 					spam = 0
 				}
 				spam++
-				hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
-				//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
-				//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
+				//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				hash := utils.Hash256(strconv.FormatInt(i, 10)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+				//hash := utils.Hash256(strconv.FormatInt(i*p, 10)) // GENERATES DUPLICATES
+				//hash := utils.Hash256(strconv.FormatInt(utils.Nano(), 10)) // GENERATES ALMOST NO DUPES
+				//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
+				//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
 
 				char := string(hash[0])
 				//log.Printf("hash=%s char=%s", hash, char)
