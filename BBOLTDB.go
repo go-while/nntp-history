@@ -561,7 +561,7 @@ forever:
 				//logf(hi.Hash == TESTHASH0, "HDBZW [%s|%s] key='%s' hash='%s' hi.IndexRetChan <- isDup=%d|%x", char, bucket, key, hi.Hash, isDup, isDup)
 				hi.IndexRetChan <- isDup
 			}
-			if hi.Offset == -1 {
+			if hi.Offset == FlagSearch {
 				searches++
 				countsearches++
 				if countsearches >= 1000 {
@@ -674,7 +674,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 	len_offsets := len(offsets)
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' got offsets=%d", char, bucket, key, hash, len_offsets)
 	if len_offsets == 0 { // no offsets stored for numhash
-		if offset == -1 { // search only
+		if offset == FlagSearch { // search only
 			return CasePass, nil // pass, not a duplicate
 		}
 		newoffsets := []int64{offset}
@@ -743,7 +743,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 	}
 
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' checked offsets=%d", char, bucket, key, hash, len_offsets)
-	if offset == -1 {
+	if offset == FlagSearch {
 		//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' return CasePass", char, bucket, key, hash)
 		// search did not find a match in check_offset over range offsets
 		return CasePass, nil // pass, not a duplicate
@@ -852,7 +852,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 		v := b.Get([]byte(key))
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
-			if newoffset == -1 {
+			if newoffset == FlagSearch { // is a search
 				his.L3Cache.SetOffsets(char+bucket+key, char, empty_offsets, FlagExpires, "boltBucketGetOffsets:empty") // boltBucketGetOffsets
 			}
 			return nil
