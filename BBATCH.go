@@ -23,11 +23,11 @@ var (
 
 func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
 	if db == nil {
-		his.boltmux.Lock()
-		if his.BoltDBsMap[char].BoltDB != nil {
-			db = his.BoltDBsMap[char].BoltDB
+		his.BoltDBsMap.dbptr[char].mux.Lock()
+		if his.BoltDBsMap.dbptr[char].BoltDB != nil {
+			db = his.BoltDBsMap.dbptr[char].BoltDB
 		}
-		his.boltmux.Unlock()
+		his.BoltDBsMap.dbptr[char].mux.Unlock()
 		return db
 	}
 	return nil
