@@ -116,11 +116,11 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	if l1purge < 1 {
 		l1purge = 1
 	}
-	//extends := make(map[string]interface{}, 1024)
 	extends := []string{}
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 	timeout := false
 	breakfast, bf := 5000, 0
+	//bfsleep :=  time.Duration(50)
 	var mux sync.Mutex
 
 	go func(mux *sync.Mutex, extends *[]string) {
@@ -172,24 +172,24 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 						bf++
 						if bf >= breakfast {
 							timeout, bf = false, 0
-							timer.Reset(100 * time.Millisecond)
+							//timer.Reset(bfsleep * time.Millisecond)
 							break getexpired
 						}
 					}
 				} // end for getexpired
 
-				maplen := len(l1.Caches[char].cache)
+				//maplen := len(l1.Caches[char].cache)
 				if len(cleanup) > 0 {
-					maplen -= len(cleanup)
+					//maplen -= len(cleanup)
 					for _, hash := range cleanup {
 						delete(l1.Caches[char].cache, hash)
 						l1.Counter[char].Counter["Count_Delete"]++
 					}
-					logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+					//logf(DEBUGL1, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
 				l1.muxers[char].mux.Unlock()
 				cleanup = nil
-				//logf(DEBUGL1, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+				//logf(DEBUG, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
 			} // end select
 		} // end for
 	}(&mux, timer, &extends)
