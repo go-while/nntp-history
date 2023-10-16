@@ -35,8 +35,9 @@ type HISTORY struct {
 	IndexChan    chan *HistoryIndex     // main index query channel
 	indexChans   [16]chan *HistoryIndex // sub-index channels
 	BatchLogs    BatchLOGGER
-	BatchLocks   map[string]map[string]chan struct{} // used to lock char:bucket in BoltSync and boltBucketPutBatch
-	BoltDBsMap   map[string]*BOLTDB_PTR              // using a ptr to a struct in the map allows updating the struct values without updating the map
+	//BatchLocks   map[string]map[string]chan struct{} // used to lock char:bucket in BoltSync and boltBucketPutBatch
+	BatchLocks map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
+	BoltDBsMap map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
 	//GobDecoder   map[string]GOBDEC
 	//GobEncoder   map[string]GOBENC
 	charsMap       map[string]int
@@ -117,6 +118,15 @@ type BatchLOG struct {
 	i uint64  // inserted
 	t int64   // took microseconds
 	w int     // workerCharBucketBatchSize
+}
+
+type BATCHLOCKS struct {
+	bl map[string]*BLCH
+}
+
+// BATCHLOCKCHAN
+type BLCH struct {
+	ch chan struct{}
 }
 
 type ClearCache struct {
