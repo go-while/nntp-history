@@ -15,7 +15,8 @@ import (
 
 const (
 	// never change this!
-	intBoltDBs              int   = 16
+	intBoltDBs                    = 0x10 // do NOT change this!
+	BUCKETSperDB                  = 256  // can be 16, 256 or 4096 !4K is insane!
 	DefaultBoltINITParallel       = intBoltDBs
 	DefaultBoltSYNCParallel       = intBoltDBs
 	DefaultReplayDistance   int64 = 1024 * 1024
@@ -363,10 +364,10 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		timer = 125
 	case 256:
 		batchQcap = 256
-		timer = 512
+		timer = 500
 	case 4096:
 		batchQcap = 64
-		timer = 1024
+		timer = 2500
 	}
 	closedBuckets := make(chan struct{}, BUCKETSperDB)
 	for _, bucket := range ALLBUCKETS {
@@ -425,22 +426,22 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				//src := fmt.Sprintf("gofunc:[%s|%s]:t=%d Q=%d lft=%d", char, bucket, timer, Q, lft)
 				//src := fmt.Sprintf("gofunc:[%s|%s] Q=%d lft=%d", char, bucket, timer, Q, lft)
 				now := utils.UnixTimeMilliSec()
-				/*
-					select {
-					case _, ok := <-batchQueue:
-						if !ok {
-							logf(DEBUG, "WARN batchQueue closed len=%d", len(batchQueue))
-							//closed = true
-							break forbatchqueue
-						}
+				/* experimental: reopenDB
+				select {
+				case _, ok := <-batchQueue:
+					if !ok {
+						logf(DEBUG, "WARN batchQueue closed len=%d", len(batchQueue))
+						//closed = true
+						break forbatchqueue
 					}
+				}
 				*/
 				Q, inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, "gofunc", lft, wCBBS)
 				if forced {
 					logf(DBG_ABS2, "INFO forbatchqueue [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t timer=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, timer, lft, now-lastflush, err)
 				}
 				if closed { // received nil pointer
-					logf(DEBUG, "Closed gofunc forbatchqueue [%s|%s]", char, bucket)
+					logf(his.reopenDBeveryN > 0, "Closed gofunc forbatchqueue [%s|%s]", char, bucket)
 					break forbatchqueue // this go func
 				}
 				if err != nil {
@@ -645,67 +646,47 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 	if db == nil {
 		return -999, fmt.Errorf("ERROR DupeCheck db=nil")
 	}
-	/*
-		if char == nil {
-			return -999, fmt.Errorf("ERROR DupeCheck char=nil")
-		}
-		if bucket == nil {
-			return -999, fmt.Errorf("ERROR DupeCheck char=%s bucket=nil", *char)
-		}
-		if key == nil {
-			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=nil", *char, *bucket)
-		}
-		if hash == nil {
-			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=nil", *char, *bucket, *key)
-		}
-		if offset == nil {
-			return -999, fmt.Errorf("ERROR DupeCheck [%s|%s] key=%s hash=%s offset=nil", *char, *bucket, *key, *hash)
-		}
-	*/
-
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s'", char, bucket, key, hash)
-
-	offsets, err := his.boltBucketGetOffsets(db, char, bucket, key, offset)
-	if err != nil {
+	var offsets []int64 // retrieves offsets from boltBucketGetOffsets into this
+	if _, err := his.boltBucketGetOffsets(db, char, bucket, key, offset, &offsets); err != nil {
 		log.Printf("ERROR HDBZW DupeCheck boltBucketGetOffsets [%s|%s] key=%s hash='%s' err='%v'", char, bucket, key, hash, err)
 		return -999, err
 	}
-
 	len_offsets := len(offsets)
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' got offsets=%d", char, bucket, key, hash, len_offsets)
 	if len_offsets == 0 { // no offsets stored for numhash
 		if offset == FlagSearch { // search only
 			return CasePass, nil // pass, not a duplicate
 		}
-		newoffsets := []int64{offset}
+		//newoffsets := []int64{offset}
 		// add hash=>key:offset to db
-		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, hash, offset, newoffsets, setempty, batchQueue); err != nil {
+		if err := his.boltBucketKeyPutOffsets(db, char, bucket, key, hash, offset, []int64{offset}, setempty, batchQueue); err != nil {
 			log.Printf("ERROR HDBZW DupeCheck char=%s Add boltBucketKeyPutOffsets bucket=%s err='%v'", char, bucket, err)
 			return -999, err
 		}
-		////logf(DEBUG2, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
-		his.Sync_upcounter("key_add")
+		//logf(DEBUG2, "HDBZW char=%s DupeCheck CREATED key=%s hash=%s offset=0x%08x=%d", *char, *key, *hash, *offset, *offset)
+		go his.Sync_upcounter("key_add")
 		return CaseAdded, nil
 	}
 
 	// got offset(s) stored for numhash
-	if len_offsets > 0 {
-		if offset > 0 { // is not a search
-			//logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", char, key, hash, len_offsets, offsets, offset)
-			if len_offsets > 0 {
-				his.Sync_upcounter("appoffset")
-			} else {
-				his.Sync_upcounter("addoffset")
-			}
+	//if len_offsets > 0 {
+	if offset > 0 { // is not a search
+		//logf(DEBUG2, "INFO HDBZW char=%s key=%s tryhash='%s' GOT multiple offsets=%d=%#v +offset=%d", char, key, hash, len_offsets, offsets, offset)
+		if len_offsets > 0 {
+			go his.Sync_upcounter("appoffset")
 		} else {
-			// is a search
-			if len_offsets > 1 {
-				his.Sync_upcounter("trymultioffsets")
-			} else {
-				his.Sync_upcounter("tryoffset")
-			}
+			go his.Sync_upcounter("addoffset")
+		}
+	} else {
+		// is a search
+		if len_offsets > 1 {
+			go his.Sync_upcounter("trymultioffsets")
+		} else {
+			go his.Sync_upcounter("tryoffset")
 		}
 	}
+	//}
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s' check offsets=%d", char, bucket, key, hash, len_offsets)
 	for _, check_offset := range offsets {
 		// check history for duplicate hash / evades collissions
@@ -759,7 +740,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 		//logf(key == TESTKEY||hash == TESTHASH, "HDBZW [%s|%s] APPENDED key=%s hash=%s offset=%d offsets=%d='%#v'", char, bucket, key, hash, offset, len(offsets), offsets)
 		//his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires) // was CaseDupes before // offset of history entry added to key: hash is a duplicate in cached response now
 		if len(offsets) > 1 {
-			his.Sync_upcounter("key_app")
+			go his.Sync_upcounter("key_app")
 		}
 		return CaseAdded, nil
 	}
@@ -797,9 +778,9 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 	his.L2Cache.SetOffsetHash(offset, hash, FlagNeverExpires)                                           // boltBucketKeyPutOffsets
 	his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagNeverExpires, "boltBucketKeyPutOffsets") // boltBucketKeyPutOffsets
 
-	encodedOffsets := concatInt64(offsets)
-	if len(encodedOffsets) == 0 {
-		log.Printf("ERROR boltBucketKeyPutOffsets encodedOffsets err='%v'", err)
+	var encodedOffsets []byte
+	if b, err := concatInt64(offsets, &encodedOffsets); b == 0 || err != nil {
+		log.Printf("ERROR boltBucketKeyPutOffsets concatInt64 err='%v' b=0", err)
 		return err
 	}
 
@@ -833,17 +814,22 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 	return
 } // end func boltBucketKeyPutOffsets
 
-func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64) (offsets []int64, err error) {
+// func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64) (offsets []int64, err error) {
+func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64, returnoffsets *[]int64) (int, error) {
 	if db == nil {
-		return nil, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
+		return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
+	}
+	if returnoffsets == nil {
+		return 0, fmt.Errorf("ERROR boltBucketGetOffsets returnoffsets=nil")
 	}
 	//if key == TESTKEY {
 	//	log.Printf("bBGOs [%s|%s] TESTKEY=%s newoffset=%d", char, bucket, key, newoffset)
 	//}
-	offsets = his.L3Cache.GetOffsets(char+bucket+key, char)
+	offsets := his.L3Cache.GetOffsets(char+bucket+key, char)
 	if offsets != nil && len(offsets) >= 0 {
 		//logf(key == TESTKEY, "bBGOs [%s|%s] get CACHED key='%s' offsets='%#v' newoffset=%d", char, bucket, key, offsets, newoffset)
-		return offsets, nil
+		*returnoffsets = offsets
+		return len(offsets), nil
 	}
 
 	var encodedOffsets []byte
@@ -862,29 +848,30 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 		return nil
 	}); err != nil {
 		log.Printf("ERROR boltBucketGetOffsets [%s|%s] key=%s err='%v'", char, bucket, key, err)
-		return nil, err
+		return 0, err
 	}
 	if len(encodedOffsets) > 0 {
-		decodedOffsets, err := parseByteToSlice(encodedOffsets)
-		if err != nil || len(decodedOffsets) == 0 {
+		var decodedOffsets []int64
+		if b, err := parseByteToSlice(encodedOffsets, &decodedOffsets); b == 0 || err != nil {
 			log.Printf("ERROR gobDecodeOffsets parseByteToSlice err='%v' encodedData='%s'", err, string(encodedOffsets))
-			return nil, err
+			return 0, err
 		}
-		if len(decodedOffsets) == 0 {
-			log.Printf("ERROR boltBucketGetOffsets gobDecodeOffsets=%d [%s|%s] key=%s err='%v'", len(decodedOffsets), char, bucket, key, err)
-			return nil, err
-		}
-		his.Sync_upcounter("BoltDB_decodedOffsets")
-		offsets = decodedOffsets
+		//if len(decodedOffsets) == 0 {
+		//	log.Printf("ERROR boltBucketGetOffsets gobDecodeOffsets=%d [%s|%s] key=%s err='%v'", len(decodedOffsets), char, bucket, key, err)
+		//	return 0, err
+		//}
+		go his.Sync_upcounter("BoltDB_decodedOffsets")
+		*returnoffsets = decodedOffsets
 
 		if len(offsets) > 0 {
 			his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagExpires, "boltBucketGetOffsets:got") // boltBucketGetOffsets
 		}
+		return len(offsets), nil
 	}
 	//if offsets != nil {
 	////logf(DEBUG2, "boltBucketGetOffsets returns [%s|%s] key=%s err='%v' offsetsN=%d", *char, *bucket, *key, err, len(*offsets))
 	//}
-	return
+	return 0, nil
 } // end func boltBucketGetOffsets
 
 func (his *HISTORY) returnBoltHashOpen() {
