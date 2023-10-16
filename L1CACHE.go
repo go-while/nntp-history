@@ -225,12 +225,14 @@ func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCach
 	if flagCacheDelExt == FlagCacheChanExtend {
 		for _, item := range tmpHash {
 			if item.hash != "" {
-				if DEBUG {
-					lench := len(l1.Extend[char].ch)
-					if lench >= his.cEvCap/2 {
-						log.Printf("WARN L1 Extend[%s]chan=%d/his.cEvCap=%d half-full", char, lench, his.cEvCap)
+				/*
+					if DEBUG {
+						lench := len(l1.Extend[char].ch)
+						if lench >= his.cEvCap/2 {
+							log.Printf("WARN L1 Extend[%s]chan=%d/his.cEvCap=%d half-full", char, lench, his.cEvCap)
+						}
 					}
-				}
+				*/
 				l1.Extend[char].ch <- item.hash
 			}
 		}
