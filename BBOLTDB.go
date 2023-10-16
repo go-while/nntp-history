@@ -707,7 +707,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 		if historyHash != "" {
 
 			if len(historyHash) == 3 && historyHash == eofhash {
-				log.Printf("EOF history.dat hash=%s check_offset=%d", hash, check_offset)
+				logf(DEBUG2, "EOF history.dat hash=%s check_offset=%d", hash, check_offset)
 				// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
 				his.L1Cache.Set(hash, char, CaseRetry, FlagExpires)
 				return CaseRetry, nil
@@ -843,7 +843,8 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	//if key == TESTKEY {
 	//	log.Printf("bBGOs [%s|%s] TESTKEY=%s newoffset=%d", char, bucket, key, newoffset)
 	//}
-	offsets := his.L3Cache.GetOffsets(char+bucket+key, char)
+	var offsets []int64
+	his.L3Cache.GetOffsets(char+bucket+key, char, &offsets)
 	if offsets != nil && len(offsets) >= 0 {
 		//logf(key == TESTKEY, "bBGOs [%s|%s] get CACHED key='%s' offsets='%#v' newoffset=%d", char, bucket, key, offsets, newoffset)
 		*returnoffsets = offsets
