@@ -259,7 +259,7 @@ func (l2 *L2CACHE) OffsetToChar(offset int64) string {
 	hex := strconv.FormatInt(offset, 16)
 	char := string(hex[len(hex)-1])
 	if char == "" {
-		log.Printf("ERROR L2CACHE.OffsetToChar char empty fallback 0")
+		log.Printf("WARN L2CACHE.OffsetToChar char empty fallback 0")
 		char = "0"
 	}
 	//log.Printf("OffsetToChar offset=%d => hex=%s => char=%s", offset, hex, char)
