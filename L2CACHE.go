@@ -216,12 +216,14 @@ func (l2 *L2CACHE) DelExtL2batch(his *HISTORY, tmpOffset []*ClearCache, flagCach
 					log.Printf("ERROR DelExtL2batch1 testchar=%s != item.char=%s", testchar, item.char)
 					continue
 				}
-				if DEBUG {
-					lench := len(l2.Extend[item.char])
-					if lench >= his.cEvCap/2 {
-						log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d half-full", item.char, lench, his.cEvCap)
+				/*
+					if DEBUG {
+						lench := len(l2.Extend[item.char])
+						if lench >= his.cEvCap/2 {
+							log.Printf("WARN L2 Extend[%s]chan=%d/his.cEvCap=%d half-full", item.char, lench, his.cEvCap)
+						}
 					}
-				}
+				*/
 				//char := l2.OffsetToChar(item.offset)
 				l2.Extend[item.char] <- item
 			} else {
