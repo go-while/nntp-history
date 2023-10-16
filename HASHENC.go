@@ -84,10 +84,10 @@ func gobEncodeHeader(iobuf *[]byte, settings *HistorySettings) (int, error) {
 		return 0, err
 	}
 	b64str := base64.StdEncoding.EncodeToString(buf.Bytes())
-	b64strZeroPadded := ZeroPad(b64str, ZEROPADLEN)
-	*iobuf = []byte(b64strZeroPadded)
+	NullPad(&b64str, ZEROPADLEN)
+	*iobuf = []byte(b64str)
 	leniobuf := len(*iobuf)
-	log.Printf("gobEncodeHeader b64str='%s' b64strZeroPadded='%s' lenio=%d", b64str, b64strZeroPadded, leniobuf)
+	log.Printf("gobEncodeHeader b64str='%s' lenio=%d", b64str, leniobuf)
 	return leniobuf, nil
 } // end func gobEncodeHeader
 
@@ -95,7 +95,7 @@ func gobDecodeHeader(encodedData *[]byte, retSettings *HistorySettings) error {
 	if encodedData == nil || retSettings == nil {
 		return fmt.Errorf("ERROR gobDecodeHeader io=nil")
 	}
-	b64decodedString, err := base64.StdEncoding.DecodeString(RemoveZeroPad(string(*encodedData)))
+	b64decodedString, err := base64.StdEncoding.DecodeString(RemoveNullPad(string(*encodedData)))
 	if err != nil {
 		return fmt.Errorf("ERROR gobDecodeHeader base64decode err='%v'", err)
 	}
@@ -108,15 +108,21 @@ func gobDecodeHeader(encodedData *[]byte, retSettings *HistorySettings) error {
 	return nil
 } // end func gobDecodeHeader
 
-func ZeroPad(input string, length int) string {
-	if len(input) < length {
-		padding := strings.Repeat("\x00", length-len(input))
-		return padding + input
+func LeftPad(input *string, length int) {
+	if len(*input) < length {
+		padding := strings.Repeat("\x00", length-len(*input))
+		*input = padding + *input
 	}
-	return input
-} // end func ZeroPad
+} // end func LeftPad
 
-func RemoveZeroPad(input string) string {
+func NullPad(input *string, length int) {
+	if len(*input) < length {
+		padding := strings.Repeat("\x00", length-len(*input))
+		*input = *input + padding
+	}
+} // end func NullPad
+
+func RemoveNullPad(input string) string {
 	return strings.Replace(input, "\x00", "", -1)
 } // RemoveZeroPad
 
