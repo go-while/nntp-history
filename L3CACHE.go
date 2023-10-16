@@ -171,7 +171,6 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		return
 	}
 	l3.muxers[char].mux.Lock()
-	defer l3.muxers[char].mux.Unlock()
 
 	expires := NoExpiresVal
 	if flagexpires {
@@ -190,6 +189,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		if cachedlen == 0 {
 			// there is an empty offsets-slice cached: set this
 			l3.Caches[char].cache[key].offsets = offsets
+			l3.muxers[char].mux.Unlock()
 			return
 		}
 		// loops in reversed order backwards over new offsets
@@ -206,13 +206,15 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 			} else {
 				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets exists %s", char, tailstr)
 				// NOTE with valueExistsInSliceReverseOrder first hit returns fast now
+				l3.muxers[char].mux.Unlock()
 				return
 			}
 		}
-
+		l3.muxers[char].mux.Unlock()
 		return
 	}
 	l3.Caches[char].cache[key] = &L3ITEM{offsets: offsets, expires: expires}
+	l3.muxers[char].mux.Unlock()
 } // end func SetOffsets
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
@@ -225,14 +227,13 @@ func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64) int {
 		char = string(key[0])
 	}
 	l3.muxers[char].mux.RLock()
-	defer l3.muxers[char].mux.RUnlock()
-
 	if _, exists := l3.Caches[char].cache[key]; exists {
 		//l3.Counter[char].Counter["Count_Get"]++
 		*offsets = l3.Caches[char].cache[key].offsets
+		l3.muxers[char].mux.RUnlock()
 		return len(*offsets)
 	}
-
+	l3.muxers[char].mux.RUnlock()
 	//l3.Counter[char].Counter["Count_Mis"]++
 	return 0
 } // end func GetOffsets
