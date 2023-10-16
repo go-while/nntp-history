@@ -582,12 +582,12 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
 	if err != nil {
-		log.Printf("ERROR FSEEK err='%v'", err)
 		if err == io.EOF {
-			go his.Sync_upcounter("FSEEK_EOF")
+			//go his.Sync_upcounter("FSEEK_EOF")
 			*rethash = eofhash
 			return nil
 		}
+		log.Printf("ERROR FseekHistoryMessageHash err='%v'", err)
 		return err
 	}
 	go his.Sync_upcounter("FSEEK")
