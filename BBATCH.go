@@ -17,8 +17,8 @@ var (
 	AdaptBatch           bool                           // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
 	BatchFlushEvery      int64  = 5000                  // flushes boltDB in batch every N milliseconds (500-15000)
 	BoltDB_MaxBatchDelay        = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
-	BoltDB_MaxBatchSize  int    = 16                    // default value from boltdb:db.go = 1000
-	CharBucketBatchSize  int    = 16                    // default batchsize per char:bucket batchqueues
+	BoltDB_MaxBatchSize  int    = 1000                  // default value from boltdb:db.go = 1000
+	CharBucketBatchSize  int    = 512                   // default batchsize per char:bucket batchqueues
 	emptyStr             string                         // used as pointer
 )
 
