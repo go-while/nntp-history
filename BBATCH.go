@@ -40,7 +40,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	Q := len(batchQueue)
 	Qcap := cap(batchQueue)
 	if Q >= Qcap/2 {
-		log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d @ Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
+		log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
 		//pass
 	} else if Q < workerCharBucketBatchSize && !forced {
 		return Q, 0, nil, false
@@ -114,12 +114,12 @@ fetchbatch:
 				}
 			}
 		*/
-		// experimental sync mutexing the batchqueue?!
-		//his.batchQueues.mux.Lock()
+
 		start1 := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			b := tx.Bucket([]byte(bucket))
+			//b.FillPercent = 0.3
 		batch1insert:
 			for _, bo := range batch1 {
 				//if bo.key == TESTKEY {
@@ -134,11 +134,10 @@ fetchbatch:
 			}
 			return err
 		}); err != nil {
-			//his.batchQueues.mux.Unlock()
 			log.Printf("ERROR boltBucketPutBatch [%s|%s] db.Batch err='%v'", char, bucket, err)
 			return 0, inserted, err, true // closed
 		}
-		//his.batchQueues.mux.Unlock()
+
 		// batch insert to boltDB done, pass to CacheEvict
 		for _, bo := range batch1 {
 			//if bo.offsets == nil || len(*bo.offsets) == 0 {
