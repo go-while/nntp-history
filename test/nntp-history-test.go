@@ -165,8 +165,8 @@ func main() {
 		boltOpts = &bO
 	}
 	start := utils.UnixTimeSec()
-	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize)
-	fmt.Printf(" useHashDB: %t | IndexParallel=%d\n boltOpts='%#v'\n", useHashDB, history.IndexParallel, boltOpts)
+	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
+	fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	if offset >= 0 {
 		history.NoReplayHisDat = true
 	}
@@ -191,7 +191,6 @@ func main() {
 		fmt.Printf("History @offset=%d line='%s'\n", offset, result)
 		os.Exit(0)
 	}
-	//time.Sleep(3 * time.Second)
 	if useHashDB {
 		go history.History.WatchBolt()
 	}
@@ -289,9 +288,15 @@ func main() {
 				case history.CasePass:
 					// pass
 				case history.CaseDupes:
+					// we locked the hash but IndexQuery replied with Duplicate
+					// set L1 cache to Dupe and expire
+					history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
 					dupes++
 					continue fortodo
 				case history.CaseRetry:
+					// we locked the hash but IndexQuery replied with Retry
+					// set L1 cache to Retry and expire
+					history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
 					retry++
 					continue fortodo
 				default:
