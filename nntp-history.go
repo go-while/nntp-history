@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	BUCKETSperDB = 256 // can be 16, 256 or 4096
+	BUCKETSperDB = 256 // can be 16, 256 or 4096 !4K is insane!
 	ALWAYS       = true
 
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
@@ -142,13 +142,14 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	his.indexPar = IndexParallel
 
-	if CharBucketBatchSize <= 0 {
-		CharBucketBatchSize = 0 // disables our batching to boltDB
+	if CharBucketBatchSize < 16 {
+		CharBucketBatchSize = 16
 	} else if CharBucketBatchSize > 65536 {
 		// we don't need more before year 2050, he said in 2023.
 		CharBucketBatchSize = 65536
 	}
 	his.wCBBS = CharBucketBatchSize
+	log.Printf("CharBucketBatchSize=%d his.wCBBS=%d", CharBucketBatchSize, his.wCBBS)
 
 	linSlashS := "/"
 	winSlashS := "\\" // escaped
@@ -623,16 +624,16 @@ func (his *HISTORY) FseekHistoryHeader() (*[]byte, error) {
 	return &result, nil
 } // end func FseekHistoryHeader
 
-func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
+func (his *HISTORY) FseekHistoryLine(offset int64) (string, error) {
 	file, err := os.OpenFile(his.hisDat, os.O_RDONLY, 0666)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	defer file.Close()
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
 	if seekErr != nil {
-		return nil, seekErr
+		return "", seekErr
 	}
 	reader := bufio.NewReader(file)
 	// Read until the next newline character
@@ -641,16 +642,16 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (*string, error) {
 		//if err == io.EOF {
 		//	return &eofhash, nil
 		//}
-		return nil, err
+		return "", err
 	}
 	//result := strings.Split(line, "\t")[0]
 	if len(result) > 0 {
 		if offset > 0 && result[0] != '{' {
-			return nil, fmt.Errorf("ERROR FseekHistoryLine line[0]!='{' offset=%d", offset)
+			return "", fmt.Errorf("ERROR FseekHistoryLine line[0]!='{' offset=%d", offset)
 		}
 	}
 	result = strings.TrimSuffix(result, "\n")
-	return &result, nil
+	return result, nil
 } // end func FseekHistoryLine
 
 func (his *HISTORY) SET_DEBUG(debug int) {
