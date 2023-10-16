@@ -65,7 +65,7 @@ func main() {
 
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
-	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync")
+	flag.BoolVar(&NoSync, "NoSync", true, "bbolt.NoSync")
 
 	// NoGrowSync: When true, skips the truncate call when growing the database,
 	//  but it's only safe on non-ext3/ext4 systems.
@@ -79,7 +79,7 @@ func main() {
 	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 1000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
@@ -123,13 +123,13 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BoltDB_MaxBatchSize = 256 // 0 disables boltdb internal batching. default: 1000
-		//history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
+		history.BoltDB_MaxBatchSize = 256                    // 0 disables boltdb internal batching. default: 1000
+		history.BoltDB_MaxBatchDelay = 32 * time.Millisecond // default: 10 * time.Millisecond
 
 		// AllocSize is the amount of space allocated when the database
 		// needs to create new pages. This is done to amortize the cost
 		// of truncate() and fsync() when growing the data file.
-		history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
+		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
 
 		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
@@ -147,8 +147,8 @@ func main() {
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 128 * 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        1024 * 1024,
+			InitialMmapSize: 1024 * 1024 * 1024, // assign a high value if you expect a lot of load.
+			PageSize:        16 * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
 			FreelistType:   bolt.FreelistMapType,
 			NoSync:         NoSync,
@@ -159,7 +159,7 @@ func main() {
 			//PreLoadFreelist: ?,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
-			MmapFlags: syscall.MAP_POPULATE,
+			//MmapFlags: syscall.MAP_POPULATE,
 		}
 		boltOpts = &bO
 	}
@@ -187,7 +187,7 @@ func main() {
 			fmt.Printf("Error: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("History @offset=%d line='%s'\n", offset, *result)
+		fmt.Printf("History @offset=%d line='%s'\n", offset, result)
 		os.Exit(0)
 	}
 	//time.Sleep(3 * time.Second)
@@ -195,27 +195,7 @@ func main() {
 		go history.History.WatchBolt()
 	}
 	//go history.PrintMemoryStatsEvery(30 * time.Second)
-
-	// pregen hashes
-	log.Printf("Pregen Hashes")
-	pregen := utils.UnixTimeMilliSec()
-
 	testhashes := []string{} // sequential
-	/*
-		for i := 1; i <= todo; i++ {
-			hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
-			//hash := utils.Hash256(fmt.Sprintf("%d", i*p)) // GENERATES DUPLICATES
-			//hash := utils.Hash256(fmt.Sprintf("%d", utils.Nano())) // GENERATES ALMOST NO DUPES
-			//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMicroSec())) // GENERATES VERY SMALL AMOUNT OF DUPES
-			//hash := utils.Hash256(fmt.Sprintf("%d", utils.UnixTimeMilliSec())) // GENERATES LOTS OF DUPES
-			testhashes = append(testhashes, hash)
-			if hash == TESTHASH {
-				log.Printf("DEBUG main TESTHASH='%s' i=%d", hash, i)
-			}
-		}
-		//shuffleStrings(testhashes) // randomize order
-	*/
-	log.Printf("Pregen Hashes=%d (took %d ms)", len(testhashes), utils.UnixTimeMilliSec()-pregen)
 
 	// start test
 	if pprofcpu {
@@ -392,20 +372,16 @@ func main() {
 	tryoffset := history.History.GetCounter("tryoffset")
 	searches := history.History.GetCounter("searches")
 	inserted := history.History.GetCounter("inserted")
-	wCBBS := history.History.GetCounter("wCBBS")
 	total := key_add + key_app
-	if wCBBS > 256 {
-		wCBBS = wCBBS / 256
-	}
 	log.Printf("key_add=%d key_app=%d total=%d fseeks=%d eof=%d BoltDB_decodedOffsets=%d addoffset=%d appoffset=%d trymultioffsets=%d tryoffset=%d searches=%d inserted=%d", key_add, key_app, total, fseeks, fseekeof, BoltDB_decodedOffsets, addoffset, appoffset, trymultioffsets, tryoffset, searches, inserted)
-	log.Printf("L1=%d:%d:%d L2=%d:%d:%d L3=%d:%d:%d | wCBBS=~%d", L1CACHE_Get, L1CACHE_Set, L1CACHE_SetX, L2CACHE_Get, L2CACHE_Set, L2CACHE_SetX, L3CACHE_Get, L3CACHE_Set, L3CACHE_SetX, wCBBS)
+	log.Printf("L1=%d:%d:%d L2=%d:%d:%d L3=%d:%d:%d", L1CACHE_Get, L1CACHE_Set, L1CACHE_SetX, L2CACHE_Get, L2CACHE_Set, L2CACHE_SetX, L3CACHE_Get, L3CACHE_Set, L3CACHE_SetX)
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 
 	if total > 0 {
 		history.History.CrunchBatchLogs(true)
 	}
 
-	tmax := 3
+	tmax := 5
 	for t := 1; t <= tmax; t++ {
 		history.PrintMemoryStats()
 		log.Printf("runtime.GC() [ %d / %d ] sleep 10 sec", t, tmax)
