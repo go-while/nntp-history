@@ -278,7 +278,7 @@ func main() {
 					continue fortodo
 				}
 
-				isDup, err := history.History.IndexQuery(hash, IndexRetChan, -1)
+				isDup, err := history.History.IndexQuery(hash, IndexRetChan, history.FlagSearch)
 				if err != nil {
 					log.Printf("FALSE IndexQuery hash=%s", hash)
 					break fortodo
