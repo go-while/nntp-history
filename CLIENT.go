@@ -30,7 +30,7 @@ func (his *HISTORY) BootHistoryClient(historyServer string) {
 	}
 	his.mux.Unlock()
 	if historyServer == "" {
-		historyServer = ListenTCP
+		historyServer = "[::1]:49119"
 	}
 	log.Printf("...connecting to historyServer='%s'", historyServer)
 	dead := make(chan struct{}, 1)
