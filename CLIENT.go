@@ -8,6 +8,12 @@ import (
 	"time"
 )
 
+// holds connection to historyServer
+type RemoteConn struct {
+	conn net.Conn
+	tp   *textproto.Conn
+}
+
 func (his *HISTORY) BootHistoryClient(historyServer string) {
 	if historyServer == "" {
 		historyServer = ListenTCP
