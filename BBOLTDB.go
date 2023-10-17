@@ -60,7 +60,7 @@ var (
 
 func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
 	if !his.useHashDB {
-		log.Printf("INFO return IndexQuery !his.useHashDB")
+		//log.Printf("INFO return IndexQuery !his.useHashDB")
 		return CasePass, nil
 	}
 	/*
