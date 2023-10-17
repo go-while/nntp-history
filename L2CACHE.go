@@ -1,4 +1,5 @@
 package history
+
 /*
  * WARNING: the `char` used by L2Cache is NOT boltDB char!
  *          it is derived from offset via OffsetToChar !
@@ -11,9 +12,10 @@ import (
 	"sync"
 	"time"
 )
+
 /*
-	L2Cache: offset => hash
-	less requests to hisDat
+L2Cache: offset => hash
+less requests to hisDat
 */
 var (
 	DEBUGL2         bool  = false
@@ -138,7 +140,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 		timer := time.NewTimer(time.Duration(l2purge) * time.Second)
 		start := utils.UnixTimeMilliSec()
 		now := int64(start / 1000)
-	forever:
+		//forever:
 		for {
 			select {
 			case <-timer.C:
