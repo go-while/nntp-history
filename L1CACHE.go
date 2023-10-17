@@ -81,27 +81,31 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	if char == "" {
 		char = string(hash[0])
 	}
-	l1.muxers[char].mux.Lock()
+	ptr := l1.Caches[char]
+	cnt := l1.Counter[char]
+	mux := l1.muxers[char]
 
-	if _, exists := l1.Caches[char].cache[hash]; exists {
-		l1.Counter[char].Counter["Count_Get"]++
-		retval := l1.Caches[char].cache[hash].value
+	mux.mux.Lock()
+
+	if _, exists := ptr.cache[hash]; exists {
+		cnt.Counter["Count_Get"]++
+		retval := ptr.cache[hash].value
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
-		l1.muxers[char].mux.Unlock()
+		mux.mux.Unlock()
 		return retval
 	}
 
 	if !useHashDB {
 		value = CaseDupes
 	}
-	l1.Counter[char].Counter["Count_Locked"]++
-	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
+	cnt.Counter["Count_Locked"]++
+	ptr.cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
 	//}
-	l1.muxers[char].mux.Unlock()
+	mux.mux.Unlock()
 	return CasePass
 } // end func LockL1Cache
 
@@ -223,28 +227,32 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		char = string(hash[0])
 	}
 	//start := utils.UnixTimeMilliSec()
-	l1.muxers[char].mux.Lock()
+	ptr := l1.Caches[char]
+	cnt := l1.Counter[char]
+	mux := l1.muxers[char]
+
+	mux.mux.Lock()
 
 	expires := NoExpiresVal
 	if flagexpires {
-		l1.Counter[char].Counter["Count_FlagEx"]++
+		cnt.Counter["Count_FlagEx"]++
 		expires = utils.UnixTimeSec() + L1CacheExpires
 	} else if !flagexpires && value == CaseWrite {
-		l1.Counter[char].Counter["Count_Set"]++
+		cnt.Counter["Count_Set"]++
 	}
 
-	if _, exists := l1.Caches[char].cache[hash]; exists {
-		l1.Caches[char].cache[hash].expires = expires
-		l1.Caches[char].cache[hash].value = value
+	if _, exists := ptr.cache[hash]; exists {
+		ptr.cache[hash].expires = expires
+		ptr.cache[hash].value = value
 		l1.muxers[char].mux.Unlock()
 		return
 	}
-	l1.Caches[char].cache[hash] = &L1ITEM{value: value, expires: expires}
-	l1.muxers[char].mux.Unlock()
+	ptr.cache[hash] = &L1ITEM{value: value, expires: expires}
+	mux.mux.Unlock()
 } // end func Set
 
 // The DelExtL1batch method deletes multiple cache items from the L1 cache.
-func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCache, flagCacheDelExt int) {
+func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCache) {
 	if char == "" {
 		log.Printf("ERROR DelExtL1batch char=nil")
 		return
@@ -253,42 +261,20 @@ func (l1 *L1CACHE) DelExtL1batch(his *HISTORY, char string, tmpHash []*ClearCach
 		log.Printf("DelExtL1batch [%s] tmpHash empty", char)
 		return
 	}
-	if flagCacheDelExt == FlagCacheChanExtend {
-		for _, item := range tmpHash {
-			if item.hash != nil && *item.hash != "" {
-				/*
-					if DEBUG {
-						lench := len(l1.Extend[char].ch)
-						if lench >= his.cEvCap/2 {
-							log.Printf("WARN L1 Extend[%s]chan=%d/his.cEvCap=%d half-full", char, lench, his.cEvCap)
-						}
-					}
-				*/
-				l1.Extend[char].ch <- item.hash
-			}
-		}
-		return
-	}
-	now := utils.UnixTimeSec()
-
-	l1.muxers[char].mux.Lock()
 	for _, item := range tmpHash {
 		if item.hash != nil && *item.hash != "" {
-			if _, exists := l1.Caches[char].cache[*item.hash]; exists {
-				switch flagCacheDelExt {
-				case FlagCacheSyncDelete:
-					delete(l1.Caches[char].cache, *item.hash)
-				case FlagCacheSyncExtend:
-					// dont delete from cache but extend expiry time
-					l1.Caches[char].cache[*item.hash].expires = now + L1ExtendExpires
-					// has been written to boltDB and is now a Duplicate in response
-					l1.Caches[char].cache[*item.hash].value = CaseDupes
+			/*
+				if DEBUG {
+					lench := len(l1.Extend[char].ch)
+					if lench >= his.cEvCap/2 {
+						log.Printf("WARN L1 Extend[%s]chan=%d/his.cEvCap=%d half-full", char, lench, his.cEvCap)
+					}
 				}
-				l1.Counter[char].Counter["Count_BatchD"]++
-			}
+			*/
+			l1.Extend[char].ch <- item.hash
 		}
 	}
-	l1.muxers[char].mux.Unlock()
+	return
 } // end func DelExtL1batch
 
 func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]uint64) {
@@ -299,20 +285,22 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 		return
 	}
 	for _, char := range HEXCHARS {
-		l1.muxers[char].mux.Lock()
+		cnt := l1.Counter[char]
+		mux := l1.muxers[char]
+		mux.mux.Lock()
 		switch statskey {
 		case "":
 			// key is empty, get all key=>stats to retmap
-			for k, v := range l1.Counter[char].Counter {
+			for k, v := range cnt.Counter {
 				retmap[k] += v
 			}
 		default:
 			// key is set, returns retval
-			if _, exists := l1.Counter[char].Counter[statskey]; exists {
-				retval += l1.Counter[char].Counter[statskey]
+			if _, exists := cnt.Counter[statskey]; exists {
+				retval += cnt.Counter[statskey]
 			}
 		}
-		l1.muxers[char].mux.Unlock()
+		mux.mux.Unlock()
 	}
 	return
 } // end func L1Stats
