@@ -23,7 +23,7 @@ var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 15 // search only
 	DefaultCacheExtend    int64 = 15 // extends cached items after writes
-	DefaultCachePurge     int64 = 1  // seconds
+	DefaultCachePurge     int64 = 3  // seconds
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
 
@@ -34,7 +34,7 @@ type CCC struct {
 
 // StrExtendChan
 type StrECH struct {
-	ch chan string
+	ch chan *string
 }
 
 // IntExtendChan
@@ -157,7 +157,7 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 		*
 	*/
 	// pass down to CacheEvictThread
-	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
+	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: &hash, key: &key}
 } // end func DoCacheEvict
 
 func jitter(j int, timer int) int {
@@ -225,10 +225,10 @@ func (his *HISTORY) CacheEvictThread() {
 						if item.offset > 0 { // l2 offset
 							tmpOffset = append(tmpOffset, item)
 						} else {
-							if item.hash != "" { // l1 hash
+							if item.hash != nil && *item.hash != "" { // l1 hash
 								tmpHash = append(tmpHash, item)
 							}
-							if item.key != "" { // l3 key
+							if item.key != nil && *item.key != "" { // l3 key
 								tmpKey = append(tmpKey, item)
 							}
 						}
