@@ -31,7 +31,9 @@ const (
 	//  offsets lead into history.dat and point to start of a line containing the full hash
 	BUCKETSperDB = 256 // can be 16 | (default: 256) | 4096 !4K is insane!
 	MinKeyLen    = 8
-	KEYINDEX     = 2 // creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
+	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
+	// KEYINDEX cuts (shortens) the KeyLen by this
+	KEYINDEX     = 2
 
 	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
 	// (     ROOT-BUCKETS      ) * SUB BKTS =
