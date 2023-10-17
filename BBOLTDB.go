@@ -30,8 +30,9 @@ const (
 	//  1st char of hash selects boltDB
 	//  2nd + 3rd char of hash selects bucket in boltDB
 	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
+	// the key is further divided into 1st+2nd+3rd char as sub buckets and remainder as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
-	MinKeyLen = 0x03
+	MinKeyLen = 0x08
 	WCBBS_UL  = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
 	WCBBS_LL  = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
 )
@@ -232,15 +233,6 @@ func (his *HISTORY) boltDB_Index() {
 
 					// sends object to hash boltDB_Worker char
 					his.indexChans[his.charsMap[C1]] <- hi
-
-					/*
-						if his.indexChans[his.charsMap[C1]] != nil {
-							his.indexChans[his.charsMap[C1]] <- hi // sends object to hash boltDB_Worker char
-						} else {
-							log.Printf("ERROR boltDB_Index IndexChan C1=%s=nil", C1)
-							break forever
-						}
-					*/
 				} // end select
 			} // end for
 			<-waitchan
@@ -853,8 +845,13 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 
 	var encodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucket))
-		v := b.Get([]byte(key))
+		root := tx.Bucket([]byte(bucket))
+		subb := root.Bucket([]byte(key[0:3])) // subbucket co-exists in boltBucketPutBatch
+		if subb == nil {
+			// bucket not yet created
+			return nil
+		}
+		v := subb.Get([]byte(key[3:])) // subbucket co-exists in boltBucketPutBatch
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
 			if newoffset == FlagSearch { // is a search
