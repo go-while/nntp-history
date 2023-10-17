@@ -16,26 +16,35 @@ import (
 const (
 	// never change this!
 	intBoltDBs                    = 0x10 // do NOT change this!
-	BUCKETSperDB                  = 256  // can be 16 | (default: 256) | 4096 !4K is insane!
 	DefaultBoltINITParallel       = intBoltDBs
 	DefaultBoltSYNCParallel       = intBoltDBs
 	DefaultReplayDistance   int64 = 1024 * 1024
+	WCBBS_UL                      = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
+	WCBBS_LL                      = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
 
-	HashShort  = 0x0B // 11
-	HashFNV32  = 0x16 // 22
-	HashFNV32a = 0x21 // 33
-	HashFNV64  = 0x2c // 44
-	HashFNV64a = 0x37 // 55
 	// KeyLen is used with HashShort
 	//  1st char of hash selects boltDB
 	//  2nd + 3rd char (+4th char: if 4K BUCKETSperDB) of hash selects bucket in boltDB
 	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
 	// the key is further divided into 1st+2nd+3rd+... char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
-	MinKeyLen = 16
-	KEYINDEX  = 5
-	WCBBS_UL  = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
-	WCBBS_LL  = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
+	BUCKETSperDB = 256  // can be 16 | (default: 256) | 4096 !4K is insane!
+	HashShort    = 0x0B // 11
+	MinKeyLen    = 8
+	KEYINDEX     = 2 // creates 16^N sub buckets in `BUCKETSperDB` ! can not be 0 !
+
+	// intBoltDBs * BUCKETSperDB * KEYINDEX =
+	//
+	//    16      *      16      * (16^)1   =      4096 different buckets to throw things into...
+	//    16      *      16      * (16^)2   =     65536 different buckets to throw things into...
+	//    16      *      16      * (16^)3   =   1048576 different buckets to throw things into...
+	//    16      *      16      * (16^)4   =  16777216 different buckets to throw things into...
+	//    16      *      16      * (16^)5   = 268435456 different buckets to throw things into...
+	//
+	//    16      *     256      * (16^)1   =     65536 different buckets to throw things into...
+	//    16      *     256      * (16^)2   =   1048576 different buckets to throw things into...
+	//    16      *     256      * (16^)3   =  16777216 different buckets to throw things into...
+	//    16      *     256      * (16^)4   = 268435456 different buckets to throw things into...
 )
 
 var (
@@ -529,15 +538,20 @@ forever:
 				}
 				//shorthash := string(string(*hi.Hash)[his.cutFirst:cutHashlen])
 				key = strings.ToLower(string(hi.Hash[his.cutFirst:cutHashlen])) // shorthash
-				//key = &shorthash
-			case HashFNV32:
-				key = FNV32S(hi.Hash)
-			case HashFNV32a:
-				key = FNV32aS(hi.Hash)
-			case HashFNV64:
-				key = FNV64S(hi.Hash)
-			case HashFNV64a:
-				key = FNV64aS(hi.Hash)
+			/*
+				case HashFNV32:
+					key = FNV32S(hi.Hash)
+				case HashFNV32a:
+					key = FNV32aS(hi.Hash)
+				case HashFNV64:
+					key = FNV64S(hi.Hash)
+				case HashFNV64a:
+					key = FNV64aS(hi.Hash)
+			*/
+			default:
+				log.Printf("ERROR HDBZW unknown switch keyalgo=%x", his.keyalgo)
+				his.CLOSE_HISTORY()
+				break forever
 			}
 			//logf(hi.Hash == TESTHASH0, "HDBZW [%s|%s] key='%s' hash='%s' @0x%010x|%d|%x", char, bucket, key, hi.Hash, hi.Offset, hi.Offset, hi.Offset)
 			isDup, err := his.DupeCheck(db, char, bucket, key, hi.Hash, hi.Offset, false, historyfile, his.batchQueues.Maps[char][bucket])
