@@ -1,5 +1,4 @@
 package history
-
 /*
  * WARNING: the `char` used by L2Cache is NOT boltDB char!
  *          it is derived from offset via OffsetToChar !
@@ -12,7 +11,10 @@ import (
 	"sync"
 	"time"
 )
-
+/*
+	L2Cache: offset => hash
+	less requests to hisDat
+*/
 var (
 	DEBUGL2         bool  = false
 	L2CacheExpires  int64 = DefaultCacheExpires
@@ -134,22 +136,16 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 	go func(ptr *L2CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
 		defer log.Printf("LEFT L2T gofunc2 delete [%s]", char)
 		timer := time.NewTimer(time.Duration(l2purge) * time.Second)
-		timeout := false
 		start := utils.UnixTimeMilliSec()
 		now := int64(start / 1000)
 	forever:
 		for {
-			if timeout {
-				timeout = false
-				timer.Reset(time.Duration(l2purge) * time.Second)
-			}
 			select {
 			case <-timer.C:
-				timeout = true
 				start = utils.UnixTimeMilliSec()
 				now = int64(start / 1000)
 
-				mux.Lock()
+				mux.RLock()
 				//getexpired:
 				for offset, item := range ptr.cache {
 					if item.expires > 0 && item.expires < now {
@@ -157,20 +153,22 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 						cleanup = append(cleanup, offset)
 					}
 				} // end for getexpired
+				mux.RUnlock()
 
 				//maplen := len(ptr.cache)
 				if len(cleanup) > 0 {
+					mux.Lock()
 					//maplen -= len(cleanup)
 					for _, offset := range cleanup {
 						delete(ptr.cache, offset)
 						cnt.Counter["Count_Delete"]++
 					}
+					mux.Unlock()
+					cleanup = nil
 					//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
-				mux.Unlock()
-				cleanup = nil
 				//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-				continue forever
+				timer.Reset(time.Duration(l2purge) * time.Second)
 			} // end select
 		} // end for
 	}(l2.Caches[char], &l2.muxers[char].mux, l2.Counter[char]) // end gofunc2
