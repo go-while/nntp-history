@@ -31,25 +31,25 @@ const (
 )
 
 var (
-	TESTHASH0   string = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
-	TESTHASH1   string = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
-	TESTHASH2   string = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
-	TESTHASH           = TESTHASH2
-	TESTCACKEY         = "f0d784ae1"
-	TESTKEY            = "784ae1"
-	TESTBUK            = "0d"
-	TESTDB             = "f"
+	TESTHASH0   = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
+	TESTHASH1   = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
+	TESTHASH2   = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
+	TESTHASH    = TESTHASH2
+	TESTCACKEY  = "f0d784ae1"
+	TESTKEY     = "784ae1"
+	TESTBUK     = "0d"
+	TESTDB      = "f"
 	ALLBUCKETS  []string
 	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History     HISTORY
-	DEBUG       bool   = true
-	DEBUG0      bool   = false
-	DEBUG1      bool   = false
-	DEBUG2      bool   = false
-	DEBUG9      bool   = false
-	LOCKHISTORY        = make(chan struct{}, 1)
-	HEXCHARS           = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash     string = "EOF"
+	DEBUG       bool = true
+	DEBUG0      bool = false
+	DEBUG1      bool = false
+	DEBUG2      bool = false
+	DEBUG9      bool = false
+	LOCKHISTORY      = make(chan struct{}, 1)
+	HEXCHARS         = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash          = "EOF"
 )
 
 // History_Boot initializes the history component, configuring its settings and preparing it for operation.
@@ -69,7 +69,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if useHashDB {
 		his.useHashDB = true
 	}
-	go his.startSocket()
+	go his.startSocket(ListenTCP)
 	rand.Seed(time.Now().UnixNano())
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
