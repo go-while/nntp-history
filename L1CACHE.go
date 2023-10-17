@@ -112,7 +112,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 // The L1Cache_Thread function runs as a goroutine for each character.
 // It periodically cleans up expired cache entries, and if the cache size is too large, it shrinks the cache.
 func (l1 *L1CACHE) L1Cache_Thread(char string) {
-	l1.mux.Lock() // waits for L2CACHE_Boot to unlock
+	l1.mux.Lock() // waits for L1CACHE_Boot to unlock
 	l1.mux.Unlock()
 	//logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
 	cleanup := []string{}
