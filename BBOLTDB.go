@@ -814,7 +814,7 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 		his.Sync_upcounter("inserted")
 		his.DoCacheEvict(char, hash, 0, char+bucket+key)
 		for _, offset := range offsets {
-			his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), emptyStr, offset, emptyStr)
+			his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
 		}
 	*/
 	return
