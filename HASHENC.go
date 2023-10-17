@@ -74,7 +74,6 @@ func gobEncodeHeader(iobuf *[]byte, settings *HistorySettings) (int, error) {
 		log.Printf("ERROR gobEncodeHeader iobuf or settings nil")
 		os.Exit(1)
 	}
-	ZEROPADLEN := 254 // later adds 1 more: LF
 	var buf bytes.Buffer
 	encoder := gob.NewEncoder(&buf)
 	err := encoder.Encode(settings)
@@ -86,7 +85,7 @@ func gobEncodeHeader(iobuf *[]byte, settings *HistorySettings) (int, error) {
 	NullPad(&b64str, ZEROPADLEN)
 	*iobuf = []byte(b64str)
 	leniobuf := len(*iobuf)
-	log.Printf("gobEncodeHeader b64str='%s' lenio=%d", b64str, leniobuf)
+	log.Printf("gobEncodeHeader b64str='%s'=%d lenio=%d", b64str, len(buf.Bytes()), leniobuf)
 	return leniobuf, nil
 } // end func gobEncodeHeader
 
