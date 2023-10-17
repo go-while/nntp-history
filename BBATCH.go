@@ -130,7 +130,7 @@ fetchbatch:
 				//	log.Printf("DEBUG [%s|%s] db.Batch TESTKEY='%s' TESTBUK='%s' offsets='%s' bo='%#v'", char, bucket, bo.key, TESTBUK, string(bo.encodedOffsets), bo)
 				//}
 				// Setup sub buckets
-				subb, err := root.CreateBucketIfNotExists([]byte(bo.key[0:3])) // subbucket co-exists in boltBucketGetOffsets
+				subb, err := root.CreateBucketIfNotExists([]byte(bo.key[0:KEYINDEX])) // subbucket co-exists in boltBucketGetOffsets
 				if err != nil {
 					return err
 				}
@@ -138,7 +138,7 @@ fetchbatch:
 				//subb.FillPercent = 0.3
 				//subb.FillPercent = 0.7
 				//subb.FillPercent = 0.9
-				puterr := subb.Put([]byte(bo.key[3:]), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
+				puterr := subb.Put([]byte(bo.key[KEYINDEX:]), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
 				if puterr != nil {
 					err = puterr
 					break batch1insert
