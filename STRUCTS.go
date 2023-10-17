@@ -56,12 +56,16 @@ type HISTORY struct {
 	indexPar       int  // IndexParallel
 	cutFirst       int  // used to set startindex for cutHashlen
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
+	bUCKETSperDB   int
+	keyIndex       int
 }
 
 /* builds the history.dat header */
 type HistorySettings struct {
-	KeyAlgo int
-	KeyLen  int
+	Ka int // keyalgo
+	Kl int // keylen
+	Bp int // bucketsperdb
+	Ki int // keyindex
 }
 
 type HistoryObject struct {
