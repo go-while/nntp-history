@@ -63,7 +63,7 @@ func main() {
 	// keylen & keyalgo are constants once hashdb is initalized!
 	// change needs a RebuildHashDB and updating history.dat settings header. but latter func does not exist yet!
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
-	flag.IntVar(&KeyLen, "keylen", 4, "min:1 | default:4")
+	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
 
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
@@ -82,7 +82,7 @@ func main() {
 	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 1000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
