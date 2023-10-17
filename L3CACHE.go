@@ -51,7 +51,7 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Counter = make(map[string]*CCC)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
-		l3.Extend[char] = &StrECH{ch: make(chan string, his.cEvCap)}
+		l3.Extend[char] = &StrECH{ch: make(chan *string, his.cEvCap)}
 		l3.muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 	}
@@ -74,29 +74,61 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	if l3purge < 1 {
 		l3purge = 1
 	}
-	//extends := make(map[string]interface{}, 1024)
-	extends := []string{}
-	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
-	timeout := false
-	start := utils.UnixTimeMilliSec()
-	breakfast, bf := 5000, 0
-	//bfsleep :=  time.Duration(50)
-	var mux sync.Mutex
 
-	go func(mux *sync.Mutex, extends *[]string) {
-		for {
-			select {
-			case key := <-l3.Extend[char].ch: // receives stuff from DelExtL3batch()
-				// got key we will extend in next timer.C run
-				mux.Lock()
-				*extends = append(*extends, key)
-				mux.Unlock()
-			}
-		}
-	}(&mux, &extends)
-
-	go func(mux *sync.Mutex, timer *time.Timer, extends *[]string) {
+	go func(ptr *L3CACHEMAP, mux *sync.RWMutex, cnt *CCC, extendChan *StrECH) {
+		defer log.Printf("LEFT L3T gofunc1 extend [%s]", char)
+		timer := time.NewTimer(time.Duration(l3purge) * time.Second)
+		timeout := false
+		ext, emax := 0, 16384
+		extends := make([]string, emax)
 		//forever:
+		for {
+		forextends:
+			for {
+				select {
+				case <-timer.C:
+					timeout = true
+					break forextends
+				case key := <-extendChan.ch: // receives stuff from DelExtL3batch()
+					if key == nil {
+						log.Printf("ERROR L3 extend ch received nil hash")
+						continue forextends
+					}
+					// got key we will extend in next timer.C run
+					extends = append(extends, *key)
+					ext++
+					if ext >= emax {
+						timeout = true
+						break forextends
+					}
+				} // end select
+			} // end forextends
+			if (timeout && ext > 0) || ext >= emax {
+				now := utils.UnixTimeSec()
+				//logf(DEBUG, "L3 [%s] extends=%d", char, len(extends))
+				mux.Lock()
+				for _, key := range extends {
+					if _, exists := ptr.cache[key]; exists {
+						ptr.cache[key].expires = now + L3ExtendExpires
+						cnt.Counter["Count_BatchD"]++
+					}
+				}
+				mux.Unlock()
+				extends = nil
+				timeout = false
+				ext = 0
+				timer.Reset(time.Duration(l3purge) * time.Second)
+			}
+		} // end forever
+	}(l3.Caches[char], &l3.muxers[char].mux, l3.Counter[char], l3.Extend[char]) // end gofunc1
+
+	go func(ptr *L3CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
+		defer log.Printf("LEFT L3T gofunc2 delete [%s]", char)
+		timer := time.NewTimer(time.Duration(l3purge) * time.Second)
+		timeout := false
+		start := utils.UnixTimeMilliSec()
+		now := int64(start / 1000)
+	forever:
 		for {
 			if timeout {
 				timeout = false
@@ -106,51 +138,33 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			case <-timer.C:
 				timeout = true
 				start = utils.UnixTimeMilliSec()
-				now := int64(start / 1000)
+				now = int64(start / 1000)
 
-				l3.muxers[char].mux.Lock()
 				mux.Lock()
-				//doExtends:
-				for _, key := range *extends {
-					if _, exists := l3.Caches[char].cache[key]; exists {
-						l3.Caches[char].cache[key].expires = now + L3ExtendExpires
-						l3.Counter[char].Counter["Count_BatchD"]++
-					}
-				}
-				//logf(DEBUGL3 && len(extends) > 0, "L3 [%s] extends=%d", char, len(extends))
-				*extends = nil
-				mux.Unlock()
-
-			getexpired:
-				for key, item := range l3.Caches[char].cache {
+				//getexpired:
+				for key, item := range ptr.cache {
 					if item.expires > 0 && item.expires < now {
 						//logf(DEBUG, "L3 expire [%s] key='%#v' item='%#v'", char, key, item)
 						cleanup = append(cleanup, key)
-						bf++
-						if bf >= breakfast {
-							timeout, bf = false, 0
-							//timer.Reset(bfsleep * time.Millisecond)
-							break getexpired
-						}
 					}
 				} // end for getexpired
 
-				//maplen := len(l3.Caches[char].cache)
+				//maplen := len(ptr.cache)
 				if len(cleanup) > 0 {
 					//maplen -= len(cleanup)
 					for _, key := range cleanup {
-						delete(l3.Caches[char].cache, key)
+						delete(ptr.cache, key)
 						l3.Counter[char].Counter["Count_Delete"]++
 					}
-					//logf(DEBUGL3, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+					//logf(DEBUG, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
-				l3.muxers[char].mux.Unlock()
+				mux.Unlock()
 				cleanup = nil
 				//logf(DEBUG, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+				continue forever
 			} // end select
 		} // end for
-	}(&mux, timer, &extends)
-
+	}(l3.Caches[char], &l3.muxers[char].mux, l3.Counter[char]) // end gofunc2
 } //end func L3Cache_Thread
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
@@ -248,7 +262,7 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 	}
 	if flagCacheDelExt == FlagCacheChanExtend {
 		for _, item := range tmpKey {
-			if item.key != "" {
+			if item.key != nil && *item.key != "" {
 				/*
 					if DEBUG {
 						lench := len(l3.Extend[char].ch)
@@ -265,14 +279,14 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 	now := utils.UnixTimeSec()
 	l3.muxers[char].mux.Lock()
 	for _, item := range tmpKey {
-		if item.key != "" {
-			if _, exists := l3.Caches[char].cache[item.key]; exists {
+		if item.key != nil && *item.key != "" {
+			if _, exists := l3.Caches[char].cache[*item.key]; exists {
 				switch flagCacheDelExt {
 				case FlagCacheSyncDelete:
-					delete(l3.Caches[char].cache, item.key)
+					delete(l3.Caches[char].cache, *item.key)
 				case FlagCacheSyncExtend:
 					// dont delete from cache but extend expiry time
-					l3.Caches[char].cache[item.key].expires = now + L3ExtendExpires
+					l3.Caches[char].cache[*item.key].expires = now + L3ExtendExpires
 				}
 				l3.Counter[char].Counter["Count_BatchD"]++
 			}
