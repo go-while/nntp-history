@@ -9,10 +9,11 @@ import (
 )
 
 var (
+	// set only once before boot
 	TCPchanQ           = 128
-	DefaultDialTimeout = 5    // seconds
-	DefaultRetryWaiter = 3000 // milliseconds
-	DefaultDialRetries = -1   // try N times and fail or <= 0 enables infinite retry
+	DefaultDialTimeout = 5   // seconds
+	DefaultRetryWaiter = 500 // milliseconds
+	DefaultDialRetries = -1  // try N times and fail or <= 0 enables infinite retry
 )
 
 // holds connection to historyServer
@@ -34,13 +35,15 @@ func (his *HISTORY) BootHistoryClient(historyServer string) {
 	log.Printf("...connecting to historyServer='%s'", historyServer)
 	dead := make(chan struct{}, 1)
 	failed := 0
+	if DefaultRetryWaiter <= 100 {
+		DefaultRetryWaiter = 100
+	}
+
 forever:
 	for {
 		rconn := his.NewRConn(historyServer)
 		if rconn == nil {
-			if DefaultRetryWaiter > 0 {
-				time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
-			}
+			time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
 			if DefaultDialRetries > 0 {
 				if failed >= DefaultDialRetries {
 					break forever
@@ -52,7 +55,7 @@ forever:
 		failed = 0
 		go his.handleRConn(dead, rconn.conn, rconn.tp)
 		<-dead // locking wait for handleRemote to quit
-		time.Sleep(1 * time.Millisecond)
+		time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
 	}
 } // end func BootHistoryClient
 
@@ -72,6 +75,7 @@ func (his *HISTORY) NewRConn(historyServer string) *RemoteConn {
 		log.Printf("Error in NewConn response")
 		return nil
 	}
+	log.Printf("Connected to historyServer='%s'", historyServer)
 	return &RemoteConn{conn: conn, tp: tp}
 } // end func NewRConn
 
