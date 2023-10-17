@@ -6,66 +6,74 @@ import (
 	"net"
 	"net/textproto"
 	"os"
-	"strings"
-	//"encoding/json"
 	"strconv"
+	"strings"
+	"sync"
 )
 
 const (
-	CR   = "\r"
-	LF   = "\n"
-	CRLF = CR + LF
+	CR        = "\r"
+	LF        = "\n"
+	CRLF      = CR + LF
+	ListenTCP = "[::1]:49119" // default launches a tcp port with a telnet interface @ localhost:49119
 )
 
 var (
-	ListenTCP  = "[::1]:49119" // launches a tcp port with a telnet interface
+	acl        ACL
 	SocketPath = "./socket.sock"
 )
 
 func (his *HISTORY) startSocket(tcpListen string) {
-	// Remove the socket file if it already exists
-	os.Remove(SocketPath)
 
-	listenerS, err := net.Listen("unix", SocketPath)
-	if err != nil {
-		log.Printf("Error creating socket err='%v'", err)
-		os.Exit(1)
-	}
-	log.Printf("UnixSocket: %s", SocketPath)
-
-	listenerT, err := net.Listen("tcp", tcpListen)
-	if err != nil {
-		log.Printf("Error creating tcpListen err='%v'", err)
-		os.Exit(1)
-	}
-	log.Printf("ListenTCP: %s", tcpListen)
-
-	go func(listener net.Listener) {
-		defer listener.Close()
-		for {
-			conn, err := listenerS.Accept()
-			if err != nil {
-				log.Printf("Error accepting socket err='%v'", err)
-				continue
-			}
-			go his.handleSocketConn(conn, true)
+	// socket listener
+	go func() {
+		os.Remove(SocketPath)
+		listener, err := net.Listen("unix", SocketPath)
+		if err != nil {
+			log.Printf("Error creating socket err='%v'", err)
+			os.Exit(1)
 		}
-
-	}(listenerS)
-	go func(listener net.Listener) {
+		log.Printf("UnixSocket: %s", SocketPath)
 		defer listener.Close()
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
+				log.Printf("Error accepting socket err='%v'", err)
+				continue
+			}
+			go his.handleSocketConn(conn, "", true)
+		}
+	}()
+
+	// tcp listener
+	go func() {
+		acl.SetupACL()
+		listener, err := net.Listen("tcp", tcpListen)
+		if err != nil {
+			log.Printf("Error creating tcpListen err='%v'", err)
+			os.Exit(1)
+		}
+		log.Printf("ListenTCP: %s", tcpListen)
+		defer listener.Close()
+		for {
+			conn, err := listener.Accept()
+			raddr := getRemoteIP(conn)
+			if !checkACL(conn) {
+				log.Printf("HistoryServer !ACL: '%s'", raddr)
+				conn.Close()
+				continue
+			}
+			if err != nil {
 				log.Printf("Error accepting tcp err='%v'", err)
 				continue
 			}
-			go his.handleSocketConn(conn, false)
+			log.Printf("HistoryServer newC: '%s'", raddr)
+			go his.handleSocketConn(conn, raddr, false)
 		}
-	}(listenerT)
+	}()
 } // end func startSocket
 
-func (his *HISTORY) handleSocketConn(conn net.Conn, socket bool) {
+func (his *HISTORY) handleSocketConn(conn net.Conn, raddr string, socket bool) {
 	defer conn.Close()
 	tp := textproto.NewConn(conn)
 	if !socket {
@@ -96,18 +104,6 @@ forever:
 		case "QUIT":
 			tp.PrintfLine("205 CIAO")
 			break forever
-		/*
-			case "DUP": // search
-				hobj, err := ConvertStringToHistoryObject(ARGS)
-				if err != nil {
-					log.Printf("ERROR handleConn conn='%#v' ConvertStringToHistoryObject err='%v'", conn, err)
-					tp.PrintfLine("400 HOBJ DUP ERR")
-					continue forever
-				}
-				// receives a line containing the HistoryObject values as text
-				log.Printf("handleConn DUP '%#v'", hobj)
-				// TODO add sequence to IndexQuery() //
-		*/
 		case "ADD":
 			hobj, err := ConvertStringToHistoryObject(ARGS)
 			if hobj == nil || err != nil {
@@ -122,10 +118,9 @@ forever:
 			added++
 			tadded++
 			if tadded >= 10000 {
-				log.Printf("SOCKET handleConnn added=%d", added)
+				log.Printf("HistoryServer handleConnn: raddr='%s' added=%d", raddr, added)
 				tadded = 0
 			}
-
 		}
 	}
 	log.Printf("handleConn LEFT: %#v", conn)
@@ -156,4 +151,51 @@ func ConvertStringToHistoryObject(parts []string) (*HistoryObject, error) {
 		Date:          date,
 	}
 	return obj, nil
+}
+
+func getRemoteIP(conn net.Conn) string {
+	remoteAddr := conn.RemoteAddr()
+	if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
+		return fmt.Sprintf("%s", tcpAddr.IP)
+	}
+	return "x"
+}
+
+func checkACL(conn net.Conn) bool {
+	return acl.IsAllowed(getRemoteIP(conn))
+}
+
+type ACL struct {
+	mux sync.RWMutex
+	acl map[string]bool
+}
+
+func (a *ACL) SetupACL() {
+	a.mux.Lock()
+	defer a.mux.Unlock()
+	if a.acl != nil {
+		return
+	}
+	a.acl = make(map[string]bool)
+	if DEBUG {
+		a.acl["127.0.0.1"] = true
+		a.acl["::1"] = true
+	}
+}
+
+func (a *ACL) IsAllowed(ip string) bool {
+	a.mux.RLock()
+	retval := a.acl[ip]
+	a.mux.RUnlock()
+	return retval
+}
+
+func (a *ACL) SetACL(ip string, val bool) {
+	a.mux.Lock()
+	defer a.mux.Unlock()
+	if !val { // unset
+		delete(a.acl, ip)
+		return
+	}
+	a.acl[ip] = val
 }
