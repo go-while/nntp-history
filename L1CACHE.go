@@ -125,7 +125,7 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		l1purge = 1
 	}
 
-	go func(ptr *L1CACHEMAP, mux *sync.Mutex, cnt *CCC, extendChan *StrECH) {
+	go func(ptr *L1CACHEMAP, mux *sync.RWMutex, cnt *CCC, extendChan *StrECH) {
 		defer log.Printf("LEFT L1T gofunc1 extend [%s]", char)
 		timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 		timeout := false
@@ -174,12 +174,12 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		} //end forever
 	}(l1.Caches[char], &l1.muxers[char].mux, l1.Counter[char], l1.Extend[char]) // end gofunc1
 
-	go func(ptr *L1CACHEMAP, mux *sync.Mutex, cnt *CCC) {
+	go func(ptr *L1CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
 		defer log.Printf("LEFT L1T gofunc2 delete [%s]", char)
 		timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 		start := utils.UnixTimeMilliSec()
 		now := int64(start / 1000)
-	forever:
+		//forever:
 		for {
 			select {
 			case <-timer.C:
