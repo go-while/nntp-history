@@ -198,14 +198,18 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	switch keyalgo {
 	case HashShort:
 		his.keyalgo = HashShort
-	case HashFNV32:
-		his.keyalgo = HashFNV32
-	case HashFNV32a:
-		his.keyalgo = HashFNV32a
-	case HashFNV64:
-		his.keyalgo = HashFNV64
-	case HashFNV64a:
-		his.keyalgo = HashFNV64a
+	/*
+		 *
+		case HashFNV32:
+			his.keyalgo = HashFNV32
+		case HashFNV32a:
+			his.keyalgo = HashFNV32a
+		case HashFNV64:
+			his.keyalgo = HashFNV64
+		case HashFNV64a:
+			his.keyalgo = HashFNV64a
+		*
+	*/
 	default:
 		log.Printf("ERROR History_Boot unknown keyalgo")
 		return
@@ -259,14 +263,18 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		switch history_settings.KeyAlgo {
 		case HashShort:
 			// pass
-		case HashFNV32:
-			// pass
-		case HashFNV32a:
-			// pass
-		case HashFNV64:
-			// pass
-		case HashFNV64a:
-			// pass
+		/*
+			 *
+			case HashFNV32:
+				// pass
+			case HashFNV32a:
+				// pass
+			case HashFNV64:
+				// pass
+			case HashFNV64a:
+				// pass
+			*
+		*/
 		default:
 			log.Printf("ERROR History_Boot gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.KeyAlgo)
 			os.Exit(1)
