@@ -18,7 +18,7 @@ var (
 	BoltDB_MaxBatchDelay        = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
 	BoltDB_MaxBatchSize  int    = 1000                  // default value from boltdb:db.go = 1000
 	CharBucketBatchSize  int    = 512                   // default batchsize per char:bucket batchqueues
-	emptyStr             string                         // used as pointer
+	EmptyStr             string                         // used as pointer
 )
 
 func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
@@ -144,10 +144,11 @@ fetchbatch:
 			//	continue
 			//}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
-			his.DoCacheEvict(bo.char, bo.hash, 0, bo.char+bo.bucket+bo.key)
+			cachekey := bo.char + bo.bucket + bo.key
+			his.DoCacheEvict(bo.char, &bo.hash, 0, &cachekey)
 			for _, offset := range bo.offsets {
 				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
-				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset, nil), emptyStr, offset, emptyStr)
+				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), &EmptyStr, offset, &EmptyStr)
 			}
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
