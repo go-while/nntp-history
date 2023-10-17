@@ -25,6 +25,7 @@ const (
 	CaseAdded            = 0x3C         // is a reply to WriterChan:responseChan
 	CaseWrite            = 0x4C         // internal cache state. is not a reply. reply with CaseRetry while CaseWrite is happening
 	CaseError            = 0xE1         // some things drop this error
+	ZEROPADLEN           = 32768 - 1    // zeropads the header
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
@@ -69,33 +70,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.useHashDB = true
 	}
 	go his.startSocket()
-	switch BUCKETSperDB {
-	// BUCKETSperDB defines startindex cutFirst for cutHashlen!
-	case 16:
-		his.cutFirst = 2
-		for _, c1 := range HEXCHARS {
-			ALLBUCKETS = append(ALLBUCKETS, c1)
-		}
-	case 256:
-		his.cutFirst = 3
-		for _, c1 := range HEXCHARS {
-			for _, c2 := range HEXCHARS {
-				ALLBUCKETS = append(ALLBUCKETS, c1+c2)
-			}
-		}
-	case 4096:
-		his.cutFirst = 4
-		for _, c1 := range HEXCHARS {
-			for _, c2 := range HEXCHARS {
-				for _, c3 := range HEXCHARS {
-					ALLBUCKETS = append(ALLBUCKETS, c1+c2+c3)
-				}
-			}
-		}
-	default:
-		log.Printf("ERROR History_Boot BUCKETSperDB invalid")
-		os.Exit(1)
-	}
 	rand.Seed(time.Now().UnixNano())
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
@@ -221,7 +195,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 
 	// default history settings
-	history_settings := &HistorySettings{KeyAlgo: his.keyalgo, KeyLen: his.keylen}
+	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Bp: BUCKETSperDB, Ki: KEYINDEX}
 
 	// opens history.dat
 	var fh *os.File
@@ -247,6 +221,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot writeHistoryHeader err='%v'", err)
 			os.Exit(1)
 		}
+		his.bUCKETSperDB = history_settings.Bp
+		his.keyIndex = history_settings.Ki
+
 	} else {
 		var header []byte
 		// read history.dat header history_settings
@@ -260,7 +237,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}
-		switch history_settings.KeyAlgo {
+		switch history_settings.Ka { // KeyAlgo
 		case HashShort:
 			// pass
 		/*
@@ -276,14 +253,45 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			*
 		*/
 		default:
-			log.Printf("ERROR History_Boot gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.KeyAlgo)
+			log.Printf("ERROR History_Boot gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.Ka)
 			os.Exit(1)
 		}
-		his.keyalgo = history_settings.KeyAlgo
-		his.keylen = history_settings.KeyLen
+		his.keyalgo = history_settings.Ka
+		his.keylen = history_settings.Kl
+
 		//logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
 	his.Counter = make(map[string]uint64)
+	his.bUCKETSperDB = history_settings.Bp
+	his.keyIndex = history_settings.Ki
+
+	switch his.bUCKETSperDB {
+	// his.bUCKETSperDB defines startindex cutFirst for cutHashlen!
+	case 16:
+		his.cutFirst = 2
+		for _, c1 := range HEXCHARS {
+			ALLBUCKETS = append(ALLBUCKETS, c1)
+		}
+	case 256:
+		his.cutFirst = 3
+		for _, c1 := range HEXCHARS {
+			for _, c2 := range HEXCHARS {
+				ALLBUCKETS = append(ALLBUCKETS, c1+c2)
+			}
+		}
+	case 4096:
+		his.cutFirst = 4
+		for _, c1 := range HEXCHARS {
+			for _, c2 := range HEXCHARS {
+				for _, c3 := range HEXCHARS {
+					ALLBUCKETS = append(ALLBUCKETS, c1+c2+c3)
+				}
+			}
+		}
+	default:
+		log.Printf("ERROR History_Boot his.bUCKETSperDB invalid=%x", his.bUCKETSperDB)
+		os.Exit(1)
+	}
 
 	his.L1Cache.L1CACHE_Boot(his)
 	his.CacheEvictThread()
@@ -533,7 +541,7 @@ func writeHistoryHeader(dw *bufio.Writer, data []byte, offset *int64, flush bool
 	if dw == nil {
 		return fmt.Errorf("ERROR writeHistoryHeader dw=nil")
 	}
-	if len(data) != 254 { // ZEROPADLEN
+	if len(data) != ZEROPADLEN { // ZEROPADLEN
 		return fmt.Errorf("ERROR writeHistoryHeader data=nil")
 	}
 	if offset == nil {
