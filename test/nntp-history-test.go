@@ -124,8 +124,8 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		history.BoltDB_MaxBatchSize = 256                    // = history.BUCKETSperDB // 0 disables boltdb internal batching. default: 1000
-		history.BoltDB_MaxBatchDelay = 32 * time.Millisecond // default: 10 * time.Millisecond
+		//history.BoltDB_MaxBatchSize = 256                    // = history.BUCKETSperDB // 0 disables boltdb internal batching. default: 1000
+		//history.BoltDB_MaxBatchDelay = 32 * time.Millisecond // default: 10 * time.Millisecond
 
 		// AllocSize is the amount of space allocated when the database
 		// needs to create new pages. This is done to amortize the cost
@@ -290,13 +290,13 @@ func main() {
 				case history.CaseDupes:
 					// we locked the hash but IndexQuery replied with Duplicate
 					// set L1 cache to Dupe and expire
-					history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
+					//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
 					dupes++
 					continue fortodo
 				case history.CaseRetry:
 					// we locked the hash but IndexQuery replied with Retry
 					// set L1 cache to Retry and expire
-					history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
+					//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
 					retry++
 					continue fortodo
 				default:
@@ -416,6 +416,21 @@ func debug_pprof(addr string) {
 		}
 	}()
 } // end func debug_pprof
+
+func MemoryProfile(duration time.Duration) error {
+	filename := "mem.pprof.out"
+	f, err := os.Create(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	if err := pprof.WriteHeapProfile(f); err != nil {
+		return err
+	}
+	// Start memory profiling
+	pprof.Lookup("heap").WriteTo(f, 0)
+	return nil
+}
 
 func startCPUProfile() (*os.File, error) {
 	cpuProfileFile, err := os.Create("cpu.pprof.out")
