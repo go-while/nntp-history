@@ -131,12 +131,6 @@ forever:
 	log.Printf("handleConn LEFT: %#v", conn)
 } // end func handleConn
 
-// holds connection to historyServer
-type RemoteConn struct {
-	conn net.Conn
-	tp   *textproto.Conn
-}
-
 func ConvertStringToHistoryObject(parts []string) (*HistoryObject, error) {
 	if len(parts) != 6 {
 		return nil, fmt.Errorf("Invalid input string format")
