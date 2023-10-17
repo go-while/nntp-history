@@ -217,10 +217,9 @@ func main() {
 			// delay start
 			//time.Sleep(time.Duration(time.Duration(p*p*p) * time.Second))
 			log.Printf("Launch p=%d", p)
-			var responseChan chan int
+			responseChan := make(chan int, 1)
 			var IndexRetChan chan int
 			if useHashDB {
-				responseChan = make(chan int, 1)
 				IndexRetChan = make(chan int, 1)
 			}
 			var spam, spammer, dupes, added, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, errors, locked uint64
@@ -282,31 +281,33 @@ func main() {
 					continue fortodo
 				}
 
-				isDup, err := history.History.IndexQuery(hash, IndexRetChan, history.FlagSearch)
-				if err != nil {
-					log.Printf("FALSE IndexQuery hash=%s", hash)
-					break fortodo
-				}
-				switch isDup {
-				case history.CasePass:
-					// pass
-				case history.CaseDupes:
-					// we locked the hash but IndexQuery replied with Duplicate
-					// set L1 cache to Dupe and expire
-					//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
-					history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
-					dupes++
-					continue fortodo
-				case history.CaseRetry:
-					// we locked the hash but IndexQuery replied with Retry
-					// set L1 cache to Retry and expire
-					//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
-					history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
-					retry++
-					continue fortodo
-				default:
-					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
-					break fortodo
+				if useHashDB {
+					isDup, err := history.History.IndexQuery(hash, IndexRetChan, history.FlagSearch)
+					if err != nil {
+						log.Printf("FALSE IndexQuery hash=%s", hash)
+						break fortodo
+					}
+					switch isDup {
+					case history.CasePass:
+						// pass
+					case history.CaseDupes:
+						// we locked the hash but IndexQuery replied with Duplicate
+						// set L1 cache to Dupe and expire
+						//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
+						history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
+						dupes++
+						continue fortodo
+					case history.CaseRetry:
+						// we locked the hash but IndexQuery replied with Retry
+						// set L1 cache to Retry and expire
+						//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
+						history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
+						retry++
+						continue fortodo
+					default:
+						log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
+						break fortodo
+					}
 				}
 
 				// if we are here, hash is not a duplicate in hashdb.
@@ -328,7 +329,8 @@ func main() {
 					ResponseChan:  responseChan,
 				}
 
-				isDup = history.History.AddHistory(hobj, useL1Cache)
+				//log.Printf("p=%d i=%d -> AddHistory", p, i)
+				isDup := history.History.AddHistory(hobj, useL1Cache)
 				switch isDup {
 				case history.CaseAdded:
 					added++
@@ -341,6 +343,7 @@ func main() {
 					log.Printf("main: ERROR fortodo unknown switch isDup=%d from AddHistory", isDup)
 					break fortodo
 				}
+				//log.Printf("main: p=%d i=%d isDup=%x", p, i, isDup)
 
 			} // end for i todo
 			sum := added + dupes + cLock + addretry + retry + adddupes + cdupes + cretry1 + cretry2
