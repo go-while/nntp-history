@@ -58,6 +58,7 @@ type HISTORY struct {
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
 	bUCKETSperDB   int
 	keyIndex       int
+	TCPchan        chan *HistoryObject
 }
 
 /* builds the history.dat header */
