@@ -6,9 +6,10 @@ import (
 	"sync"
 	"time"
 )
+
 /*
-	L3Cache: key => offsets
-	less requests to boltDB
+L3Cache: key => offsets
+less requests to boltDB
 */
 var (
 	DEBUGL3         bool  = false
@@ -130,11 +131,10 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 		timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 		start := utils.UnixTimeMilliSec()
 		now := int64(start / 1000)
-	forever:
+		//forever:
 		for {
 			select {
 			case <-timer.C:
-				timeout = true
 				start = utils.UnixTimeMilliSec()
 				now = int64(start / 1000)
 
