@@ -81,34 +81,63 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 	if l2purge < 1 {
 		l2purge = 1
 	}
-	extends := []int64{}
-	timer := time.NewTimer(time.Duration(l2purge) * time.Second)
-	timeout := false
-	breakfast, bf := 5000, 0
-	//bfsleep :=  time.Duration(50)
-	var mux sync.Mutex
 
-	go func(mux *sync.Mutex, extends *[]int64) {
-	forextends:
-		for {
-			select {
-			case item := <-l2.Extend[char]: // receives stuff from DelExtL2batch()
-				// got offset we will extend in next timer.C run
-				if char != item.char {
-					log.Printf("ERROR L2 [%s] char != extends[offset=%d].char='%s'", char, item.offset, item.char)
-					continue forextends
-				}
-				if item.offset > 0 {
-					mux.Lock()
-					*extends = append(*extends, item.offset)
-					mux.Unlock()
-				}
-			}
-		}
-	}(&mux, &extends)
-
-	go func(mux *sync.Mutex, timer *time.Timer, extends *[]int64) {
+	go func(ptr *L2CACHEMAP, mux *sync.RWMutex, cnt *CCC, extendChan chan *ClearCache) {
+		defer log.Printf("LEFT L2T gofunc1 extend [%s]", char)
+		timer := time.NewTimer(time.Duration(l2purge) * time.Second)
+		timeout := false
+		ext, emax := 0, 16384
+		extends := make([]int64, emax)
 		//forever:
+		for {
+		forextends:
+			for {
+				select {
+				case <-timer.C:
+					timeout = true
+					break forextends
+				case item := <-extendChan: // receives stuff from DelExtL2batch()
+					// got offset we will extend in next timer.C run
+					if char != item.char {
+						log.Printf("ERROR L2 [%s] char != extends[offset=%d].char='%s'", char, item.offset, item.char)
+						continue forextends
+					}
+					if item.offset > 0 {
+						extends = append(extends, item.offset)
+						ext++
+						if ext >= emax {
+							timeout = true
+							break forextends
+						}
+					}
+				} // end select
+			} // end forextends
+			if (timeout && ext > 0) || ext >= emax {
+				now := utils.UnixTimeSec()
+				//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
+				mux.Lock()
+				for _, offset := range extends {
+					if _, exists := ptr.cache[offset]; exists {
+						ptr.cache[offset].expires = now + L2ExtendExpires
+						cnt.Counter["Count_BatchD"]++
+					}
+				}
+				mux.Unlock()
+				extends = nil
+				timeout = false
+				ext = 0
+				timer.Reset(time.Duration(l2purge) * time.Second)
+			}
+		} // end forever
+	}(l2.Caches[char], &l2.muxers[char].mux, l2.Counter[char], l2.Extend[char]) // end gofunc1
+
+	go func(ptr *L2CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
+		defer log.Printf("LEFT L2T gofunc2 delete [%s]", char)
+		timer := time.NewTimer(time.Duration(l2purge) * time.Second)
+		timeout := false
+		start := utils.UnixTimeMilliSec()
+		now := int64(start / 1000)
+	forever:
 		for {
 			if timeout {
 				timeout = false
@@ -117,52 +146,34 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 			select {
 			case <-timer.C:
 				timeout = true
-				start := utils.UnixTimeMilliSec()
-				now := int64(start / 1000)
+				start = utils.UnixTimeMilliSec()
+				now = int64(start / 1000)
 
-				l2.muxers[char].mux.Lock()
 				mux.Lock()
-				//doExtends:
-				for _, offset := range *extends {
-					if _, exists := l2.Caches[char].cache[offset]; exists {
-						l2.Caches[char].cache[offset].expires = now + L2ExtendExpires
-						//l2.Counter[char].Counter["Count_BatchD"]++
-					}
-				}
-				//logf(DEBUGL2 && len(extends) > 0, "L2 [%s] extends=%d", char, len(extends))
-				*extends = nil
-				mux.Unlock()
-
-			getexpired:
-				for offset, item := range l2.Caches[char].cache {
+				//getexpired:
+				for offset, item := range ptr.cache {
 					if item.expires > 0 && item.expires < now {
 						//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v' age=%d l2exp=%d", char, offset, item, now-item.addtime, L2CacheExpires)
 						cleanup = append(cleanup, offset)
-						bf++
-						if bf >= breakfast {
-							timeout, bf = false, 0
-							//timer.Reset(bfsleep * time.Millisecond)
-							break getexpired
-						}
 					}
 				} // end for getexpired
 
-				//maplen := len(l2.Caches[char].cache)
+				//maplen := len(ptr.cache)
 				if len(cleanup) > 0 {
 					//maplen -= len(cleanup)
 					for _, offset := range cleanup {
-						delete(l2.Caches[char].cache, offset)
-						l2.Counter[char].Counter["Count_Delete"]++
+						delete(ptr.cache, offset)
+						cnt.Counter["Count_Delete"]++
 					}
-					//logf(DEBUGL2, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+					//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
-				l2.muxers[char].mux.Unlock()
+				mux.Unlock()
 				cleanup = nil
 				//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+				continue forever
 			} // end select
 		} // end for
-	}(&mux, timer, &extends)
-
+	}(l2.Caches[char], &l2.muxers[char].mux, l2.Counter[char]) // end gofunc2
 } //end func L2Cache_Thread
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
