@@ -141,8 +141,8 @@ type BLCH struct {
 }
 
 type ClearCache struct {
-	char   string // db
-	hash   string // l1 key
-	offset int64  // l2 key
-	key    string // l3 key
+	char   string  // db
+	hash   *string // l1 key
+	offset int64   // l2 key
+	key    *string // l3 key
 }
