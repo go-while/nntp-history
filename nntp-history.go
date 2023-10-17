@@ -69,7 +69,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if useHashDB {
 		his.useHashDB = true
 	}
-	go his.startSocket(ListenTCP)
+	go his.startSocket(DefaultListenTCPAddr)
 	rand.Seed(time.Now().UnixNano())
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
