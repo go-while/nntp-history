@@ -253,32 +253,34 @@ func main() {
 				//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 				//}
 
-				retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
-				switch retval {
-				case history.CasePass:
-					//history.History.Sync_upcounter("L1CACHE_Lock")
-					locked++
-					// pass
-				case history.CaseLock:
-					// cache hits, already in processing
-					cLock++
-					continue fortodo
-				case history.CaseDupes:
-					cdupes++
-					continue fortodo
-				case history.CaseWrite:
-					cretry1++
-					continue fortodo
-				case history.CaseRetry:
-					cretry2++
-					continue fortodo
-				default:
-					log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
-					break fortodo
-				}
+				if useHashDB || useL1Cache {
+					retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
+					switch retval {
+					case history.CasePass:
+						//history.History.Sync_upcounter("L1CACHE_Lock")
+						locked++
+						// pass
+					case history.CaseLock:
+						// cache hits, already in processing
+						cLock++
+						continue fortodo
+					case history.CaseDupes:
+						cdupes++
+						continue fortodo
+					case history.CaseWrite:
+						cretry1++
+						continue fortodo
+					case history.CaseRetry:
+						cretry2++
+						continue fortodo
+					default:
+						log.Printf("main: ERROR LockL1Cache unknown switch retval=%d=0x%X", retval, retval)
+						break fortodo
+					}
 
-				if LOCKONLYTEST {
-					continue fortodo
+					if LOCKONLYTEST {
+						continue fortodo
+					}
 				}
 
 				if useHashDB {
