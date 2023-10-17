@@ -204,7 +204,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		cnt.Counter["Count_Set"]++
 	}
 	if _, exists := ptr.cache[offset]; exists {
-		//if l2.Caches[char].cache[offset].hash != hash {
+		//if ptr.cache[offset].hash != hash {
 		//	log.Printf("ERROR L2Cache [%s] SetOffsetHash extend cached hash=%s@offset=%d != hash=%s", char, l2.Caches[char].cache[offset].hash, offset, hash)
 		//	return
 		//}
@@ -225,7 +225,7 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64, rethash *string) {
 	char := l2.OffsetToChar(offset)
 
 	ptr := l2.Caches[char]
-	//cnt := l3.Counter[char]
+	//cnt := l2.Counter[char]
 	mux := l2.muxers[char]
 
 	mux.mux.RLock()
