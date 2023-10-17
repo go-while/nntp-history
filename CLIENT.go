@@ -8,6 +8,13 @@ import (
 	"time"
 )
 
+var (
+	TCPchanQ           = 128
+	DefaultDialTimeout = 5    // seconds
+	DefaultRetryWaiter = 3000 // milliseconds
+	DefaultDialRetries = -1   // try N times and fail or <= 0 enables infinite retry
+)
+
 // holds connection to historyServer
 type RemoteConn struct {
 	conn net.Conn
@@ -15,31 +22,42 @@ type RemoteConn struct {
 }
 
 func (his *HISTORY) BootHistoryClient(historyServer string) {
+	// one can launch as many clients to historyServer as needed
+	his.mux.Lock()
+	if his.TCPchan == nil {
+		his.TCPchan = make(chan *HistoryObject, TCPchanQ)
+	}
+	his.mux.Unlock()
 	if historyServer == "" {
 		historyServer = ListenTCP
 	}
-	his.mux.Lock()
-	if his.TCPchan != nil {
-		return
-	}
-	his.TCPchan = make(chan *HistoryObject, 128)
-	log.Printf("BootHistoryClient historyServer='%s'", historyServer)
+	log.Printf("...connecting to historyServer='%s'", historyServer)
 	dead := make(chan struct{}, 1)
+	failed := 0
 forever:
 	for {
 		rconn := his.NewRConn(historyServer)
 		if rconn == nil {
-			time.Sleep(3 * time.Second)
+			if DefaultRetryWaiter > 0 {
+				time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
+			}
+			if DefaultDialRetries > 0 {
+				if failed >= DefaultDialRetries {
+					break forever
+				}
+				failed++
+			}
 			continue forever
 		}
+		failed = 0
 		go his.handleRConn(dead, rconn.conn, rconn.tp)
 		<-dead // locking wait for handleRemote to quit
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 } // end func BootHistoryClient
 
 func (his *HISTORY) NewRConn(historyServer string) *RemoteConn {
-	conn, err := net.Dial("tcp", historyServer)
+	conn, err := net.DialTimeout("tcp", historyServer, time.Duration(DefaultDialTimeout)*time.Second)
 	if err != nil {
 		log.Printf("Error NewConn Dial err='%v'", err)
 		return nil
