@@ -174,7 +174,6 @@ func main() {
 	}
 	start := utils.UnixTimeSec()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
-	fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 
 	if RunTCPonly {
 
@@ -253,6 +252,9 @@ func main() {
 
 	if offset >= 0 {
 		history.NoReplayHisDat = true
+	}
+	if useHashDB {
+		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
 	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	history.History.Wait4HashDB()
