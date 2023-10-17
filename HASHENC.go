@@ -7,7 +7,6 @@ import (
 	"hash/crc32"
 	//"encoding/hex"
 	"fmt"
-	"hash/fnv"
 	"log"
 	"os"
 	"strconv"
@@ -125,34 +124,6 @@ func NullPad(input *string, length int) {
 func RemoveNullPad(input string) string {
 	return strings.Replace(input, "\x00", "", -1)
 } // RemoveZeroPad
-
-func FNV32S(data string) (key string) {
-	hash := fnv.New32()
-	hash.Write([]byte(data))
-	key = fmt.Sprintf("%d", hash.Sum32())
-	return
-} // end func FNV32S
-
-func FNV32aS(data string) (key string) {
-	hash := fnv.New32a()
-	hash.Write([]byte(data))
-	key = fmt.Sprintf("%d", hash.Sum32())
-	return
-} // end func FNV32aS
-
-func FNV64S(data string) (key string) {
-	hash := fnv.New64()
-	hash.Write([]byte(data))
-	key = fmt.Sprintf("%d", hash.Sum64())
-	return
-} // end func FNV64S
-
-func FNV64aS(data string) (key string) {
-	hash := fnv.New64a()
-	hash.Write([]byte(data))
-	key = fmt.Sprintf("%d", hash.Sum64())
-	return
-} // end func FNV64aS
 
 func CRC(input string) (string, error) {
 	// Convert the string to bytes.
