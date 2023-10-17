@@ -119,14 +119,26 @@ fetchbatch:
 		start1 := utils.UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
-			b := tx.Bucket([]byte(bucket))
-			b.FillPercent = 0.2
+			root := tx.Bucket([]byte(bucket))
+			//root.FillPercent = 0.1
+			//root.FillPercent = 0.3
+			//root.FillPercent = 0.7
+			//root.FillPercent = 0.9
 		batch1insert:
 			for _, bo := range batch1 {
 				//if bo.key == TESTKEY {
 				//	log.Printf("DEBUG [%s|%s] db.Batch TESTKEY='%s' TESTBUK='%s' offsets='%s' bo='%#v'", char, bucket, bo.key, TESTBUK, string(bo.encodedOffsets), bo)
 				//}
-				puterr := b.Put([]byte(bo.key), bo.encodedOffsets)
+				// Setup sub buckets
+				subb, err := root.CreateBucketIfNotExists([]byte(bo.key[0:3])) // subbucket co-exists in boltBucketGetOffsets
+				if err != nil {
+					return err
+				}
+				//subb.FillPercent = 0.1
+				//subb.FillPercent = 0.3
+				//subb.FillPercent = 0.7
+				//subb.FillPercent = 0.9
+				puterr := subb.Put([]byte(bo.key[3:]), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
 				if puterr != nil {
 					err = puterr
 					break batch1insert
