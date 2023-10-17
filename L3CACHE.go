@@ -6,7 +6,10 @@ import (
 	"sync"
 	"time"
 )
-
+/*
+	L3Cache: key => offsets
+	less requests to boltDB
+*/
 var (
 	DEBUGL3         bool  = false
 	L3CacheExpires  int64 = DefaultCacheExpires
@@ -125,22 +128,17 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	go func(ptr *L3CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
 		defer log.Printf("LEFT L3T gofunc2 delete [%s]", char)
 		timer := time.NewTimer(time.Duration(l3purge) * time.Second)
-		timeout := false
 		start := utils.UnixTimeMilliSec()
 		now := int64(start / 1000)
 	forever:
 		for {
-			if timeout {
-				timeout = false
-				timer.Reset(time.Duration(l3purge) * time.Second)
-			}
 			select {
 			case <-timer.C:
 				timeout = true
 				start = utils.UnixTimeMilliSec()
 				now = int64(start / 1000)
 
-				mux.Lock()
+				mux.RLock()
 				//getexpired:
 				for key, item := range ptr.cache {
 					if item.expires > 0 && item.expires < now {
@@ -148,20 +146,22 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 						cleanup = append(cleanup, key)
 					}
 				} // end for getexpired
+				mux.RUnlock()
 
 				//maplen := len(ptr.cache)
 				if len(cleanup) > 0 {
+					mux.Lock()
 					//maplen -= len(cleanup)
 					for _, key := range cleanup {
 						delete(ptr.cache, key)
-						l3.Counter[char].Counter["Count_Delete"]++
+						cnt.Counter["Count_Delete"]++
 					}
+					mux.Unlock()
 					//logf(DEBUG, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+					cleanup = nil
 				}
-				mux.Unlock()
-				cleanup = nil
 				//logf(DEBUG, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-				continue forever
+				timer.Reset(time.Duration(l3purge) * time.Second)
 			} // end select
 		} // end for
 	}(l3.Caches[char], &l3.muxers[char].mux, l3.Counter[char]) // end gofunc2
