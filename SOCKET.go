@@ -12,15 +12,16 @@ import (
 )
 
 const (
-	CR        = "\r"
-	LF        = "\n"
-	CRLF      = CR + LF
-	ListenTCP = "[::1]:49119" // default launches a tcp port with a telnet interface @ localhost:49119
+	CR                   = "\r"
+	LF                   = "\n"
+	CRLF                 = CR + LF
+	DefaultListenTCPAddr = "[::]:49119" // default launches a tcp port with a telnet interface @ port 49119
 )
 
 var (
-	acl        ACL
+	ACL        AccessControlList
 	SocketPath = "./socket.sock"
+	DefaultACL map[string]bool // can be set before booting
 )
 
 func (his *HISTORY) startSocket(tcpListen string) {
@@ -30,16 +31,16 @@ func (his *HISTORY) startSocket(tcpListen string) {
 		os.Remove(SocketPath)
 		listener, err := net.Listen("unix", SocketPath)
 		if err != nil {
-			log.Printf("Error creating socket err='%v'", err)
+			log.Printf("ERROR HistoryServer  creating socket err='%v'", err)
 			os.Exit(1)
 		}
-		log.Printf("UnixSocket: %s", SocketPath)
+		log.Printf("HistoryServer UnixSocket: %s", SocketPath)
 		defer listener.Close()
 		for {
 			conn, err := listener.Accept()
 			if err != nil {
-				log.Printf("Error accepting socket err='%v'", err)
-				continue
+				log.Printf("ERROR HistoryServer accepting socket err='%v'", err)
+				return
 			}
 			go his.handleSocketConn(conn, "", true)
 		}
@@ -47,24 +48,24 @@ func (his *HISTORY) startSocket(tcpListen string) {
 
 	// tcp listener
 	go func() {
-		acl.SetupACL()
+		ACL.SetupACL()
 		listener, err := net.Listen("tcp", tcpListen)
 		if err != nil {
-			log.Printf("Error creating tcpListen err='%v'", err)
+			log.Printf("ERROR HistoryServer creating tcpListen err='%v'", err)
 			os.Exit(1)
 		}
-		log.Printf("ListenTCP: %s", tcpListen)
+		log.Printf("HistoryServer ListenTCP: %s", tcpListen)
 		defer listener.Close()
 		for {
 			conn, err := listener.Accept()
 			raddr := getRemoteIP(conn)
+			if err != nil {
+				log.Printf("ERROR HistoryServer  accepting tcp err='%v'", err)
+				return
+			}
 			if !checkACL(conn) {
 				log.Printf("HistoryServer !ACL: '%s'", raddr)
 				conn.Close()
-				continue
-			}
-			if err != nil {
-				log.Printf("Error accepting tcp err='%v'", err)
 				continue
 			}
 			log.Printf("HistoryServer newC: '%s'", raddr)
@@ -77,8 +78,11 @@ func (his *HISTORY) handleSocketConn(conn net.Conn, raddr string, socket bool) {
 	defer conn.Close()
 	tp := textproto.NewConn(conn)
 	if !socket {
-		// send welcome banner to tcp connection
-		tp.PrintfLine("200 history")
+		// send welcome banner to incoming tcp connection
+		err := tp.PrintfLine("200 history")
+		if err != nil {
+			return
+		}
 	}
 	//parts := []string{} 77
 	//ARGS := []string{}
@@ -162,35 +166,35 @@ func getRemoteIP(conn net.Conn) string {
 }
 
 func checkACL(conn net.Conn) bool {
-	return acl.IsAllowed(getRemoteIP(conn))
+	return ACL.IsAllowed(getRemoteIP(conn))
 }
 
-type ACL struct {
+type AccessControlList struct {
 	mux sync.RWMutex
 	acl map[string]bool
 }
 
-func (a *ACL) SetupACL() {
+func (a *AccessControlList) SetupACL() {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 	if a.acl != nil {
 		return
 	}
-	a.acl = make(map[string]bool)
-	if DEBUG {
-		a.acl["127.0.0.1"] = true
-		a.acl["::1"] = true
+	if DefaultACL != nil {
+		a.acl = DefaultACL
+		return
 	}
+	a.acl = make(map[string]bool)
 }
 
-func (a *ACL) IsAllowed(ip string) bool {
+func (a *AccessControlList) IsAllowed(ip string) bool {
 	a.mux.RLock()
 	retval := a.acl[ip]
 	a.mux.RUnlock()
 	return retval
 }
 
-func (a *ACL) SetACL(ip string, val bool) {
+func (a *AccessControlList) SetACL(ip string, val bool) {
 	a.mux.Lock()
 	defer a.mux.Unlock()
 	if !val { // unset
