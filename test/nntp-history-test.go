@@ -176,7 +176,9 @@ func main() {
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
 
 	if RunTCPonly {
-
+		history.DefaultACL = make(map[string]bool)
+		history.DefaultACL["::1"] = true
+		history.DefaultACL["127.0.0.1"] = true
 		history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
