@@ -283,7 +283,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.boltDB_Init(boltOpts)
 	}
 
-	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='#%v'", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings)
+	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='#%v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
@@ -298,6 +298,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 		return -999
 	}
 
+	//logf(DEBUG, "AddHistory hobj='%#v' CHlen=%d CHcap=%d", hobj, len(his.WriterChan), cap(his.WriterChan))
 	his.WriterChan <- hobj // blocks if channel is full
 
 	if (his.useHashDB || useL1Cache) && hobj.ResponseChan != nil {
@@ -313,7 +314,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 			}
 		} // end select
 	} // end responseChan
-	return -999
+	return -987
 } // end func AddHistory
 
 func (his *HISTORY) Wait4HashDB() {
@@ -341,6 +342,7 @@ func (his *HISTORY) Wait4HashDB() {
 // If an index channel (IndexChan) is provided, it also interacts with the history database for duplicate checks.
 // The function periodically flushes the data to the file to ensure data integrity.
 func (his *HISTORY) history_Writer(fh *os.File, dw *bufio.Writer) {
+	log.Printf("start history_Writer")
 	if fh == nil || dw == nil {
 		log.Printf("ERROR history_Writer fh=nil || dw=nil")
 		return
@@ -350,14 +352,16 @@ func (his *HISTORY) history_Writer(fh *os.File, dw *bufio.Writer) {
 	}
 	defer fh.Close()
 	defer UNLOCKfunc(LOCKHISTORY, "history_Writer")
+	log.Printf("start history_Writer Wait4HashDB")
 	his.Wait4HashDB()
+	log.Printf("started history_Writer OK")
 	fileInfo, err := fh.Stat()
 	if err != nil {
 		log.Printf("ERROR history_Writer fh open Stat err='%v'", err)
 		os.Exit(1)
 	}
 	his.Offset = fileInfo.Size()
-	//logf(DEBUG2, "history_Writer opened fp='%s' filesize=%d", his.hisDat, his.Offset)
+	logf(DEBUG, "history_Writer opened fp='%s' filesize=%d", his.hisDat, his.Offset)
 	flush := false // false: will flush when bufio gets full
 	var wbt uint64
 	var wroteLines uint64
@@ -392,8 +396,9 @@ forever:
 			if hobj.Arrival == 0 {
 				hobj.Arrival = utils.UnixTimeSec()
 			}
-			if History.IndexChan != nil {
-				History.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
+
+			if his.useHashDB {
+				his.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
 				select {
 				case isDup, ok := <-indexRetChan:
 					if !ok {
@@ -401,8 +406,8 @@ forever:
 						if hobj.ResponseChan != nil {
 							close(hobj.ResponseChan) // close responseChan to client
 						}
-						if History.IndexChan != nil {
-							History.IndexChan <- nil // stops history_dbz // dont close IndexChan as clients may still send requests
+						if his.IndexChan != nil {
+							his.IndexChan <- nil // stops history_dbz // dont close IndexChan as clients may still send requests
 						}
 						break forever
 					}
@@ -442,14 +447,15 @@ forever:
 						}
 					*/
 				} // end select
-			} // end if History.IndexChan != nil {
-			// DONT! fake inn2 format... we use a lowercased hash and { as indicator, not < or [.
-			// whs := fmt.Sprintf("[%s]\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
-			// not inn2 format
-			//whs := fmt.Sprintf("{%s}\t%d~%s~%d\t%s\n", *hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, *hobj.StorageToken)
+			} // end if History.IndexChan != nil
 			if err := his.writeHistoryLine(dw, hobj, flush, &wbt, &buffered); err != nil {
 				log.Printf("ERROR history_Writer writeHistoryLine err='%v'", err)
 				break forever
+			}
+			if !his.useHashDB {
+				if hobj.ResponseChan != nil {
+					hobj.ResponseChan <- CaseAdded
+				}
 			}
 			wroteLines++
 		} // end select
@@ -472,6 +478,7 @@ func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flus
 	//	log.Printf("writeHistoryLine TESTHASH='%s' offset=%d", hobj.MessageIDHash, his.Offset)
 	//}
 	line := fmt.Sprintf("{%s}\t%010d~%s~%010d\t%s\n", hobj.MessageIDHash, hobj.Arrival, expiresStr, hobj.Date, hobj.StorageToken) // leftpad zeros to 10 digit
+	//logf(DEBUG, "writeHistoryLine='%s'", line)
 	ll := len(line)
 	// check and flush only complete lines
 	if cerr := checkBufioWriteBuffer(dw, ll, bufferedptr); cerr != nil {
@@ -495,6 +502,7 @@ func (his *HISTORY) writeHistoryLine(dw *bufio.Writer, hobj *HistoryObject, flus
 			*bufferedptr = 0
 		}
 	}
+	//logf(DEBUG, "wroteHistoryLine='%s'", line)
 	return nil
 } // end func writeHistoryLine
 
