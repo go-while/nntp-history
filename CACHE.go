@@ -13,10 +13,6 @@ const (
 	FlagExpires      bool  = true
 	FlagNeverExpires bool  = false
 	NoExpiresVal     int64 = -1
-	// CacheEvictThread => his.LXCache.DelExtLXbatch
-	FlagCacheSyncExtend = 0x66
-	FlagCacheSyncDelete = 0x99
-	FlagCacheChanExtend = 0x42
 )
 
 var (
@@ -122,27 +118,27 @@ func (his *HISTORY) PrintCacheStats() {
 } // end func PrintCacheStats
 
 // gets called in BBATCH.go:boltBucketPutBatch() after boltTX
-func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
+func (his *HISTORY) DoCacheEvict(char string, hash *string, offset int64, key *string) {
 	// db
 	if char == "" {
-		log.Printf("ERROR CacheEvict char empty")
+		// char derived from hash or for offset: offset=>hex[lastchar]
+		log.Printf("ERROR CacheEvict char empty.")
 		return
 	}
 	set := 0
-	if hash != "" { // l1
+	if hash != nil && *hash != "" { // l1
 		set++
 	}
 	if offset > 0 { // l2
 		set++
 	}
-	if key != "" { // l3
+	if key != nil && *key != "" { // l3
 		set++
 	}
 	if set <= 0 { // need at least one value
 		log.Printf("ERROR DoCacheEvict no values???")
 		return
 	}
-	// pass ClearCache object to evictChan in CacheEvictThread()
 	/*
 		 *
 			if DEBUG {
@@ -156,8 +152,8 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 			}
 		*
 	*/
-	// pass down to CacheEvictThread
-	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: &hash, key: &key}
+	// pass ClearCache object to evictChan in CacheEvictThread()
+	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
 
 func jitter(j int, timer int) int {
@@ -248,17 +244,17 @@ func (his *HISTORY) CacheEvictThread() {
 					} // end select
 				} // end for fetchdel
 				if del1 {
-					his.L1Cache.DelExtL1batch(his, char, tmpHash, FlagCacheChanExtend)
+					his.L1Cache.DelExtL1batch(his, char, tmpHash)
 					tmpHash = nil
 					del1 = false
 				}
 				if del2 {
-					his.L2Cache.DelExtL2batch(his, tmpOffset, FlagCacheChanExtend)
+					his.L2Cache.DelExtL2batch(his, tmpOffset)
 					tmpOffset = nil
 					del2 = false
 				}
 				if del3 {
-					his.L3Cache.DelExtL3batch(his, char, tmpKey, FlagCacheChanExtend)
+					his.L3Cache.DelExtL3batch(his, char, tmpKey)
 					tmpKey = nil
 					del3 = false
 				}
