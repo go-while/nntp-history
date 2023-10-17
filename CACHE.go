@@ -17,9 +17,9 @@ const (
 
 var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 15 // search only
-	DefaultCacheExtend    int64 = 15 // extends cached items after writes
-	DefaultCachePurge     int64 = 3  // seconds
+	DefaultCacheExpires   int64 = 5  // search only
+	DefaultCacheExtend    int64 = 5  // extends cached items after writes
+	DefaultCachePurge     int64 = 1  // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
 
@@ -47,14 +47,11 @@ func (his *HISTORY) PrintCacheStats() {
 	 * 		"Count_Set",
 	 * 		"Count_Delete",
 	 * 		"Count_BatchD",
-	 * 		"Count_Growup",
-	 * 		"Count_Shrink"
 	 *		}
 	 */
 
 	// L1CACHE
 	l1cachesize := 0
-	//l1mapsize := 0
 	l1medium := 0
 	l1map := make(map[string]uint64)
 
@@ -76,7 +73,6 @@ func (his *HISTORY) PrintCacheStats() {
 
 	// L2CACHE
 	l2cachesize := 0
-	//l2mapsize := 0
 	l2medium := 0
 	l2map := make(map[string]uint64)
 	for _, char := range HEXCHARS {
@@ -97,7 +93,6 @@ func (his *HISTORY) PrintCacheStats() {
 
 	// L3CACHE
 	l3cachesize := 0
-	//l3mapsize := 0
 	l3medium := 0
 	l3map := make(map[string]uint64)
 	for _, char := range HEXCHARS {
