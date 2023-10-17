@@ -20,27 +20,23 @@ type HISTORY struct {
 	 *   set, change, update values only inside (his *HISTORY) functions and
 	 *   don't forget mutex where needed or run into race conditions.
 	 */
-	mux          sync.Mutex // global history mutex used to boot
-	cmux         sync.Mutex // sync counter mutex
-	boltmux      sync.Mutex // locks boltdb to protect BoltDBsMap
-	L1Cache      L1CACHE
-	L2Cache      L2CACHE
-	L3Cache      L3CACHE
-	boltInitChan chan struct{}          // used to lock bolt booting to N in parallel
-	boltSyncChan chan struct{}          // used to lock bolt syncing to N in parallel
-	Offset       int64                  // the actual offset for history.dat
-	hisDat       string                 // = "history/history.dat"
-	hisDatDB     string                 // = "hashdb/history.dat.hash[0-9a-f]"
-	WriterChan   chan *HistoryObject    // history.dat writer channel
-	IndexChan    chan *HistoryIndex     // main index query channel
-	indexChans   [16]chan *HistoryIndex // sub-index channels
-	BatchLogs    BatchLOGGER
-	//BatchLocks   map[string]map[string]chan struct{} // used to lock char:bucket in BoltSync and boltBucketPutBatch
-	BatchLocks map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
-	//BoltDBsMap map[string]*BOLTDB_PTR // using a ptr to a struct in the map allows updating the struct values without updating the map
-	BoltDBsMap *BoltDBs // using a ptr to a struct in the map allows updating the struct values without updating the map
-	//GobDecoder   map[string]GOBDEC
-	//GobEncoder   map[string]GOBENC
+	mux            sync.Mutex // global history mutex used to boot
+	cmux           sync.Mutex // sync counter mutex
+	boltmux        sync.Mutex // locks boltdb to protect BoltDBsMap
+	L1Cache        L1CACHE
+	L2Cache        L2CACHE
+	L3Cache        L3CACHE
+	boltInitChan   chan struct{}          // used to lock bolt booting to N in parallel
+	boltSyncChan   chan struct{}          // used to lock bolt syncing to N in parallel
+	Offset         int64                  // the actual offset for history.dat
+	hisDat         string                 // = "history/history.dat"
+	hisDatDB       string                 // = "hashdb/history.dat.hash[0-9a-f]"
+	WriterChan     chan *HistoryObject    // history.dat writer channel
+	IndexChan      chan *HistoryIndex     // main index query channel
+	indexChans     [16]chan *HistoryIndex // sub-index channels
+	BatchLogs      BatchLOGGER
+	BatchLocks     map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
+	BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
 	charsMap       map[string]int
 	useHashDB      bool
 	keyalgo        int
@@ -58,7 +54,9 @@ type HISTORY struct {
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
 	bUCKETSperDB   int
 	keyIndex       int
-	TCPchan        chan *HistoryObject
+
+	// TCPchan: used to send hobj via handleRConn to a remote historyServer
+	TCPchan chan *HistoryObject
 }
 
 /* builds the history.dat header */
