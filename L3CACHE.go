@@ -182,26 +182,31 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	if offsets == nil {
 		return
 	}
-	l3.muxers[char].mux.Lock()
+
+	ptr := l3.Caches[char]
+	cnt := l3.Counter[char]
+	mux := l3.muxers[char]
+
+	mux.mux.Lock()
 
 	expires := NoExpiresVal
 	if flagexpires {
 		if len(offsets) > 0 {
-			l3.Counter[char].Counter["Count_FlagEx"]++
+			cnt.Counter["Count_FlagEx"]++
 		}
 		expires = utils.UnixTimeSec() + L3CacheExpires
 	} else {
-		l3.Counter[char].Counter["Count_Set"]++
+		cnt.Counter["Count_Set"]++
 	}
 	//var tailstr string
-	if _, exists := l3.Caches[char].cache[key]; exists {
+	if _, exists := ptr.cache[key]; exists {
 		// cache entry exists
-		l3.Caches[char].cache[key].expires = expires
-		cachedlen := len(l3.Caches[char].cache[key].offsets)
+		ptr.cache[key].expires = expires
+		cachedlen := len(ptr.cache[key].offsets)
 		if cachedlen == 0 {
 			// there is an empty offsets-slice cached: set this
-			l3.Caches[char].cache[key].offsets = offsets
-			l3.muxers[char].mux.Unlock()
+			ptr.cache[key].offsets = offsets
+			mux.mux.Unlock()
 			return
 		}
 		// loops in reversed order backwards over new offsets
@@ -212,21 +217,21 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 			}
 			// checks cached offsets backwards too
 			//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' cacheex=%d newexpi=%d offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, l3.Caches[char].cache[key].expires, expires, offsets[i], src)
-			if !valueExistsInSliceReverseOrder(offsets[i], l3.Caches[char].cache[key].offsets) {
+			if !valueExistsInSliceReverseOrder(offsets[i], ptr.cache[key].offsets) {
 				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
-				l3.Caches[char].cache[key].offsets = append(l3.Caches[char].cache[key].offsets, offsets[i])
+				ptr.cache[key].offsets = append(ptr.cache[key].offsets, offsets[i])
 			} else {
 				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets exists %s", char, tailstr)
 				// NOTE with valueExistsInSliceReverseOrder first hit returns fast now
-				l3.muxers[char].mux.Unlock()
+				mux.mux.Unlock()
 				return
 			}
 		}
-		l3.muxers[char].mux.Unlock()
+		mux.mux.Unlock()
 		return
 	}
-	l3.Caches[char].cache[key] = &L3ITEM{offsets: offsets, expires: expires}
-	l3.muxers[char].mux.Unlock()
+	ptr.cache[key] = &L3ITEM{offsets: offsets, expires: expires}
+	mux.mux.Unlock()
 } // end func SetOffsets
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
@@ -238,20 +243,24 @@ func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64) int {
 	if char == "" {
 		char = string(key[0])
 	}
-	l3.muxers[char].mux.RLock()
-	if _, exists := l3.Caches[char].cache[key]; exists {
-		//l3.Counter[char].Counter["Count_Get"]++
-		*offsets = l3.Caches[char].cache[key].offsets
-		l3.muxers[char].mux.RUnlock()
+	ptr := l3.Caches[char]
+	//cnt := l3.Counter[char]
+	mux := l3.muxers[char]
+
+	mux.mux.RLock()
+	if _, exists := ptr.cache[key]; exists {
+		//cnt.Counter["Count_Get"]++ // cant count this here! we only have RLOCK!
+		*offsets = ptr.cache[key].offsets
+		mux.mux.RUnlock()
 		return len(*offsets)
 	}
-	l3.muxers[char].mux.RUnlock()
-	//l3.Counter[char].Counter["Count_Mis"]++
+	mux.mux.RUnlock()
+	//cnt.Counter["Count_Mis"]++ // cant count this here! we only have RLOCK!
 	return 0
 } // end func GetOffsets
 
 // The DelExtL3batch method deletes multiple cache items from the L3 cache.
-func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache, flagCacheDelExt int) {
+func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache) {
 	if char == "" {
 		log.Printf("ERROR DelExtL3batch char=nil")
 		return
@@ -260,39 +269,19 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 		log.Printf("DelExtL3batch [%s] tmpKey empty", char)
 		return
 	}
-	if flagCacheDelExt == FlagCacheChanExtend {
-		for _, item := range tmpKey {
-			if item.key != nil && *item.key != "" {
-				/*
-					if DEBUG {
-						lench := len(l3.Extend[char].ch)
-						if lench >= his.cEvCap/2 {
-							log.Printf("WARN L3 Extend[%s]chan=%d/his.cEvCap=%d half-full", char, lench, his.cEvCap)
-						}
-					}
-				*/
-				l3.Extend[char].ch <- item.key
-			}
-		}
-		return
-	}
-	now := utils.UnixTimeSec()
-	l3.muxers[char].mux.Lock()
 	for _, item := range tmpKey {
 		if item.key != nil && *item.key != "" {
-			if _, exists := l3.Caches[char].cache[*item.key]; exists {
-				switch flagCacheDelExt {
-				case FlagCacheSyncDelete:
-					delete(l3.Caches[char].cache, *item.key)
-				case FlagCacheSyncExtend:
-					// dont delete from cache but extend expiry time
-					l3.Caches[char].cache[*item.key].expires = now + L3ExtendExpires
+			/*
+				if DEBUG {
+					lench := len(l3.Extend[char].ch)
+					if lench >= his.cEvCap/2 {
+						log.Printf("WARN L3 Extend[%s]chan=%d/his.cEvCap=%d half-full", char, lench, his.cEvCap)
+					}
 				}
-				l3.Counter[char].Counter["Count_BatchD"]++
-			}
+			*/
+			l3.Extend[char].ch <- item.key
 		}
 	}
-	l3.muxers[char].mux.Unlock()
 } // end func DelExtL3batch
 
 func (l3 *L3CACHE) L3Stats(statskey string) (retval uint64, retmap map[string]uint64) {
@@ -303,20 +292,22 @@ func (l3 *L3CACHE) L3Stats(statskey string) (retval uint64, retmap map[string]ui
 		return
 	}
 	for _, char := range HEXCHARS {
-		l3.muxers[char].mux.Lock()
+		cnt := l3.Counter[char]
+		mux := l3.muxers[char]
+		mux.mux.RLock()
 		switch statskey {
 		case "":
 			// key is empty, get all key=>stats to retmap
-			for k, v := range l3.Counter[char].Counter {
+			for k, v := range cnt.Counter {
 				retmap[k] += v
 			}
 		default:
 			// key is set, returns retval
-			if _, exists := l3.Counter[char].Counter[statskey]; exists {
-				retval += l3.Counter[char].Counter[statskey]
+			if _, exists := cnt.Counter[statskey]; exists {
+				retval += cnt.Counter[statskey]
 			}
 		}
-		l3.muxers[char].mux.Unlock()
+		mux.mux.RUnlock()
 	}
 	return
 } // end func L3Stats
