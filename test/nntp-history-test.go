@@ -46,6 +46,9 @@ func main() {
 	var NoFreelistSync bool
 	var pprofcpu bool
 	var pprofmem bool
+	var BootHistoryClient bool
+	var RunTCPonly bool
+
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit your CPU cores to Threads/2 !")
@@ -78,13 +81,15 @@ func main() {
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
 
 	// experimental flags
+	flag.BoolVar(&BootHistoryClient, "BootHistoryClient", false, "experimental")
+	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental")
 	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
 	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
-	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
+	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
@@ -104,6 +109,7 @@ func main() {
 		time.Sleep(time.Second)
 	}
 	history.History.SET_DEBUG(debugs)
+
 	//history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data after encoding
 	//history.DBG_CGS = true // prints cache grow/shrink
 	//history.DBG_BS_LOG = true // this debug eats memory to log all batched writes
@@ -126,8 +132,8 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		//history.BoltDB_MaxBatchSize = 256                    // = history.BUCKETSperDB // 0 disables boltdb internal batching. default: 1000
-		//history.BoltDB_MaxBatchDelay = 32 * time.Millisecond // default: 10 * time.Millisecond
+		//history.BoltDB_MaxBatchSize = 256                    // = history.his.bUCKETSperDB // 0 disables boltdb internal batching. default: 1000
+		history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
 
 		// AllocSize is the amount of space allocated when the database
 		// needs to create new pages. This is done to amortize the cost
@@ -169,6 +175,82 @@ func main() {
 	start := utils.UnixTimeSec()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
 	fmt.Printf(" boltOpts='%#v'\n", boltOpts)
+
+	if RunTCPonly {
+
+		history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+		history.History.Wait4HashDB()
+		select {}
+
+	} else if BootHistoryClient {
+
+		go history.History.BootHistoryClient("")
+
+		P_donechan := make(chan struct{}, parallelTest)
+		go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
+		for p := 1; p <= parallelTest; p++ {
+			go func(p int) {
+				var added, adddupes, addretry, errors uint64
+				responseChan := make(chan int, 1)
+			fortodo:
+				for i := int64(1); i <= int64(todo); i++ {
+					//hash := utils.Hash256(fmt.Sprintf("%d", i)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+					hash := utils.Hash256(strconv.FormatInt(i, 10)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
+					//hash := utils.Hash256(strconv.FormatInt(i*p, 10)) // GENERATES DUPLICATES
+					//hash := utils.Hash256(strconv.FormatInt(utils.Nano(), 10)) // GENERATES ALMOST NO DUPES
+					//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
+					//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
+					char := string(hash[0])
+					//log.Printf("hash=%s char=%s", hash, char)
+					//if hash == TESTHASH {
+					//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
+					//}
+					now := utils.UnixTimeSec()
+					expires := now + 86400*10 // expires in 10 days
+					//expires := int64(1234) // will expire on next expiry run
+					doa := now // date of article
+					// creates a single history object for a usenet article
+					hobj := &history.HistoryObject{
+						MessageIDHash: hash,
+						Char:          char,
+						StorageToken:  "F",
+						Arrival:       now,
+						Expires:       expires,
+						Date:          doa, // date of article
+						ResponseChan:  responseChan,
+					}
+
+					// pass to handleRConn()
+					history.History.TCPchan <- hobj
+
+					isDup := <-responseChan
+					switch isDup {
+					case history.CaseAdded:
+						added++
+					case history.CaseDupes:
+						adddupes++
+					case history.CaseRetry:
+						addretry++
+					default:
+						errors++
+						log.Printf("main: ERROR fortodo unknown switch isDup=%d from TCPchan", isDup)
+						break fortodo
+					}
+				} // end fortodo
+				P_donechan <- struct{}{}
+			}(p)
+		}
+		// wait for test to finish
+		for {
+			if len(P_donechan) == parallelTest {
+				break
+			}
+			time.Sleep(time.Second / 10)
+		}
+		log.Printf("QUIT HistoryClient")
+		os.Exit(0)
+	} // end if BootHistoryClient
+
 	if offset >= 0 {
 		history.NoReplayHisDat = true
 	}
