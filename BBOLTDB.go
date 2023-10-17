@@ -16,7 +16,7 @@ import (
 const (
 	// never change this!
 	intBoltDBs                    = 0x10 // do NOT change this!
-	BUCKETSperDB                  = 256  // can be 16, 256 or 4096 !4K is insane!
+	BUCKETSperDB                  = 256  // can be 16 | (default: 256) | 4096 !4K is insane!
 	DefaultBoltINITParallel       = intBoltDBs
 	DefaultBoltSYNCParallel       = intBoltDBs
 	DefaultReplayDistance   int64 = 1024 * 1024
@@ -28,9 +28,9 @@ const (
 	HashFNV64a = 0x37 // 55
 	// KeyLen is used with HashShort
 	//  1st char of hash selects boltDB
-	//  2nd + 3rd char of hash selects bucket in boltDB
+	//  2nd + 3rd char (+4th char: if 4K BUCKETSperDB) of hash selects bucket in boltDB
 	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
-	// the key is further divided into 1st+2nd+3rd char as sub buckets and remainder as key in the root.bucket.sub.bucket[3:$]
+	// the key is further divided into 1st+2nd+3rd char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
 	MinKeyLen = 0x08
 	WCBBS_UL  = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
