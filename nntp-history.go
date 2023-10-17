@@ -24,6 +24,7 @@ const (
 	CaseRetry            = 0x2C         // is a reply to if CaseLock or CaseWrite or if history.dat returns EOF
 	CaseAdded            = 0x3C         // is a reply to WriterChan:responseChan
 	CaseWrite            = 0x4C         // internal cache state. is not a reply. reply with CaseRetry while CaseWrite is happening
+	CaseError            = 0xE1         // some things drop this error
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
