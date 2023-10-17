@@ -83,7 +83,7 @@ func main() {
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "0: off | 1-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
