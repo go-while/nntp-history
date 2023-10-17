@@ -104,13 +104,15 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	if _, exists := ptr.cache[hash]; !exists {
 		cnt.Counter["Count_Locked"]++
 		ptr.cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
+		mux.mux.Unlock()
+		return CasePass
 	}
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
 	//}
 	mux.mux.Unlock()
 
-	return CasePass
+	return CaseDupes
 } // end func LockL1Cache
 
 // The L1Cache_Thread function runs as a goroutine for each character.
