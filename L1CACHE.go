@@ -33,7 +33,7 @@ type L1ITEM struct {
 }
 
 type L1MUXER struct {
-	mux sync.Mutex
+	mux sync.RWMutex
 }
 
 // The L1CACHE_Boot method initializes the cache system.
@@ -85,27 +85,31 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	cnt := l1.Counter[char]
 	mux := l1.muxers[char]
 
-	mux.mux.Lock()
-
+	mux.mux.RLock()
 	if _, exists := ptr.cache[hash]; exists {
-		cnt.Counter["Count_Get"]++
+		//cnt.Counter["Count_Get"]++
 		retval := ptr.cache[hash].value
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
-		mux.mux.Unlock()
+		mux.mux.RUnlock()
 		return retval
 	}
+	mux.mux.RUnlock()
 
 	if !useHashDB {
 		value = CaseDupes
 	}
-	cnt.Counter["Count_Locked"]++
-	ptr.cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
+	mux.mux.Lock()
+	if _, exists := ptr.cache[hash]; !exists {
+		cnt.Counter["Count_Locked"]++
+		ptr.cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
+	}
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
 	//}
 	mux.mux.Unlock()
+
 	return CasePass
 } // end func LockL1Cache
 
@@ -173,21 +177,16 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	go func(ptr *L1CACHEMAP, mux *sync.Mutex, cnt *CCC) {
 		defer log.Printf("LEFT L1T gofunc2 delete [%s]", char)
 		timer := time.NewTimer(time.Duration(l1purge) * time.Second)
-		timeout := false
 		start := utils.UnixTimeMilliSec()
 		now := int64(start / 1000)
 	forever:
 		for {
-			if timeout {
-				timeout = false
-				timer.Reset(time.Duration(l1purge) * time.Second)
-			}
 			select {
 			case <-timer.C:
-				timeout = true
 				start = utils.UnixTimeMilliSec()
 				now = int64(start / 1000)
-				mux.Lock()
+
+				mux.RLock()
 				//getexpired:
 				for hash, item := range ptr.cache {
 					if (item.value == CaseDupes || item.value == CaseRetry) && item.expires > 0 && item.expires < now {
@@ -197,20 +196,22 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 						cleanup = append(cleanup, hash)
 					}
 				} // end for getexpired
+				mux.RUnlock()
 
 				//maplen := len(ptr.cache)
 				if len(cleanup) > 0 {
+					mux.Lock()
 					//maplen -= len(cleanup)
 					for _, hash := range cleanup {
 						delete(ptr.cache, hash)
 						cnt.Counter["Count_Delete"]++
 					}
+					mux.Unlock()
+					cleanup = nil
 					//logf(DEBUG, "L1Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 				}
-				mux.Unlock()
-				cleanup = nil
 				//logf(DEBUG, "L1Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-				continue forever
+				timer.Reset(time.Duration(l1purge) * time.Second)
 			} // end select
 		} // end for
 	}(l1.Caches[char], &l1.muxers[char].mux, l1.Counter[char]) // end gofunc2
