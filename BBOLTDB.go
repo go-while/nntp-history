@@ -33,7 +33,7 @@ const (
 	MinKeyLen    = 8
 	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
 	// KEYINDEX cuts (shortens) the KeyLen by this
-	KEYINDEX     = 2
+	KEYINDEX = 2
 
 	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
 	// (     ROOT-BUCKETS      ) * SUB BKTS =
@@ -46,7 +46,10 @@ const (
 	//    16      *     256      * (16^)1   =     65536 buckets
 	//    16      *     256      * (16^)2   =   1048576 buckets  <----- default atm
 	//    16      *     256      * (16^)3   =  16777216 buckets
-	//    16      *     256      * (16^)4   = 268435456 buckets
+	//
+	//    16      *    4096      * (16^)1   =   1048576 buckets
+	//    16      *    4096      * (16^)2   =  16777216 buckets
+	//    16      *    4096      * (16^)3   = 268435456 buckets
 )
 
 var (
