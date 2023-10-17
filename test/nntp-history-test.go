@@ -45,6 +45,7 @@ func main() {
 	var NoGrowSync bool
 	var NoFreelistSync bool
 	var pprofcpu bool
+	var pprofmem bool
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit your CPU cores to Threads/2 !")
@@ -78,6 +79,7 @@ func main() {
 
 	// experimental flags
 	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
+	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 1000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -208,6 +210,7 @@ func main() {
 	LOCKONLYTEST := false
 
 	P_donechan := make(chan struct{}, parallelTest)
+	go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int, testhashes []string) {
@@ -358,6 +361,7 @@ func main() {
 	// close history
 	closewait := utils.UnixTimeSec()
 	history.History.CLOSE_HISTORY()
+	go MemoryProfile(time.Second*10, 0, pprofmem)
 	waited := utils.UnixTimeSec() - closewait
 
 	// get some numbers
@@ -419,22 +423,29 @@ func debug_pprof(addr string) {
 	}()
 } // end func debug_pprof
 
-func MemoryProfile(duration time.Duration) error {
-	filename := "mem.pprof.out"
+func MemoryProfile(duration time.Duration, wait time.Duration, pprofmem bool) error {
+	if !pprofmem {
+		return nil
+	}
+	// Generate a unique filename with a timestamp
+	filename := fmt.Sprintf("mem.pprof.out.%d", time.Now().Unix())
+	time.Sleep(wait)
+	log.Printf("capture MemoryProfile duration=%#v waited=%#v", duration, wait)
+	// Create the profile file
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	if err := pprof.WriteHeapProfile(f); err != nil {
-		return err
-	}
 	// Start memory profiling
 	pprof.Lookup("heap").WriteTo(f, 0)
+	// Sleep for the specified duration to capture the memory profile
+	time.Sleep(duration)
 	return nil
 }
 
 func startCPUProfile() (*os.File, error) {
+	log.Printf("startCPUProfile")
 	cpuProfileFile, err := os.Create("cpu.pprof.out")
 	if err != nil {
 		log.Printf("ERROR startCPUProfile err1='%v'", err)
@@ -448,6 +459,7 @@ func startCPUProfile() (*os.File, error) {
 }
 
 func stopCPUProfile(cpuProfileFile *os.File) {
+	log.Printf("stopCPUProfile")
 	pprof.StopCPUProfile()
 	cpuProfileFile.Close()
 }
