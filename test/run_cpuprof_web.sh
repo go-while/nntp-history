@@ -9,4 +9,4 @@ export GOEXPERIMENT=arenas
 file=cpu.pprof.out
 test ! -z "$1" && file="$1"
 ls -lh "$file"
-go tool pprof -http=:8000 "$file"
+go tool pprof -http=:17171 "$file"
