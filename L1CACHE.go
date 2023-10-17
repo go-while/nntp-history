@@ -13,6 +13,15 @@ var (
 	L1ExtendExpires int64 = DefaultCacheExtend
 	L1Purge         int64 = DefaultCachePurge
 	L1InitSize      int   = 256 * 1024
+
+	// L1LockDelay: delays L1 locking by N milliseconds
+	// L1 locking is most likely done per client-connection
+	// settings this greater 0 limits the amount of articles a client can lock&send
+	//    1ms is a max of 1000 messages/sec per conn
+	//  100ms is a max of   10 messages/sec per conn
+	// 1000ms is a max of    1 message /sec per conn
+	// text peers mostly dont need more than 4 msg per sec
+	L1LockDelay int = 0
 )
 
 type L1CACHE struct {
@@ -87,7 +96,6 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 
 	mux.mux.RLock()
 	if _, exists := ptr.cache[hash]; exists {
-		//cnt.Counter["Count_Get"]++
 		retval := ptr.cache[hash].value
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
@@ -96,9 +104,15 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		return retval
 	}
 	mux.mux.RUnlock()
+
+	if L1LockDelay > 0 {
+		time.Sleep(time.Duration(L1LockDelay) * time.Millisecond)
+	}
+
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
 	//}
+
 	mux.mux.Lock()
 	if _, exists := ptr.cache[hash]; !exists {
 		cnt.Counter["Count_Locked"]++
@@ -114,6 +128,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		return retval
 	}
 	mux.mux.Unlock()
+
 	return CaseError
 } // end func LockL1Cache
 
