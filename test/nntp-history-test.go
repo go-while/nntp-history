@@ -45,7 +45,6 @@ func main() {
 	var NoSync bool
 	var NoGrowSync bool
 	var NoFreelistSync bool
-	var pprofcpu bool
 	var pprofmem bool
 	var BootHistoryClient bool
 	var RunTCPonly bool
@@ -75,7 +74,7 @@ func main() {
 	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
 
 	// profiling
-	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
+	flag.BoolVar(&history.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
 	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
 
 	// options for our pre-batching
@@ -185,8 +184,12 @@ func main() {
 	}
 	start := utils.UnixTimeSec()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
+	if history.DEBUG {
+		history.DefaultACL = make(map[string]bool)
+		history.DefaultACL["::1"] = true
+		history.DefaultACL["127.0.0.1"] = true
 
-	if RunTCPonly {
+	} else if RunTCPonly {
 		history.DefaultACL = make(map[string]bool)
 		history.DefaultACL["::1"] = true
 		history.DefaultACL["127.0.0.1"] = true
@@ -297,13 +300,15 @@ func main() {
 	testhashes := []string{} // sequential
 
 	// start test
-	if pprofcpu {
-		cpuProfileFile, err := startCPUProfile()
-		if err != nil {
-			log.Fatal("Could not start CPU profile: ", err)
+	/*
+		if pprofcpu {
+			cpuProfileFile, err := startCPUProfile()
+			if err != nil {
+				log.Fatal("Could not start CPU profile: ", err)
+			}
+			defer stopCPUProfile(cpuProfileFile)
 		}
-		defer stopCPUProfile(cpuProfileFile)
-	}
+	*/
 	LOCKONLYTEST := false
 
 	P_donechan := make(chan struct{}, parallelTest)
