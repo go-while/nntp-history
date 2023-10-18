@@ -86,7 +86,7 @@ func (his *HISTORY) handleSocketConn(conn net.Conn, raddr string, socket bool) {
 	}
 	//parts := []string{} 77
 	//ARGS := []string{}
-	//responseChan := make(chan int, 1)
+	indexRetChan := make(chan int, 1)
 	var added, tadded uint64
 forever:
 	for {
@@ -125,8 +125,62 @@ forever:
 				log.Printf("HistoryServer handleConnn: raddr='%s' added=%d", raddr, added)
 				tadded = 0
 			}
-		}
-	}
+
+			retval := his.L1Cache.LockL1Cache(hobj.MessageIDHash, hobj.Char, CaseLock, his.useHashDB) // checks and locks hash for processing
+			switch retval {
+			case CasePass:
+				//history.History.Sync_upcounter("L1CACHE_Lock")
+				//locked++
+				// pass
+			default:
+				if hobj.ResponseChan != nil {
+					hobj.ResponseChan <- retval
+				}
+				continue forever
+			}
+
+			if his.useHashDB {
+				isDup, err := his.IndexQuery(hobj.MessageIDHash, indexRetChan, FlagSearch)
+				if err != nil {
+					log.Printf("FALSE IndexQuery hash=%s", hobj.MessageIDHash)
+					break forever
+				}
+				switch isDup {
+				case CasePass:
+					// pass
+				case CaseDupes:
+					// we locked the hash but IndexQuery replied with Duplicate
+					// set L1 cache to Dupe and expire
+					//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
+					his.DoCacheEvict(hobj.Char, &hobj.MessageIDHash, 0, &EmptyStr)
+					//dupes++
+					if hobj.ResponseChan != nil {
+						hobj.ResponseChan <- isDup
+					}
+					continue forever
+				case CaseRetry:
+					// we locked the hash but IndexQuery replied with Retry
+					// set L1 cache to Retry and expire
+					//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
+					his.DoCacheEvict(hobj.Char, &hobj.MessageIDHash, 0, &EmptyStr)
+					//retry++
+					if hobj.ResponseChan != nil {
+						hobj.ResponseChan <- isDup
+					}
+					continue forever
+				default:
+					log.Printf("ERROR handleSocketConn in response from IndexQuery unknown switch isDup=%d", isDup)
+					break forever
+				}
+			}
+
+			isDup := his.AddHistory(hobj, true)
+			if hobj.ResponseChan != nil {
+				hobj.ResponseChan <- isDup
+			}
+			continue forever
+		} // end select
+	} // end forever
 	log.Printf("handleConn LEFT: %#v", conn)
 } // end func handleConn
 
