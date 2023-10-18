@@ -85,7 +85,7 @@ func gobEncodeHeader(iobuf *[]byte, settings *HistorySettings) (int, error) {
 	NullPad(&b64str, ZEROPADLEN)
 	*iobuf = []byte(b64str)
 	leniobuf := len(*iobuf)
-	log.Printf("gobEncodeHeader b64str='%s'=%d lenio=%d", b64str, len(buf.Bytes()), leniobuf)
+	log.Printf("gobEncodeHeader\n b64str='%s'=%d lenio=%d\n settings='%#v'", b64str, len(buf.Bytes()), leniobuf, settings)
 	return leniobuf, nil
 } // end func gobEncodeHeader
 
