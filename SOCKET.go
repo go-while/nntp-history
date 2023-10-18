@@ -151,8 +151,8 @@ forever:
 				case CaseDupes:
 					// we locked the hash but IndexQuery replied with Duplicate
 					// set L1 cache to Dupe and expire
-					//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
-					his.DoCacheEvict(hobj.Char, &hobj.MessageIDHash, 0, &EmptyStr)
+					//his.L1Cache.Set(hobj.MessageIDHash, hobj.Char, CaseDupes, FlagExpires)
+					//his.DoCacheEvict(hobj.Char, &hobj.MessageIDHash, 0, &EmptyStr)
 					//dupes++
 					if hobj.ResponseChan != nil {
 						hobj.ResponseChan <- isDup
@@ -161,8 +161,8 @@ forever:
 				case CaseRetry:
 					// we locked the hash but IndexQuery replied with Retry
 					// set L1 cache to Retry and expire
-					//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
-					his.DoCacheEvict(hobj.Char, &hobj.MessageIDHash, 0, &EmptyStr)
+					//his.L1Cache.Set(hobj.MessageIDHash, hobj.Char, CaseRetry, FlagExpires)
+					//his.DoCacheEvict(hobj.Char, &hobj.MessageIDHash, 0, &EmptyStr)
 					//retry++
 					if hobj.ResponseChan != nil {
 						hobj.ResponseChan <- isDup
