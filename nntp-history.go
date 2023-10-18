@@ -66,6 +66,13 @@ var (
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
+	if CPUProfile { // PROFILE.go
+		CPUfile, err := his.startCPUProfile()
+		if err != nil {
+			os.Exit(1)
+		}
+		his.CPUfile = CPUfile
+	}
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
 		return
@@ -751,6 +758,16 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		time.Sleep(time.Second)
 	}
 	his.WriterChan = nil
+	if his.CPUfile != nil {
+		his.stopCPUProfile(his.CPUfile)
+	}
+	/*
+		 *
+		if his.MEMfile != nil {
+			his.stopMEMProfile(his.CPUfile)
+		}
+		*
+	*/
 } // end func CLOSE_HISTORY
 
 func LOCKfunc(achan chan struct{}, src string) bool {
