@@ -96,6 +96,8 @@ The remaining portion of the hash (after the first two characters) is used as th
 - Choose wisely. You can not change `KeyLen` or `KeyAlgo` later.
 ```sh
 
+*** outdated numbers as we updated code to sub.buckets and KeyIndex ***
+
 # Test   1M inserts with `KeyLen` = 3 (`i` hashes): appoffset=29256 (~3%) trymultioffsets=57928 (~6%)
 # Test  10M inserts with `KeyLen` = 3 (`i` hashes): appoffset=2467646 (24%!!) trymultioffsets=4491877 (44%!!)
 # Test 100M inserts with `KeyLen` = 3 (`i` hashes): appoffset=XXXX trymultioffsets=XXXX
