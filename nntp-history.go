@@ -350,7 +350,6 @@ func (his *HISTORY) Wait4HashDB() {
 			}
 		}
 		log.Printf("Wait4HashDB OK his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
-		time.Sleep(time.Second * 5)
 	}
 } // end func Wait4HashDB
 
