@@ -120,10 +120,7 @@ fetchbatch:
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			root := tx.Bucket([]byte(bucket))
-			//root.FillPercent = 0.1
-			//root.FillPercent = 0.3
-			//root.FillPercent = 0.7
-			//root.FillPercent = 0.9
+			root.FillPercent = RootBucketFillPercent
 		batch1insert:
 			for _, bo := range batch1 {
 				//if bo.key == TESTKEY {
@@ -134,10 +131,7 @@ fetchbatch:
 				if err != nil {
 					return err
 				}
-				//subb.FillPercent = 0.1
-				//subb.FillPercent = 0.3
-				//subb.FillPercent = 0.7
-				//subb.FillPercent = 0.9
+				subb.FillPercent = SubBucketFillPercent
 				puterr := subb.Put([]byte(bo.key[his.keyIndex:]), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
 				if puterr != nil {
 					err = puterr
