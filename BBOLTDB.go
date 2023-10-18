@@ -15,41 +15,20 @@ import (
 
 const (
 	// never change this!
-	intBoltDBs                    = 0x10 // do NOT change this!
+	intBoltDBs                    = 0x10 // do NOT change this! just breaks everything and will not do anything else!
 	HashShort                     = 0x0B // 11
 	DefaultBoltINITParallel       = intBoltDBs
 	DefaultBoltSYNCParallel       = intBoltDBs
 	DefaultReplayDistance   int64 = 1024 * 1024
 	WCBBS_UL                      = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
 	WCBBS_LL                      = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
-
 	// KeyLen is used with HashShort
 	//  1st char of hash selects boltDB
 	//  2nd + 3rd char (+4th char: if 4K his.bUCKETSperDB) of hash selects bucket in boltDB
 	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
 	// the key is further divided into 1st+2nd+3rd+... char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
-	BUCKETSperDB = 256 // can be 16 | (default: 256) | 4096 !4K is insane!
-	MinKeyLen    = 8
-	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
-	// KEYINDEX cuts (shortens) the KeyLen by this
-	KEYINDEX = 2
-
-	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
-	// (     ROOT-BUCKETS      ) * SUB BKTS =
-	//    16      *      16      * (16^)1   =      4096 buckets
-	//    16      *      16      * (16^)2   =     65536 buckets
-	//    16      *      16      * (16^)3   =   1048576 buckets
-	//    16      *      16      * (16^)4   =  16777216 buckets
-	//    16      *      16      * (16^)5   = 268435456 buckets
-	//
-	//    16      *     256      * (16^)1   =     65536 buckets
-	//    16      *     256      * (16^)2   =   1048576 buckets  <----- default atm
-	//    16      *     256      * (16^)3   =  16777216 buckets
-	//
-	//    16      *    4096      * (16^)1   =   1048576 buckets
-	//    16      *    4096      * (16^)2   =  16777216 buckets
-	//    16      *    4096      * (16^)3   = 268435456 buckets
+	MinKeyLen = 8 // goes with HashShort
 )
 
 var (
@@ -72,6 +51,44 @@ var (
 	HISTORY_INDEX_LOCK           = make(chan struct{}, 1)          // main lock
 	HISTORY_INDEX_LOCK16         = make(chan struct{}, intBoltDBs) // sub locks
 	empty_offsets        []int64                                   // just nothing
+
+	// adjust root buckets page splitting behavior
+	// we mostly do random inserts: lower value should be better?
+	RootBucketFillPercent = 0.3
+
+	// adjust sub buckets page splitting behavior
+	// unsure if it does anything in sub buckets?
+	SubBucketFillPercent = 0.3
+
+	// can be 16 | (default: 256) | 4096 !4K is insane!
+	// creates this many batchQueues and more goroutines
+	BUCKETSperDB = 256
+	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
+	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
+	KEYINDEX = 2
+
+	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
+	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in BUCKETSperDB)
+	//    16      *      16      * (16^)1   =        4096 = (/16 = 256 BUCKETSperDB)
+	//    16      *      16      * (16^)2   =       65536 ...
+	//    16      *      16      * (16^)3   =     1048576
+	//    16      *      16      * (16^)4   =    16777216
+	//    16      *      16      * (16^)5   =   268435456
+	//    16      *      16      * (16^)6   =  4294967296
+	//    16      *      16      * (16^)7   = 68719476736
+	//
+	//    16      *     256      * (16^)1   =       65536
+	//    16      *     256      * (16^)2   =     1048576  <----- default atm
+	//    16      *     256      * (16^)3   =    16777216
+	//    16      *     256      * (16^)4   =   268435456
+	//    16      *     256      * (16^)5   =  4294967296
+	//    16      *     256      * (16^)6   = 68719476736
+	//
+	//    16      *    4096      * (16^)1   =     1048576
+	//    16      *    4096      * (16^)2   =    16777216
+	//    16      *    4096      * (16^)3   =   268435456
+	//    16      *    4096      * (16^)4   =  4294967296
+	//    16      *    4096      * (16^)5   = 68719476736
 )
 
 func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
@@ -119,7 +136,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.L3Cache.L3CACHE_Boot(his)
 
 	his.batchQueues = &BQ{}
-	his.batchQueues.BootCh = make(chan struct{}, 16*his.bUCKETSperDB)                // char [0-9a-f] * bucket [0-9a-f]
+	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.bUCKETSperDB)        // char [0-9a-f] * bucket [0-9a-f]
 	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, intBoltDBs) // maps char : bucket => chan
 	//his.BoltDBsMap = make(map[string]*BOLTDB_PTR)                        // maps char => boltDB pointer
 	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
@@ -316,7 +333,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		if err != nil || !retbool {
 			if err == bolt.ErrBucketExists {
 				checked++
-				created++
 			} else {
 				log.Printf("ERROR HDBZW INIT HashDB boltCreateBucket [%s|%s] err='%v' retbool=%t", char, bucket, err, retbool)
 				return
@@ -329,14 +345,14 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	<-his.boltInitChan
 
-	logf(DEBUG0, "HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
-	if checked != tocheck || created != tocheck {
+	logf(DEBUG, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	if checked != tocheck || (created > 0 && created != tocheck) {
 		log.Printf("ERROR HDBZW INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
 	}
 	his.setBoltHashOpen()
 
-	timeout := 300               // waits 90sec for the history.dat file to be created
+	timeout := 90                // waits 90sec for the history.dat file to be created
 	time.Sleep(time.Second / 10) // waits a 100ms and breaks, else checks every second
 	for {
 		if timeout <= 0 {
@@ -371,13 +387,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	switch his.bUCKETSperDB {
 	case 16:
 		batchQcap = 1024
-		timer = 125
+		timer = 250
 	case 256:
 		batchQcap = 256
 		timer = 500
 	case 4096:
 		batchQcap = 64
-		timer = 2500
+		timer = 1000
 	}
 	closedBuckets := make(chan struct{}, his.bUCKETSperDB)
 	for _, bucket := range ALLBUCKETS {
@@ -393,7 +409,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		his.batchQueues.mux.Unlock()
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
 		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
-		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, closedBuckets chan struct{}) {
+		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, closedBuckets chan struct{}, timer int64) {
 			if batchQueue == nil {
 				log.Printf("ERROR boltDB_Worker gofunc input batchQueue=nil")
 				return
@@ -424,28 +440,15 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 				wt--
 			}
+			defaultTimer := timer
+			var idle int64
 
 		forbatchqueue:
 			for {
-				//if timer > 0 {
-
 				if !forced {
 					time.Sleep(time.Duration(timer) * time.Millisecond)
 				}
-
-				//src := fmt.Sprintf("gofunc:[%s|%s]:t=%d Q=%d lft=%d", char, bucket, timer, Q, lft)
-				//src := fmt.Sprintf("gofunc:[%s|%s] Q=%d lft=%d", char, bucket, timer, Q, lft)
 				now := utils.UnixTimeMilliSec()
-				/* experimental: reopenDB
-				select {
-				case _, ok := <-batchQueue:
-					if !ok {
-						logf(DEBUG, "WARN batchQueue closed len=%d", len(batchQueue))
-						//closed = true
-						break forbatchqueue
-					}
-				}
-				*/
 				Q, inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, forced, "gofunc", lft, wCBBS)
 				if forced {
 					logf(DBG_ABS2, "INFO forbatchqueue [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t timer=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, timer, lft, now-lastflush, err)
@@ -458,9 +461,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					log.Printf("gofunc char=%s boltBucketPutBatch err='%v'", char, err)
 					break forbatchqueue // this go func
 				}
-				//time.Sleep(time.Nanosecond)
-				//Q = len(batchQueue) // get remaining queued items after inserting
-
 				if inserted > 0 {
 					logf(DBG_ABS2, "INFO forbatchqueue [%s|%s] boltBucketPutBatch F2 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t timer=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, timer, lft, now-lastflush, err)
 					// something got inserted
@@ -484,6 +484,26 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					} // end if adaptBatch
 					lft = now - lastflush
 					lastflush = now
+					// reduce hibernate
+					if timer > defaultTimer {
+						timer = timer / 2
+					}
+					if timer < defaultTimer {
+						timer = defaultTimer
+					}
+					idle = 0
+				} else {
+					// slowly enter hibernate
+					if !forced {
+						idle++
+						if idle > 15 {
+							idle = 0
+							if timer < 4000 {
+								timer += 100
+							}
+							//log.Printf("idle [%s|%s] timer=%d", char, bucket, timer)
+						}
+					}
 				} // end if inserted > 0
 
 				if forced {
@@ -498,7 +518,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			UNLOCKfunc(his.batchQueues.BootCh, "his.batchQueues.BootCh")
 			// ends this gofunc
 			closedBuckets <- struct{}{}
-		}(db, char, bucket, batchQueue, closedBuckets)
+		}(db, char, bucket, batchQueue, closedBuckets, timer)
 	} // end for ALLBCUKETS
 
 	if CharBucketBatchSize > 0 {
