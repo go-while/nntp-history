@@ -161,7 +161,7 @@ fetchbatch:
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
 		if DBG_BS_LOG {
-			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
+			his.batchLog(&BatchLOG{c: char, b: bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
 		}
 		// debugs adaptive batchsize
 		logf(DBG_ABS1, "INFO bboltPutBatch [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)

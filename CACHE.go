@@ -3,7 +3,6 @@ package history
 import (
 	//"fmt"
 	"log"
-	"math/rand"
 	"time"
 	//"sync"
 )
@@ -17,8 +16,8 @@ const (
 
 var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 5  // search only
-	DefaultCacheExtend    int64 = 5  // extends cached items after writes
+	DefaultCacheExpires   int64 = 9  // search only
+	DefaultCacheExtend    int64 = 9  // extends cached items after writes
 	DefaultCachePurge     int64 = 3  // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
@@ -34,12 +33,12 @@ type ClearCacheChan struct {
 
 // StrExtendChan
 type StrECH struct {
-	ch chan string
+	ch chan []string
 }
 
 // IntExtendChan
 type IntECH struct {
-	ch chan int64
+	ch chan []int64
 }
 
 func (his *HISTORY) PrintCacheStats() {
@@ -60,15 +59,15 @@ func (his *HISTORY) PrintCacheStats() {
 	l1map := make(map[string]uint64)
 
 	for _, char := range HEXCHARS {
-		if his.L1Cache.muxers[char] == nil {
+		if his.L1Cache.Muxers[char] == nil {
 			continue
 		}
-		his.L1Cache.muxers[char].mux.Lock()
+		his.L1Cache.Muxers[char].mux.Lock()
 		l1cachesize += len(his.L1Cache.Caches[char].cache)
 		for k, v := range his.L1Cache.Counter[char].Counter {
 			l1map[k] += v
 		}
-		his.L1Cache.muxers[char].mux.Unlock()
+		his.L1Cache.Muxers[char].mux.Unlock()
 	}
 	if l1cachesize > 0 {
 		l1medium = l1cachesize / 16
@@ -80,15 +79,15 @@ func (his *HISTORY) PrintCacheStats() {
 	l2medium := 0
 	l2map := make(map[string]uint64)
 	for _, char := range HEXCHARS {
-		if his.L2Cache.muxers[char] == nil {
+		if his.L2Cache.Muxers[char] == nil {
 			continue
 		}
-		his.L2Cache.muxers[char].mux.Lock()
+		his.L2Cache.Muxers[char].mux.Lock()
 		l2cachesize += len(his.L2Cache.Caches[char].cache)
 		for k, v := range his.L2Cache.Counter[char].Counter {
 			l2map[k] += v
 		}
-		his.L2Cache.muxers[char].mux.Unlock()
+		his.L2Cache.Muxers[char].mux.Unlock()
 	}
 	if l2cachesize > 0 {
 		l2medium = l2cachesize / 16
@@ -100,15 +99,15 @@ func (his *HISTORY) PrintCacheStats() {
 	l3medium := 0
 	l3map := make(map[string]uint64)
 	for _, char := range HEXCHARS {
-		if his.L3Cache.muxers[char] == nil {
+		if his.L3Cache.Muxers[char] == nil {
 			continue
 		}
-		his.L3Cache.muxers[char].mux.Lock()
+		his.L3Cache.Muxers[char].mux.Lock()
 		l3cachesize += len(his.L3Cache.Caches[char].cache)
 		for k, v := range his.L3Cache.Counter[char].Counter {
 			l3map[k] += v
 		}
-		his.L3Cache.muxers[char].mux.Unlock()
+		his.L3Cache.Muxers[char].mux.Unlock()
 	}
 	if l3cachesize > 0 {
 		l3medium = l3cachesize / 16
@@ -155,14 +154,6 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
 
-func jitter(j int, timer int) int {
-	randInt := rand.Intn(j)
-	if randInt < j/2 {
-		return timer - randInt
-	}
-	return timer + randInt
-}
-
 func (his *HISTORY) CacheEvictThread() {
 	if his.cacheEvicts != nil {
 		log.Printf("ERROR CacheEvictThread already running!")
@@ -174,17 +165,29 @@ func (his *HISTORY) CacheEvictThread() {
 			log.Printf("ERROR CacheEvictThread [%s] already created!", char)
 			continue
 		}
-		j := 50 // jitter
 		his.cacheEvicts[char] = make(chan *ClearCache, his.cEvCap)
 		// launch a go func for every char with own evictChan
 		go func(char string, evictChan chan *ClearCache) {
-			var tmpHash []*ClearCache
-			var tmpOffset []*ClearCache
-			var tmpKey []*ClearCache
-			clearEveryN := 500
-			basetimer := 500
-			timer := time.NewTimer(time.Duration(jitter(j, basetimer)) * time.Millisecond)
-			//timeout := false
+			l1MUX := his.L1Cache.Muxers[char]
+			l2MUX := his.L2Cache.Muxers[char]
+			l3MUX := his.L3Cache.Muxers[char]
+			l1ext := his.L1Cache.Extend[char]
+			l2ext := his.L2Cache.Extend[char]
+			l3ext := his.L3Cache.Extend[char]
+			l1MUX.mux.Lock()
+			l1MUX.mux.Unlock()
+			l2MUX.mux.Lock()
+			l2MUX.mux.Unlock()
+			l3MUX.mux.Lock()
+			l3MUX.mux.Unlock()
+
+			clearEveryN := 128 // TODO expose var
+			basetimer := DefaultCachePurge
+			tmpHash := make([]string, clearEveryN)
+			tmpOffset := make([]int64, clearEveryN)
+			tmpKey := make([]string, clearEveryN)
+
+			timer := time.NewTimer(time.Duration(basetimer) * time.Second)
 			var del1, del2, del3 bool
 		forever:
 			for {
@@ -192,18 +195,12 @@ func (his *HISTORY) CacheEvictThread() {
 				for {
 					select {
 					case <-timer.C:
-						if len(tmpHash) > 0 {
-							del1 = true
-						}
-						if len(tmpOffset) > 0 {
-							del2 = true
-						}
-						if len(tmpKey) > 0 {
-							del3 = true
-						}
+						del1 = len(tmpHash) > 0
+						del2 = len(tmpOffset) > 0
+						del3 = len(tmpKey) > 0
 						Q := len(evictChan)
 						if Q > 0 {
-							logf(DEBUG, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
+							logf(DEBUG2, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
 						}
 						break fetchdel
 					case item, ok := <-evictChan: // channel receives a ClearCache struct from DoCacheEvict()
@@ -218,13 +215,13 @@ func (his *HISTORY) CacheEvictThread() {
 
 						//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
 						if item.offset > 0 { // l2 offset
-							tmpOffset = append(tmpOffset, item)
+							tmpOffset = append(tmpOffset, item.offset)
 						} else {
 							if item.hash != "" { // l1 hash
-								tmpHash = append(tmpHash, item)
+								tmpHash = append(tmpHash, item.hash)
 							}
 							if item.key != "" { // l3 key
-								tmpKey = append(tmpKey, item)
+								tmpKey = append(tmpKey, item.key)
 							}
 						}
 
@@ -243,23 +240,23 @@ func (his *HISTORY) CacheEvictThread() {
 					} // end select
 				} // end for fetchdel
 				if del1 {
-					his.L1Cache.DelExtL1batch(his, char, tmpHash)
+					l1ext.ch <- tmpHash
 					tmpHash = nil
 					del1 = false
 				}
 				if del2 {
-					his.L2Cache.DelExtL2batch(his, tmpOffset)
+					l2ext.ch <- tmpOffset
 					tmpOffset = nil
 					del2 = false
 				}
 				if del3 {
-					his.L3Cache.DelExtL3batch(his, char, tmpKey)
+					l3ext.ch <- tmpKey
 					tmpKey = nil
 					del3 = false
 				}
-				timer.Reset(time.Duration(jitter(j, basetimer)) * time.Millisecond)
+				timer.Reset(time.Duration(basetimer) * time.Millisecond)
 				continue forever
 			} // end forever
 		}(char, his.cacheEvicts[char])
 	} // end for HEXCHARS
-} // end func CACHE_EVICTER
+} // end func CacheEvictThread

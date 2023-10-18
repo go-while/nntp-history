@@ -115,12 +115,6 @@ type BatchOffset struct {
 	offsets        []int64 // stored for this key
 }
 
-/*
-type GOBOFFSETS struct {
-	Offsets []int64
-}
-*/
-
 type BatchLOGGER struct {
 	mux sync.Mutex
 	dat []*BatchLOG
@@ -128,11 +122,11 @@ type BatchLOGGER struct {
 }
 
 type BatchLOG struct {
-	c *string // char
-	b *string // bucket
-	i uint64  // inserted
-	t int64   // took microseconds
-	w int     // workerCharBucketBatchSize
+	c string // char
+	b string // bucket
+	i uint64 // inserted
+	t int64  // took microseconds
+	w int    // workerCharBucketBatchSize
 }
 
 type BATCHLOCKS struct {

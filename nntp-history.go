@@ -301,11 +301,12 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		os.Exit(1)
 	}
 	his.L1Cache.L1CACHE_Boot(his)
-	his.CacheEvictThread()
 
 	if his.useHashDB {
 		his.boltDB_Init(boltOpts)
 	}
+
+	his.CacheEvictThread()
 
 	log.Printf("\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
