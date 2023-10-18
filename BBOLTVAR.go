@@ -402,6 +402,7 @@ func (his *HISTORY) RebuildHashDB() error {
 } // end func RebuildHashDB
 
 func boltCreateBucket(db *bolt.DB, char string, bucket string) (retbool bool, err error) {
+	// creates root buckets
 	if db == nil {
 		return false, fmt.Errorf("ERROR boltCreateBucket char=%s db=nil", char)
 	}
