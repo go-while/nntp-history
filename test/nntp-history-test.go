@@ -34,6 +34,7 @@ func main() {
 	var parallelTest int
 	var useHashDB bool
 	var boltOpts *bolt.Options
+	var BoltDB_MaxBatchDelay int
 	var KeyAlgo int
 	var KeyLen int
 	var debugs int
@@ -88,7 +89,9 @@ func main() {
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9")
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536")
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
@@ -133,7 +136,7 @@ func main() {
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
 		//history.BoltDB_MaxBatchSize = 256                    // = history.his.bUCKETSperDB // 0 disables boltdb internal batching. default: 1000
-		history.BoltDB_MaxBatchDelay = 100 * time.Millisecond // default: 10 * time.Millisecond
+		history.BoltDB_MaxBatchDelay = time.Duration(BoltDB_MaxBatchDelay) * time.Millisecond // default: 10 * time.Millisecond
 
 		// AllocSize is the amount of space allocated when the database
 		// needs to create new pages. This is done to amortize the cost
