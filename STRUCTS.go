@@ -63,8 +63,8 @@ type HISTORY struct {
 type HistorySettings struct {
 	Ka int // keyalgo
 	Kl int // keylen
-	Bp int // bucketsperdb
 	Ki int // keyindex
+	Bp int // bucketsperdb
 }
 
 type HistoryObject struct {
