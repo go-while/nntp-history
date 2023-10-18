@@ -103,8 +103,28 @@ forever:
 		ARGS := parts[1:]
 		//log.Printf("CONN '%#v' read CMD='%s'", conn, CMD)
 		// Process the received message here.
-		// Send a response.
 		switch CMD {
+		case "CPU": // start/stop cpu profiling
+			his.mux.Lock()
+			if his.CPUfile != nil {
+				his.stopCPUProfile(his.CPUfile)
+				tp.PrintfLine("200 OK stopCPUProfile")
+				his.CPUfile = nil
+			} else {
+				CPUfile, err := his.startCPUProfile()
+				if err != nil || CPUfile == nil {
+					log.Printf("ERROR SOCKET CMD startCPUProfile err='%v'", err)
+					tp.PrintfLine("400 ERR startCPUProfile")
+				} else {
+					his.CPUfile = CPUfile
+					tp.PrintfLine("200 OK startCPUProfile")
+				}
+			}
+			his.mux.Unlock()
+		case "STOP":
+			his.CLOSE_HISTORY()
+			tp.PrintfLine("502 CLOSE_HISTORY")
+			break forever
 		case "QUIT":
 			tp.PrintfLine("205 CIAO")
 			break forever
