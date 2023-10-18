@@ -25,7 +25,7 @@ const (
 	CaseAdded            = 0x3C         // is a reply to WriterChan:responseChan
 	CaseWrite            = 0x4C         // internal cache state. is not a reply. reply with CaseRetry while CaseWrite is happening
 	CaseError            = 0xE1         // some things drop this error
-	ZEROPADLEN           = 32768 - 1    // zeropads the header
+	ZEROPADLEN           = 0xFFF        // zeropads the header
 	//CaseAddDupes = 0xC2
 	//CaseAddRetry = 0xC3
 )
@@ -66,15 +66,17 @@ var (
 func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
-	if useHashDB {
-		his.useHashDB = true
-	}
-	go his.startSocket(DefaultListenTCPAddr)
-	rand.Seed(time.Now().UnixNano())
 	if his.WriterChan != nil {
 		log.Printf("ERROR History already booted")
 		return
 	}
+	rand.Seed(time.Now().UnixNano())
+	his.Counter = make(map[string]uint64)
+
+	if useHashDB {
+		his.useHashDB = true
+	}
+	go his.startSocket(DefaultListenTCPAddr)
 
 	if NumQueueWriteChan <= 0 {
 		NumQueueWriteChan = 1
@@ -84,8 +86,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	if BatchFlushEvery <= 500 { // milliseconds
 		BatchFlushEvery = 500
-	} else if BatchFlushEvery > 15000 {
-		BatchFlushEvery = 15000
+	} else if BatchFlushEvery > 60000 { // a minute needs hell of ram!
+		BatchFlushEvery = 60000
 	}
 
 	/*
@@ -169,6 +171,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		os.Exit(1)
 	}
 
+	// default history settings
 	switch keyalgo {
 	case HashShort:
 		his.keyalgo = HashShort
@@ -193,10 +196,12 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
-
-	// default history settings
-	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Bp: BUCKETSperDB, Ki: KEYINDEX}
-
+	if KEYINDEX <= 0 {
+		KEYINDEX = 1
+	}
+	his.keyIndex = KEYINDEX
+	his.bUCKETSperDB = BUCKETSperDB
+	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.bUCKETSperDB}
 	// opens history.dat
 	var fh *os.File
 	new := false
@@ -221,8 +226,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			log.Printf("ERROR History_Boot writeHistoryHeader err='%v'", err)
 			os.Exit(1)
 		}
-		his.bUCKETSperDB = history_settings.Bp
-		his.keyIndex = history_settings.Ki
 
 	} else {
 		var header []byte
@@ -258,12 +261,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		}
 		his.keyalgo = history_settings.Ka
 		his.keylen = history_settings.Kl
-
+		his.keyIndex = history_settings.Ki
+		his.bUCKETSperDB = history_settings.Bp
 		//logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
-	his.Counter = make(map[string]uint64)
-	his.bUCKETSperDB = history_settings.Bp
-	his.keyIndex = history_settings.Ki
 
 	switch his.bUCKETSperDB {
 	// his.bUCKETSperDB defines startindex cutFirst for cutHashlen!
@@ -292,7 +293,6 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot his.bUCKETSperDB invalid=%x", his.bUCKETSperDB)
 		os.Exit(1)
 	}
-
 	his.L1Cache.L1CACHE_Boot(his)
 	his.CacheEvictThread()
 
@@ -300,7 +300,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.boltDB_Init(boltOpts)
 	}
 
-	log.Printf("History: new=%t hisDat='%s' NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='#%v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
+	log.Printf("\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
