@@ -398,14 +398,14 @@ func main() {
 						// we locked the hash but IndexQuery replied with Duplicate
 						// set L1 cache to Dupe and expire
 						//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
-						history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
+						history.History.DoCacheEvict(char, hash, 0, history.EmptyStr)
 						dupes++
 						continue fortodo
 					case history.CaseRetry:
 						// we locked the hash but IndexQuery replied with Retry
 						// set L1 cache to Retry and expire
 						//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
-						history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
+						history.History.DoCacheEvict(char, hash, 0, history.EmptyStr)
 						retry++
 						continue fortodo
 					default:

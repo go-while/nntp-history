@@ -19,7 +19,7 @@ var (
 	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 5  // search only
 	DefaultCacheExtend    int64 = 5  // extends cached items after writes
-	DefaultCachePurge     int64 = 1  // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
+	DefaultCachePurge     int64 = 3  // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
 )
 
@@ -28,9 +28,13 @@ type CCC struct {
 	Counter map[string]uint64 // counter key: value
 }
 
+type ClearCacheChan struct {
+	ch chan []*ClearCache
+}
+
 // StrExtendChan
 type StrECH struct {
-	ch chan *string
+	ch chan string
 }
 
 // IntExtendChan
@@ -113,7 +117,7 @@ func (his *HISTORY) PrintCacheStats() {
 } // end func PrintCacheStats
 
 // gets called in BBATCH.go:boltBucketPutBatch() after boltTX
-func (his *HISTORY) DoCacheEvict(char string, hash *string, offset int64, key *string) {
+func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
 	// db
 	if char == "" {
 		// char derived from hash or for offset: offset=>hex[lastchar]
@@ -121,13 +125,13 @@ func (his *HISTORY) DoCacheEvict(char string, hash *string, offset int64, key *s
 		return
 	}
 	set := 0
-	if hash != nil && *hash != "" { // l1
+	if hash != "" { // l1
 		set++
 	}
 	if offset > 0 { // l2
 		set++
 	}
-	if key != nil && *key != "" { // l3
+	if key != "" { // l3
 		set++
 	}
 	if set <= 0 { // need at least one value
@@ -216,10 +220,10 @@ func (his *HISTORY) CacheEvictThread() {
 						if item.offset > 0 { // l2 offset
 							tmpOffset = append(tmpOffset, item)
 						} else {
-							if item.hash != nil && *item.hash != "" { // l1 hash
+							if item.hash != "" { // l1 hash
 								tmpHash = append(tmpHash, item)
 							}
-							if item.key != nil && *item.key != "" { // l3 key
+							if item.key != "" { // l3 key
 								tmpKey = append(tmpKey, item)
 							}
 						}

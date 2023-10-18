@@ -55,7 +55,7 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Counter = make(map[string]*CCC)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
-		l3.Extend[char] = &StrECH{ch: make(chan *string, his.cEvCap)}
+		l3.Extend[char] = &StrECH{ch: make(chan string, his.cEvCap)}
 		l3.muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 	}
@@ -73,7 +73,7 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
 	//logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
-	cleanup := []string{}
+	//cleanup := []string{}
 	l3purge := L3Purge
 	if l3purge < 1 {
 		l3purge = 1
@@ -94,12 +94,12 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 					timeout = true
 					break forextends
 				case key := <-extendChan.ch: // receives stuff from DelExtL3batch()
-					if key == nil {
+					if key == "" {
 						log.Printf("ERROR L3 extend ch received nil hash")
 						continue forextends
 					}
 					// got key we will extend in next timer.C run
-					extends = append(extends, *key)
+					extends = append(extends, key)
 					ext++
 					if ext >= emax {
 						timeout = true
@@ -138,29 +138,35 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 				start = utils.UnixTimeMilliSec()
 				now = int64(start / 1000)
 
-				mux.RLock()
+				//mux.RLock()
+				mux.Lock()
 				//getexpired:
 				for key, item := range ptr.cache {
 					if item.expires > 0 && item.expires < now {
 						//logf(DEBUG, "L3 expire [%s] key='%#v' item='%#v'", char, key, item)
-						cleanup = append(cleanup, key)
+						//cleanup = append(cleanup, key)
+						cnt.Counter["Count_Delete"]++
+						delete(ptr.cache, key)
 					}
 				} // end for getexpired
-				mux.RUnlock()
+				mux.Unlock()
+				//mux.RUnlock()
 
 				//maplen := len(ptr.cache)
-				if len(cleanup) > 0 {
-					mux.Lock()
-					//maplen -= len(cleanup)
-					for _, key := range cleanup {
-						delete(ptr.cache, key)
-						cnt.Counter["Count_Delete"]++
+				/*
+					if len(cleanup) > 0 {
+						mux.Lock()
+						//maplen -= len(cleanup)
+						for _, key := range cleanup {
+							delete(ptr.cache, key)
+							cnt.Counter["Count_Delete"]++
+						}
+						mux.Unlock()
+						//logf(DEBUG, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+						cleanup = nil
 					}
-					mux.Unlock()
-					//logf(DEBUG, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
-					cleanup = nil
-				}
-				//logf(DEBUG, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+					//logf(DEBUG, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+				*/
 				timer.Reset(time.Duration(l3purge) * time.Second)
 			} // end select
 		} // end for
@@ -270,7 +276,7 @@ func (l3 *L3CACHE) DelExtL3batch(his *HISTORY, char string, tmpKey []*ClearCache
 		return
 	}
 	for _, item := range tmpKey {
-		if item.key != nil && *item.key != "" {
+		if item.key != "" {
 			/*
 				if DEBUG {
 					lench := len(l3.Extend[char].ch)

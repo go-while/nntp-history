@@ -153,10 +153,10 @@ fetchbatch:
 			//}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
 			cachekey := bo.char + bo.bucket + bo.key
-			his.DoCacheEvict(bo.char, &bo.hash, 0, &cachekey)
+			his.DoCacheEvict(bo.char, bo.hash, 0, cachekey)
 			for _, offset := range bo.offsets {
 				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
-				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), &EmptyStr, offset, &EmptyStr)
+				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
 			}
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1

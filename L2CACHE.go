@@ -80,7 +80,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 	l2.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l2.mux.Unlock()
 	//logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
-	cleanup := []int64{}
+	//cleanup := []int64{}
 	l2purge := L2Purge
 	if l2purge < 1 {
 		l2purge = 1
@@ -147,29 +147,35 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 				start = utils.UnixTimeMilliSec()
 				now = int64(start / 1000)
 
-				mux.RLock()
+				//mux.RLock()
+				mux.Lock()
 				//getexpired:
 				for offset, item := range ptr.cache {
 					if item.expires > 0 && item.expires < now {
 						//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v' age=%d l2exp=%d", char, offset, item, now-item.addtime, L2CacheExpires)
-						cleanup = append(cleanup, offset)
+						//cleanup = append(cleanup, offset)
+						cnt.Counter["Count_Delete"]++
+						delete(ptr.cache, offset)
 					}
 				} // end for getexpired
-				mux.RUnlock()
+				mux.Unlock()
+				//mux.RUnlock()
 
 				//maplen := len(ptr.cache)
-				if len(cleanup) > 0 {
-					mux.Lock()
-					//maplen -= len(cleanup)
-					for _, offset := range cleanup {
-						delete(ptr.cache, offset)
-						cnt.Counter["Count_Delete"]++
+				/*
+					if len(cleanup) > 0 {
+						mux.Lock()
+						//maplen -= len(cleanup)
+						for _, offset := range cleanup {
+							delete(ptr.cache, offset)
+							cnt.Counter["Count_Delete"]++
+						}
+						mux.Unlock()
+						cleanup = nil
+						//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
 					}
-					mux.Unlock()
-					cleanup = nil
-					//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
-				}
-				//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+					//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+				*/
 				timer.Reset(time.Duration(l2purge) * time.Second)
 			} // end select
 		} // end for
