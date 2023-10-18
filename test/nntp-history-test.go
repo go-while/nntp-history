@@ -184,12 +184,12 @@ func main() {
 		select {}
 
 	} else if BootHistoryClient {
-
-		go history.History.BootHistoryClient("")
-
 		P_donechan := make(chan struct{}, parallelTest)
 		go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
 		for p := 1; p <= parallelTest; p++ {
+
+			go history.History.BootHistoryClient("")
+
 			go func(p int) {
 				var added, adddupes, addretry, errors uint64
 				responseChan := make(chan int, 1)
