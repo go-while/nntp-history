@@ -49,7 +49,8 @@ func main() {
 	var pprofmem bool
 	var BootHistoryClient bool
 	var RunTCPonly bool
-
+	var BoltDB_PageSize int
+	var InitialMmapSize int
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.IntVar(&numCPU, "numcpu", 4, "Limit your CPU cores to Threads/2 !")
@@ -69,31 +70,38 @@ func main() {
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
 
+	// experimental flags
+	flag.BoolVar(&BootHistoryClient, "BootHistoryClient", false, "experimental client/server")
+	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
+
+	// profiling
+	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
+	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
+
+	// options for our pre-batching
+	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
+	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
+	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
+	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
+	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536 (default: 256)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+
+	// bbolt options
+	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9") // key length used for sub buckets
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
+	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
-
 	// NoGrowSync: When true, skips the truncate call when growing the database,
 	//  but it's only safe on non-ext3/ext4 systems.
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync: default false!")
-
 	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
 	// This can improve write performance but may require a full database re-sync during recovery.
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
 
-	// experimental flags
-	flag.BoolVar(&BootHistoryClient, "BootHistoryClient", false, "experimental")
-	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental")
-	flag.BoolVar(&pprofcpu, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
-	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
-	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
-	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
-	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9")
-	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536")
-	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false")
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
 
@@ -159,8 +167,8 @@ func main() {
 		bO := bolt.Options{
 			//ReadOnly: true,
 			Timeout:         9 * time.Second,
-			InitialMmapSize: 256 * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        256 * 1024,
+			InitialMmapSize: InitialMmapSize * 1024 * 1024, // assign a high value if you expect a lot of load.
+			PageSize:        BoltDB_PageSize * 1024,
 			//FreelistType:    bolt.FreelistArrayType,
 			FreelistType:   bolt.FreelistMapType,
 			NoSync:         NoSync,
