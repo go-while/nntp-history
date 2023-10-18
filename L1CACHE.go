@@ -173,7 +173,7 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 				select {
 				case <-timer.C:
 					break forextends
-				case slice := <-extC.ch: // receives stuff from DelExtL1batch()
+				case slice := <-extC.ch: // receives stuff from CacheEvictThread()
 					// got hashes we will extend
 					extends = slice
 					//log.Printf("L1 extend hash='%s'", *hash)

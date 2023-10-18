@@ -254,7 +254,7 @@ func (his *HISTORY) CacheEvictThread() {
 					tmpKey = nil
 					del3 = false
 				}
-				timer.Reset(time.Duration(basetimer) * time.Millisecond)
+				timer.Reset(time.Duration(basetimer) * time.Second)
 				continue forever
 			} // end forever
 		}(char, his.cacheEvicts[char])

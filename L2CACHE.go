@@ -104,7 +104,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 				select {
 				case <-timer.C:
 					break forextends
-				case slice := <-extC.ch: // receives stuff from DelExtL2batch()
+				case slice := <-extC.ch: // receives stuff from CacheEvictThread()
 					// got offset we will extend in next timer.C run
 					extends = slice
 					break forextends
