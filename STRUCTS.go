@@ -2,6 +2,7 @@ package history
 
 import (
 	bolt "go.etcd.io/bbolt"
+	"os"
 	"sync"
 )
 
@@ -54,7 +55,8 @@ type HISTORY struct {
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
 	bUCKETSperDB   int
 	keyIndex       int
-
+	CPUfile        *os.File // ptr to file for cpu profiling
+	MEMfile        *os.File // ptr to file for mem profiling
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
 	TCPchan chan *HistoryObject
 }
