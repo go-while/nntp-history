@@ -30,6 +30,7 @@ func main() {
 	numCPU := runtime.NumCPU()
 	debug.SetGCPercent(200)
 	var offset int64
+	var hexoff string
 	var todo int // todo x parallelTest
 	var parallelTest int
 	var useHashDB bool
@@ -46,7 +47,6 @@ func main() {
 	var NoGrowSync bool
 	var NoFreelistSync bool
 	var pprofmem bool
-	var BootHistoryClient bool
 	var RunTCPonly bool
 	var BoltDB_PageSize int
 	var InitialMmapSize int
@@ -58,6 +58,7 @@ func main() {
 	flag.IntVar(&debugs, "debugs", -1, "default:-1|stats:0|more:1|spam:2|batch:9")
 
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
+	flag.StringVar(&hexoff, "getHEX", "", "Hex 'f075322c83d4ea' Offset to seek in history")
 
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
@@ -70,7 +71,7 @@ func main() {
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
 
 	// experimental flags
-	flag.BoolVar(&BootHistoryClient, "BootHistoryClient", false, "experimental client/server")
+	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
 	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
 
 	// profiling
@@ -81,9 +82,9 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
-	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
+	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", true, "true | false  (experimental)")    // adaptive batchsize
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536 (default: 256)")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 10000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
 	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9") // key length used for sub buckets
@@ -93,10 +94,10 @@ func main() {
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
-	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
+	flag.BoolVar(&NoSync, "NoSync", true, "bbolt.NoSync: default false!")
 	// NoGrowSync: When true, skips the truncate call when growing the database,
 	//  but it's only safe on non-ext3/ext4 systems.
-	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync: default false!")
+	flag.BoolVar(&NoGrowSync, "NoGrowSync", true, "bbolt.NoGrowSync: default false!")
 	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
 	// This can improve write performance but may require a full database re-sync during recovery.
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
@@ -154,8 +155,8 @@ func main() {
 		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
 		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
 		// "SYNC" options are only used with 'boltopts.NoSync: true'
-		//history.BoltSyncEveryS = 60     // only used with 'boltopts.NoSync: true' default: 5 seconds
-		//history.BoltSyncEveryN = 500000 // only used with 'boltopts.NoSync: true' default: 100
+		history.BoltSyncEveryS = 60     // only used with 'boltopts.NoSync: true' default: 5 seconds
+		history.BoltSyncEveryN = 500000 // only used with 'boltopts.NoSync: true' default: 100
 		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
 		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16 // used when booting and initalizing bolt databases
 		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
@@ -182,22 +183,25 @@ func main() {
 		}
 		boltOpts = &bO
 	}
-	start := utils.UnixTimeSec()
+	start := time.Now().Unix()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
-	if history.DEBUG {
-		history.DefaultACL = make(map[string]bool)
-		history.DefaultACL["::1"] = true
-		history.DefaultACL["127.0.0.1"] = true
 
-	} else if RunTCPonly {
+	if RunTCPonly {
 		history.DefaultACL = make(map[string]bool)
-		history.DefaultACL["::1"] = true
-		history.DefaultACL["127.0.0.1"] = true
+		if history.DEBUG {
+			history.DefaultACL["::1"] = true
+			history.DefaultACL["127.0.0.1"] = true
+		}
 		history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
 
-	} else if BootHistoryClient {
+	} else if history.BootHisCli {
+		log.Printf("main: history.BootHisCli=%t", history.BootHisCli)
+		//if BootHisCli {
+		//	return
+		//}
+		history.NoReplayHisDat = true
 		P_donechan := make(chan struct{}, parallelTest)
 		go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
 		for p := 1; p <= parallelTest; p++ {
@@ -220,7 +224,7 @@ func main() {
 					//if hash == TESTHASH {
 					//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 					//}
-					now := utils.UnixTimeSec()
+					now := time.Now().Unix()
 					expires := now + 86400*10 // expires in 10 days
 					//expires := int64(1234) // will expire on next expiry run
 					doa := now // date of article
@@ -266,6 +270,15 @@ func main() {
 		os.Exit(0)
 	} // end if BootHistoryClient
 
+	if hexoff != "" {
+		value, err := strconv.ParseInt(hexoff, 16, 64) // reads hex
+		if value <= 0 || err != nil {
+			log.Printf("main: ERROR hexoff ParseInt err='%v'", err)
+			os.Exit(1)
+		}
+		log.Printf("HEX='%s' => offset=%d", hexoff, offset)
+		offset = value
+	}
 	if offset >= 0 {
 		history.NoReplayHisDat = true
 	}
@@ -316,6 +329,9 @@ func main() {
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int, testhashes []string) {
+			if offset > 0 {
+				return
+			}
 			// delay start
 			//time.Sleep(time.Duration(time.Duration(p*p*p) * time.Second))
 			log.Printf("Launch p=%d", p)
@@ -398,14 +414,14 @@ func main() {
 						// we locked the hash but IndexQuery replied with Duplicate
 						// set L1 cache to Dupe and expire
 						//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
-						history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
+						history.History.DoCacheEvict(char, hash, 0, history.EmptyStr)
 						dupes++
 						continue fortodo
 					case history.CaseRetry:
 						// we locked the hash but IndexQuery replied with Retry
 						// set L1 cache to Retry and expire
 						//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
-						history.History.DoCacheEvict(char, &hash, 0, &history.EmptyStr)
+						history.History.DoCacheEvict(char, hash, 0, history.EmptyStr)
 						retry++
 						continue fortodo
 					default:
@@ -418,7 +434,7 @@ func main() {
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
 
-				now := utils.UnixTimeSec()
+				now := time.Now().Unix()
 				expires := now + 86400*10 // expires in 10 days
 				//expires := int64(1234) // will expire on next expiry run
 				doa := now // date of article
@@ -463,13 +479,13 @@ func main() {
 		}
 		time.Sleep(time.Second / 10)
 	}
-	took := utils.UnixTimeSec() - start
+	took := time.Now().Unix() - start
 	log.Printf("main: CLOSING HISTORY")
 	// close history
-	closewait := utils.UnixTimeSec()
+	closewait := time.Now().Unix()
 	history.History.CLOSE_HISTORY()
 	go MemoryProfile(time.Second*10, 0, pprofmem)
-	waited := utils.UnixTimeSec() - closewait
+	waited := time.Now().Unix() - closewait
 
 	// get some numbers
 	key_add := history.History.GetCounter("key_add")

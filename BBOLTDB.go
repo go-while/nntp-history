@@ -43,8 +43,8 @@ var (
 	QIndexChan           int     = 16                              // Main-indexchan can queue this
 	QindexChans          int     = 16                              // every sub-indexchans for a `char` can queue this
 	BoltDB_AllocSize     int                                       // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
-	BoltSyncEveryS       int64   = 5                               // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
-	BoltSyncEveryN       uint64  = 100                             // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
+	BoltSyncEveryS       int64   = 60                              // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
+	BoltSyncEveryN       uint64  = 500000                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
 	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling History_Boot.
 	BoltHashOpen                 = make(chan struct{}, intBoltDBs) // dont change this
@@ -54,18 +54,18 @@ var (
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
-	RootBucketFillPercent = 0.3
+	RootBucketFillPercent = 0.2
 
 	// adjust sub buckets page splitting behavior
 	// unsure if it does anything in sub buckets?
-	SubBucketFillPercent = 0.3
+	SubBucketFillPercent = 0.2
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
 	BUCKETSperDB = 256
 	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
 	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
-	KEYINDEX = 2
+	KEYINDEX = 1
 
 	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
 	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in BUCKETSperDB)
@@ -130,6 +130,9 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 // It creates worker channels for each character in HEXCHARS and launches corresponding worker goroutines.
 // The provided boltOpts parameter allows configuring the BoltDB database options.
 func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
+	if BootHisCli {
+		return
+	}
 	gob.Register(HistorySettings{})
 
 	his.L2Cache.L2CACHE_Boot(his)
@@ -173,8 +176,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		QindexChans = 1
 	}
 
-	if DefaultEvictsCapacity < 64 {
-		DefaultEvictsCapacity = 64
+	if DefaultEvictsCapacity < 1024 {
+		DefaultEvictsCapacity = 1024
 	}
 
 	his.cEvCap = DefaultEvictsCapacity
@@ -188,7 +191,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		his.charsMap[char] = i
 		his.indexChans[i] = make(chan *HistoryIndex, QindexChans)
 		his.BatchLocks[char] = &BATCHLOCKS{bl: make(map[string]*BLCH)}
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			his.BatchLocks[char].bl[bucket] = &BLCH{ch: make(chan struct{}, 1)}
 		}
 	}
@@ -328,7 +331,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	tocheck, checked, created := his.bUCKETSperDB, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
-	for _, bucket := range ALLBUCKETS {
+	for _, bucket := range ROOTBUCKETS {
 		retbool, err := boltCreateBucket(db, char, bucket)
 		if err != nil || !retbool {
 			if err == bolt.ErrBucketExists {
@@ -345,7 +348,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	<-his.boltInitChan
 
-	logf(DEBUG, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	logf(DEBUG1, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	if checked != tocheck || (created > 0 && created != tocheck) {
 		log.Printf("ERROR HDBZW INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
@@ -366,7 +369,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		timeout--
 	}
 
-	lastsync := utils.UnixTimeSec()
+	lastsync := time.Now().Unix()
 	var added, processed, dupes, searches, retry, countsearches uint64
 	cutHashlen := 9 // 3:9 = 6 chars (1st is db, 2nd+3rd is bucket (bucketsPerDB=256), remaining is used as KeyLen
 	if his.keyalgo == HashShort {
@@ -396,7 +399,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		timer = 1000
 	}
 	closedBuckets := make(chan struct{}, his.bUCKETSperDB)
-	for _, bucket := range ALLBUCKETS {
+	for _, bucket := range ROOTBUCKETS {
 		if CharBucketBatchSize <= 0 {
 			continue
 		}
@@ -549,7 +552,7 @@ forever:
 			if !ok || hi == nil || len(hi.Hash) < 32 { // at least md5
 				// receiving a nil object stops history_dbz_worker
 				logf(DEBUG9, "Stopping boltDB_Worker indexchan[%s] received nil pointer", char)
-				for _, bucket := range ALLBUCKETS {
+				for _, bucket := range ROOTBUCKETS {
 					his.batchQueues.Maps[char][bucket] <- nil
 				}
 				break forever
@@ -625,23 +628,23 @@ forever:
 				break forever
 			}
 			if boltOpts.NoSync == true {
-				if added >= BoltSyncEveryN || (added > 0 && lastsync <= utils.UnixTimeSec()-BoltSyncEveryS) {
+				if added >= BoltSyncEveryN || (added > 0 && lastsync <= time.Now().Unix()-BoltSyncEveryS) {
 					err := his.BoltSync(db, char, reopen)
 					if err != nil {
 						break forever
 					}
-					added, lastsync = 0, utils.UnixTimeSec()
+					added, lastsync = 0, time.Now().Unix()
 				}
 			}
 		} // end select
 	} // end forever
 	if CharBucketBatchSize > 0 {
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			his.batchQueues.Maps[char][bucket] <- nil
 			close(his.batchQueues.Maps[char][bucket])
 		}
 	}
-	for _, bucket := range ALLBUCKETS {
+	for _, bucket := range ROOTBUCKETS {
 		logf(DEBUG2, "FINAL-BATCH HDBZW [%s|%s]", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, his.batchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:[%s|%s]", char, bucket), -1, -1)
 	}
@@ -886,12 +889,15 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	var encodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
 		root := tx.Bucket([]byte(bucket))
-		subb := root.Bucket([]byte(key[0:his.keyIndex])) // subbucket co-exists in boltBucketPutBatch
-		if subb == nil {
-			// bucket not yet created
-			return nil
-		}
-		v := subb.Get([]byte(key[his.keyIndex:])) // subbucket co-exists in boltBucketPutBatch
+		v := root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatch
+		/*
+			subb := root.Bucket([]byte(key[0:his.keyIndex])) // subbucket co-exists in boltBucketPutBatch
+			if subb == nil {
+				// bucket not yet created
+				return nil
+			}
+			v := subb.Get([]byte(key[his.keyIndex:])) // subbucket co-exists in boltBucketPutBatch
+		*/
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
 			if newoffset == FlagSearch { // is a search
@@ -957,7 +963,7 @@ func (his *HISTORY) BoltSyncAll() error {
 func (his *HISTORY) returnLockAllBatchLocks(char string) {
 	logf(DEBUG9, "UNLOCKING BoltSync BatchLocks")
 	if his.BatchLocks != nil {
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			// unlocks buckets in this char db
 			his.returnBatchLock(char, bucket)
 		}
@@ -968,7 +974,7 @@ func (his *HISTORY) returnLockAllBatchLocks(char string) {
 func (his *HISTORY) LockAllBatchLocks(char string) {
 	if his.BatchLocks != nil {
 		logf(DEBUG9, "LOCKING BoltSync BatchLocks")
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			// locks every bucket in this char db for syncing
 			his.BatchLocks[char].bl[bucket].ch <- struct{}{}
 
@@ -1007,7 +1013,7 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string, reopen bool) error {
 		log.Printf("ERROR BoltSync [%s] db.Sync failed err='%v'", char, err)
 		return err
 	}
-	logf(DEBUG2, "BoltDB SYNC [%s] reopen=%t (took=%d ms) ", char, reopen, utils.UnixTimeMilliSec()-start)
+	logf(DEBUG, "BoltDB SYNC [%s] reopen=%t (took=%d ms) ", char, reopen, utils.UnixTimeMilliSec()-start)
 
 	his.returnLockAllBatchLocks(char)
 

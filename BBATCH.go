@@ -40,7 +40,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	Q := len(batchQueue)
 	Qcap := cap(batchQueue)
-	if Q >= Qcap/2 {
+	if Q >= int(Qcap/100*95) {
 		log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
 		//pass
 	} else if Q < workerCharBucketBatchSize && !forced {
@@ -126,17 +126,26 @@ fetchbatch:
 				//if bo.key == TESTKEY {
 				//	log.Printf("DEBUG [%s|%s] db.Batch TESTKEY='%s' TESTBUK='%s' offsets='%s' bo='%#v'", char, bucket, bo.key, TESTBUK, string(bo.encodedOffsets), bo)
 				//}
-				// Setup sub buckets
-				subb, err := root.CreateBucketIfNotExists([]byte(bo.key[0:his.keyIndex])) // subbucket co-exists in boltBucketGetOffsets
-				if err != nil {
-					return err
-				}
-				subb.FillPercent = SubBucketFillPercent
-				puterr := subb.Put([]byte(bo.key[his.keyIndex:]), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
+				puterr := root.Put([]byte(bo.key), bo.encodedOffsets) // don't use a subbucket co-exists in boltBucketGetOffsets
 				if puterr != nil {
 					err = puterr
 					break batch1insert
 				}
+				/*
+					// Setup sub buckets
+					subbName := bo.key[0:his.keyIndex]
+					subb, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets
+					if err != nil {
+						return err
+					}
+					key := bo.key[his.keyIndex:]
+					subb.FillPercent = SubBucketFillPercent
+					puterr := subb.Put([]byte(key), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
+					if puterr != nil {
+						err = puterr
+						break batch1insert
+					}
+				*/
 				inserted++
 			}
 			return err
@@ -153,15 +162,15 @@ fetchbatch:
 			//}
 			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
 			cachekey := bo.char + bo.bucket + bo.key
-			his.DoCacheEvict(bo.char, &bo.hash, 0, &cachekey)
+			his.DoCacheEvict(bo.char, bo.hash, 0, cachekey)
 			for _, offset := range bo.offsets {
 				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
-				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), &EmptyStr, offset, &EmptyStr)
+				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
 			}
 		}
 		insert1_took := utils.UnixTimeMicroSec() - start1
 		if DBG_BS_LOG {
-			his.batchLog(&BatchLOG{c: &char, b: &bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
+			his.batchLog(&BatchLOG{c: char, b: bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
 		}
 		// debugs adaptive batchsize
 		logf(DBG_ABS1, "INFO bboltPutBatch [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)

@@ -1,0 +1,1722 @@
+./nntp-history-test -todo 50000000 -pprofcpu -BoltDB_PageSize=64
+ARGS: CPU=4/12 | jobs=4 | todo=50000000 | total=200000000 | keyalgo=11 | keylen=8 | BatchSize=256 | useHashDB: true
+ boltOpts='&bbolt.Options{Timeout:9000000000, NoGrowSync:false, NoFreelistSync:true, PreLoadFreelist:false, FreelistType:"hashmap", ReadOnly:false, MmapFlags:0, InitialMmapSize:1048576, PageSize:65536, NoSync:false, OpenFile:(func(string, int, fs.FileMode) (*os.File, error))(nil), Mlock:false}'
+2023/10/19 02:57:51 startCPUProfile
+2023/10/19 02:57:51 CharBucketBatchSize=256 his.wCBBS=256
+2023/10/19 02:57:51 gobEncodeHeader
+ b64str='OH8DAQEPSGlzdG9yeVNldHRpbmdzAf+AAAEEAQJLYQEEAAECS2wBBAABAktpAQQAAQJCcAEEAAAADf+AARYBEAEEAf4CAAA='=71 lenio=4095
+ settings='&history.HistorySettings{Ka:11, Kl:8, Ki:2, Bp:256}'
+2023/10/19 02:57:51 HistoryServer ListenTCP: [::]:49119
+2023/10/19 02:57:51 HistoryServer UnixSocket: ./socket.sock
+2023/10/19 02:57:51 HDBZW [6] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [5] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [0] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [1] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [3] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [c] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [b] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [4] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [2] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [7] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [d] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [8] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [f] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [a] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [e] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 HDBZW [9] root.buckets checked=256/256 created=256/256
+2023/10/19 02:57:51 ReplayHisDat file='history/history.dat' size=4096
+2023/10/19 02:57:51 LOOPEND ReplayHisDat checked=0 ok=0 missed=0 (took 0 sec)
+2023/10/19 02:57:51 boltDB_Init HashDB='hashdb/history.dat.hash.[0-9a-f]'
+2023/10/19 02:57:51   KeyAlgo=11 KeyLen=8 his.indexPar=16
+2023/10/19 02:57:51   adaptBatch=false QIndexChan=16 QindexChans=16
+2023/10/19 02:57:51   BatchSize=256  BatchFlushEvery=5000
+2023/10/19 02:57:51
+--> BootHistory: new=true
+ hisDat='history/history.dat'
+ NumQueueWriteChan=16 DefaultCacheExpires=10
+ settings='&history.HistorySettings{Ka:11, Kl:8, Ki:2, Bp:256}' hashdb=true
+2023/10/19 02:57:51 start history_Writer
+2023/10/19 02:57:51 start history_Writer Wait4HashDB
+2023/10/19 02:57:51 started history_Writer OK
+2023/10/19 02:57:51 history_Writer opened fp='history/history.dat' filesize=4096
+2023/10/19 02:57:51 Launch p=1
+2023/10/19 02:57:51 Launch p=2
+2023/10/19 02:57:51 Launch p=3
+2023/10/19 02:57:51 Launch p=4
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31130/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31130/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31131/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31133/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31133/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31131/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31136/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31136/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31138/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31139/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31140/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31141/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31142/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31143/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31143/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31145/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31146/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31147/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31148/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31149/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31150/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31151/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31152/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31153/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31150/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31154/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31156/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31157/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31158/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31159/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31160/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31161/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31162/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31163/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31164/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31165/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31166/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31167/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31168/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31169/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31169/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31171/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31172/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31173/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31174/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31175/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31176/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31176/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31178/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31179/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31180/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31181/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31182/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31183/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31184/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31185/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31185/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31186/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31188/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31189/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31189/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31190/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31192/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31193/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31194/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31195/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31196/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31196/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31198/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31199/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31200/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31200/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31202/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31203/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31204/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31205/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31206/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31207/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31208/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31209/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31210/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31211/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31212/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31213/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31214/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31215/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31216/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31216/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31218/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31218/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31220/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31221/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31222/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31223/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31224/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31225/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31226/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31227/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31228/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31229/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31230/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31231/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31232/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31233/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31234/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31235/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31236/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31237/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31237/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31239/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31240/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31241/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31242/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31242/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31244/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31245/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31246/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31247/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31248/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31249/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31250/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31251/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31252/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31253/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31254/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31255/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31255/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31257/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31257/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31259/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31260/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31260/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31262/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31263/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31264/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31265/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31266/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31267/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31268/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31268/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31270/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31271/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31272/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31273/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31274/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31275/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31275/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31277/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31278/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31279/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31280/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31281/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31281/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31283/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31284/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31285/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31286/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31287/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31288/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31289/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31290/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31291/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31291/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31292/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31294/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31295/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31296/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31297/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31297/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31299/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31299/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31301/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31302/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31303/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31304/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31305/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31306/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31303/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31308/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31309/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31310/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31311/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31312/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31313/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31314/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31315/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31316/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31317/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31318/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31319/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31320/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31313/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31322/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31323/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31324/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31325/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31326/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31327/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31328/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31329/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31330/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31331/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31332/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31333/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31334/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31335/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31336/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31337/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31338/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31339/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31340/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31341/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31342/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31342/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31344/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31344/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31346/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31347/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31348/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31349/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31350/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31351/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31352/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31353/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31354/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31355/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31356/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31357/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31358/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31359/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31360/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31360/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31362/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31363/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31364/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31365/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31366/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31366/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31368/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31369/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31369/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31371/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31371/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31373/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31374/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31375/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31376/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31377/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31378/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31379/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31380/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31381/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31382/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31383/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31384/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31385/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31386/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31387/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31388/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31389/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31390/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31391/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31392/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31393/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31393/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31395/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31396/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31397/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31398/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31399/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31400/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31401/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31402/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31403/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31404/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31405/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31406/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31407/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31407/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31409/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31410/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31410/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31412/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31413/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31414/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31415/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31416/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31417/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31418/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31419/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31420/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31421/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31422/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31423/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31424/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31425/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31426/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31426/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31428/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31429/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31430/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31431/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31431/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31433/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31434/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31435/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31423/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31437/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31438/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31439/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31440/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31441/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31442/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31443/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31444/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31445/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31446/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31447/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31448/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31448/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31450/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31451/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31452/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31453/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31441/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31454/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31456/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31137/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31458/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31458/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31460/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31461/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31172/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31462/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31464/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31465/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31466/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31467/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31467/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31465/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31470/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31471/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31471/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31473/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31183/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31475/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31476/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31476/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31477/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31479/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31479/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31480/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31482/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31483/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31484/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31205/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31486/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31487/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31488/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31214/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31490/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31240/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31492/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31493/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31494/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31495/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31496/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31497/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31498/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31252/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31500/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31501/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31502/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31503/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31504/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31505/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31254/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31506/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31508/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31508/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31510/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31510/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31512/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31513/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31514/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31515/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31515/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31517/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31518/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31519/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31520/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31521/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31522/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31523/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31524/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31525/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31525/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31527/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31261/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31529/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31298/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31531/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31531/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31533/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31534/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31535/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31536/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31302/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31538/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31538/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31539/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31541/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31542/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31543/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31543/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31545/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31546/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31306/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31548/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31548/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31550/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31551/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31552/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31553/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31349/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31554/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31556/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31478/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31558/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31559/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31559/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31496/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31561/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31484/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31490/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31565/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31565/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31566/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31568/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31541/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31529/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31496/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31477/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31427/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31306/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31227/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31204/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31182/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31165/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31151/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31456/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31515/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31529/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31527/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31533/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31461/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31562/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31224/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31560/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31167/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31148/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31397/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31320/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31556/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31312/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31304/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31396/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31553/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31376/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31361/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31358/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31357/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31341/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31337/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31310/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31268/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31262/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31243/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31241/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31221/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31206/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31185/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31184/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31159/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31157/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31137/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31150/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31197/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31537/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31562/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31563/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31566/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31130/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31133/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31142/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31149/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31153/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31189/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31215/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31227/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31296/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31317/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31359/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31368/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31372/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31395/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31410/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31435/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31453/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31448/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31464/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31468/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31188/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31482/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31488/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31526/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31446/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31335/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31475/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31139/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31141/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31473/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31493/32768 warn>31129 near-full
+2023/10/19 02:57:58 WARN DoCacheEvict cacheEvicts[0]chan=31565/32768 warn>31129 near-full
+2023/10/19 02:58:01 WatchBolt: (inserted 34966/s) (+349662 inserted in 10s)
+2023/10/19 02:58:01 L1: [fex=0/set:583757] [get=0/mux=583760] [del:0/bat:349662] [g/s:0/0] cached:583760 (~36485/char)
+2023/10/19 02:58:01 WatchBolt: (batchins 409/s) (+4096 batchins in 10s) medBS=~85
+2023/10/19 02:58:01 WatchBolt: (searches 57600/s) (+576000 searches in 10s)
+2023/10/19 02:58:01 L2: [fex=0/set:583761] [get=0/mis=0] [del:0/bat:349662] [g/s:0/0] cached:583761 (~36485/char)
+2023/10/19 02:58:01 L3: [fex=0/set:583762] [get=0/mis=0] [del:0/bat:349662] [g/s:0/0] cached:583762 (~36485/char)
+2023/10/19 02:58:01 BoltSpeed: 116752.98 tx/s ( did=1167546 in 10.0 sec ) totalTX=1167546 otx=17
+2023/10/19 02:58:10 RUN test p=2 nntp-history added=249654 dupes=0 cLock=388934 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=361412 cretry2=0 1000000/50000000
+2023/10/19 02:58:10 RUN test p=4 nntp-history added=247482 dupes=0 cLock=389114 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=363404 cretry2=0 1000000/50000000
+2023/10/19 02:58:10 RUN test p=3 nntp-history added=252885 dupes=0 cLock=389042 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=358073 cretry2=0 1000000/50000000
+2023/10/19 02:58:10 RUN test p=1 nntp-history added=249979 dupes=0 cLock=388896 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=361125 cretry2=0 1000000/50000000
+2023/10/19 02:58:11 WatchBolt: (inserted 52632/s) (+526325 inserted in 10s)
+2023/10/19 02:58:11 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~71
+2023/10/19 02:58:11 WatchBolt: (searches 53000/s) (+530000 searches in 10s)
+2023/10/19 02:58:11 L1: [fex=0/set:1116895] [get=0/mux=1116898] [del:590302/bat:875987] [g/s:0/0] cached:526596 (~32912/char)
+2023/10/19 02:58:11 L2: [fex=0/set:1116897] [get=0/mis=0] [del:591326/bat:875987] [g/s:0/0] cached:525571 (~32848/char)
+2023/10/19 02:58:11 L3: [fex=0/set:1116898] [get=0/mis=0] [del:590302/bat:875987] [g/s:0/0] cached:526596 (~32912/char)
+2023/10/19 02:58:11 BoltSpeed: 106629.24 tx/s ( did=1066288 in 10.0 sec ) totalTX=2233834 otx=17
+2023/10/19 02:58:21 WatchBolt: (inserted 54826/s) (+548269 inserted in 10s)
+2023/10/19 02:58:21 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~69
+2023/10/19 02:58:21 WatchBolt: (searches 52700/s) (+527000 searches in 10s)
+2023/10/19 02:58:21 L1: [fex=0/set:1642213] [get=0/mux=1642215] [del:1148371/bat:1424256] [g/s:0/0] cached:493844 (~30865/char)
+2023/10/19 02:58:21 L2: [fex=0/set:1642216] [get=0/mis=0] [del:1150419/bat:1424256] [g/s:0/0] cached:491797 (~30737/char)
+2023/10/19 02:58:21 L3: [fex=0/set:1642218] [get=0/mis=0] [del:1148371/bat:1424256] [g/s:0/0] cached:493847 (~30865/char)
+2023/10/19 02:58:21 BoltSpeed: 105065.03 tx/s ( did=1050653 in 10.0 sec ) totalTX=3284487 otx=16
+2023/10/19 02:58:29 RUN test p=4 nntp-history added=501058 dupes=0 cLock=782781 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=716161 cretry2=0 2000000/50000000
+2023/10/19 02:58:29 RUN test p=2 nntp-history added=498028 dupes=0 cLock=783318 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=718654 cretry2=0 2000000/50000000
+2023/10/19 02:58:29 RUN test p=3 nntp-history added=502442 dupes=0 cLock=783213 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=714345 cretry2=0 2000000/50000000
+2023/10/19 02:58:29 RUN test p=1 nntp-history added=498472 dupes=0 cLock=782046 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=719482 cretry2=0 2000000/50000000
+2023/10/19 02:58:31 WatchBolt: (inserted 53115/s) (+531151 inserted in 10s)
+2023/10/19 02:58:31 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~68
+2023/10/19 02:58:31 WatchBolt: (searches 52800/s) (+528000 searches in 10s)
+2023/10/19 02:58:31 L1: [fex=0/set:2166901] [get=0/mux=2166903] [del:1686912/bat:1955407] [g/s:0/0] cached:479991 (~29999/char)
+2023/10/19 02:58:31 L2: [fex=0/set:2166904] [get=0/mis=0] [del:1690504/bat:1955407] [g/s:0/0] cached:476400 (~29775/char)
+2023/10/19 02:58:31 L3: [fex=0/set:2166905] [get=0/mis=0] [del:1686912/bat:1955407] [g/s:0/0] cached:479993 (~29999/char)
+2023/10/19 02:58:31 BoltSpeed: 104939.08 tx/s ( did=1049393 in 10.0 sec ) totalTX=4333880 otx=17
+2023/10/19 02:58:41 WatchBolt: (inserted 54721/s) (+547214 inserted in 10s)
+2023/10/19 02:58:41 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~67
+2023/10/19 02:58:41 WatchBolt: (searches 52400/s) (+524000 searches in 10s)
+2023/10/19 02:58:41 L1: [fex=0/set:2693120] [get=0/mux=2693123] [del:2225743/bat:2502621] [g/s:0/0] cached:467380 (~29211/char)
+2023/10/19 02:58:41 L2: [fex=0/set:2693121] [get=0/mis=0] [del:2225751/bat:2502621] [g/s:0/0] cached:467370 (~29210/char)
+2023/10/19 02:58:41 L3: [fex=0/set:2693123] [get=0/mis=0] [del:2225743/bat:2502621] [g/s:0/0] cached:467380 (~29211/char)
+2023/10/19 02:58:41 BoltSpeed: 105246.06 tx/s ( did=1052454 in 10.0 sec ) totalTX=5386334 otx=17
+2023/10/19 02:58:47 RUN test p=3 nntp-history added=749422 dupes=0 cLock=1179409 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1071169 cretry2=0 3000000/50000000
+2023/10/19 02:58:47 RUN test p=2 nntp-history added=748028 dupes=0 cLock=1179937 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1072035 cretry2=0 3000000/50000000
+2023/10/19 02:58:47 RUN test p=1 nntp-history added=749769 dupes=0 cLock=1178075 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1072156 cretry2=0 3000000/50000000
+2023/10/19 02:58:47 RUN test p=4 nntp-history added=752781 dupes=0 cLock=1178818 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1068401 cretry2=0 3000000/50000000
+2023/10/19 02:58:51 L1: [fex=0/set:3222959] [get=0/mux=3222962] [del:2763229/bat:3033012] [g/s:0/0] cached:459733 (~28733/char)
+2023/10/19 02:58:51 L2: [fex=0/set:3222961] [get=0/mis=0] [del:2764765/bat:3033012] [g/s:0/0] cached:458196 (~28637/char)
+2023/10/19 02:58:51 WatchBolt: (inserted 53039/s) (+530391 inserted in 10s)
+2023/10/19 02:58:51 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~67
+2023/10/19 02:58:51 WatchBolt: (searches 53000/s) (+530000 searches in 10s)
+2023/10/19 02:58:51 L3: [fex=0/set:3222962] [get=0/mis=0] [del:2763229/bat:3033012] [g/s:0/0] cached:459733 (~28733/char)
+2023/10/19 02:58:51 BoltSpeed: 105968.97 tx/s ( did=1059690 in 10.0 sec ) totalTX=6446024 otx=16
+2023/10/19 02:59:01 WatchBolt: (inserted 53038/s) (+530380 inserted in 10s)
+2023/10/19 02:59:01 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~66
+2023/10/19 02:59:01 WatchBolt: (searches 52200/s) (+522000 searches in 10s)
+2023/10/19 02:59:01 L1: [fex=0/set:3745277] [get=0/mux=3745279] [del:3296692/bat:3563392] [g/s:0/0] cached:448587 (~28036/char)
+2023/10/19 02:59:01 L2: [fex=0/set:3745279] [get=0/mis=0] [del:3299252/bat:3563392] [g/s:0/0] cached:446027 (~27876/char)
+2023/10/19 02:59:01 L3: [fex=0/set:3745280] [get=0/mis=0] [del:3296692/bat:3563392] [g/s:0/0] cached:448588 (~28036/char)
+2023/10/19 02:59:01 BoltSpeed: 104464.82 tx/s ( did=1044650 in 10.0 sec ) totalTX=7490674 otx=16
+2023/10/19 02:59:06 RUN test p=4 nntp-history added=1005430 dupes=0 cLock=1560471 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1434099 cretry2=0 4000000/50000000
+2023/10/19 02:59:06 RUN test p=3 nntp-history added=998183 dupes=0 cLock=1560770 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1441047 cretry2=0 4000000/50000000
+2023/10/19 02:59:06 RUN test p=2 nntp-history added=998449 dupes=0 cLock=1561747 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1439804 cretry2=0 4000000/50000000
+2023/10/19 02:59:06 RUN test p=1 nntp-history added=997938 dupes=0 cLock=1559655 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1442407 cretry2=0 4000000/50000000
+2023/10/19 02:59:11 WatchBolt: (inserted 51206/s) (+512061 inserted in 10s)
+2023/10/19 02:59:11 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~66
+2023/10/19 02:59:11 WatchBolt: (searches 48800/s) (+488000 searches in 10s)
+2023/10/19 02:59:11 L1: [fex=0/set:4234545] [get=0/mux=4234546] [del:3825536/bat:4075453] [g/s:0/0] cached:409010 (~25563/char)
+2023/10/19 02:59:11 L2: [fex=0/set:4234549] [get=0/mis=0] [del:3829633/bat:4075453] [g/s:0/0] cached:404916 (~25307/char)
+2023/10/19 02:59:11 L3: [fex=0/set:4234550] [get=0/mis=0] [del:3825536/bat:4075453] [g/s:0/0] cached:409014 (~25563/char)
+2023/10/19 02:59:11 BoltSpeed: 97855.90 tx/s ( did=978560 in 10.0 sec ) totalTX=8469234 otx=17
+2023/10/19 02:59:21 WatchBolt: (inserted 51451/s) (+514512 inserted in 10s)
+2023/10/19 02:59:21 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~65
+2023/10/19 02:59:21 WatchBolt: (searches 49600/s) (+496000 searches in 10s)
+2023/10/19 02:59:21 L1: [fex=0/set:4729463] [get=0/mux=4729465] [del:4322237/bat:4589965] [g/s:0/0] cached:407228 (~25451/char)
+2023/10/19 02:59:21 L2: [fex=0/set:4729464] [get=0/mis=0] [del:4325309/bat:4589965] [g/s:0/0] cached:404155 (~25259/char)
+2023/10/19 02:59:21 L3: [fex=0/set:4729464] [get=0/mis=0] [del:4322237/bat:4589965] [g/s:0/0] cached:407226 (~25451/char)
+2023/10/19 02:59:21 BoltSpeed: 98984.25 tx/s ( did=989841 in 10.0 sec ) totalTX=9459075 otx=17
+2023/10/19 02:59:27 RUN test p=1 nntp-history added=1249340 dupes=0 cLock=1949970 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1800690 cretry2=0 5000000/50000000
+2023/10/19 02:59:27 RUN test p=3 nntp-history added=1246803 dupes=0 cLock=1951504 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1801693 cretry2=0 5000000/50000000
+2023/10/19 02:59:27 RUN test p=4 nntp-history added=1258536 dupes=0 cLock=1950467 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1790997 cretry2=0 5000000/50000000
+2023/10/19 02:59:27 RUN test p=2 nntp-history added=1245321 dupes=0 cLock=1951585 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=1803094 cretry2=0 5000000/50000000
+2023/10/19 02:59:31 WatchBolt: (inserted 51335/s) (+513356 inserted in 10s)
+2023/10/19 02:59:31 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~65
+2023/10/19 02:59:31 WatchBolt: (searches 52300/s) (+523000 searches in 10s)
+2023/10/19 02:59:31 L1: [fex=0/set:5253235] [get=0/mux=5253238] [del:4710335/bat:4971101] [g/s:0/0] cached:542903 (~33931/char)
+2023/10/19 02:59:31 L2: [fex=0/set:5253235] [get=0/mis=0] [del:4588173/bat:5101329] [g/s:0/0] cached:665062 (~41566/char)
+2023/10/19 02:59:31 L3: [fex=0/set:5253234] [get=0/mis=0] [del:4779641/bat:4971100] [g/s:0/0] cached:473592 (~29599/char)
+2023/10/19 02:59:31 BoltSpeed: 104625.17 tx/s ( did=1047556 in 10.0 sec ) totalTX=10506631 otx=16
+2023/10/19 02:59:41 L1: [fex=0/set:5750762] [get=0/mux=5750765] [del:5215192/bat:5474449] [g/s:0/0] cached:535573 (~33473/char)
+2023/10/19 02:59:41 L2: [fex=1/set:5750765] [get=0/mis=0] [del:5299345/bat:5365830] [g/s:0/0] cached:451421 (~28213/char)
+2023/10/19 02:59:41 WatchBolt: (inserted 51032/s) (+510320 inserted in 10s)
+2023/10/19 02:59:41 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~65
+2023/10/19 02:59:41 L3: [fex=0/set:5750766] [get=0/mis=0] [del:5215191/bat:5474448] [g/s:0/0] cached:535574 (~33473/char)
+2023/10/19 02:59:41 WatchBolt: (searches 49700/s) (+497000 searches in 10s)
+2023/10/19 02:59:41 BoltSpeed: 99632.20 tx/s ( did=995080 in 10.0 sec ) totalTX=11501711 otx=17
+2023/10/19 02:59:46 RUN test p=2 nntp-history added=1495133 dupes=0 cLock=2329691 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2175176 cretry2=0 6000000/50000000
+2023/10/19 02:59:46 RUN test p=4 nntp-history added=1506416 dupes=0 cLock=2327513 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2166071 cretry2=0 6000000/50000000
+2023/10/19 02:59:46 RUN test p=1 nntp-history added=1500137 dupes=0 cLock=2328511 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2171352 cretry2=0 6000000/50000000
+2023/10/19 02:59:46 RUN test p=3 nntp-history added=1498314 dupes=0 cLock=2329676 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2172010 cretry2=0 6000000/50000000
+2023/10/19 02:59:51 WatchBolt: (inserted 51977/s) (+519770 inserted in 10s)
+2023/10/19 02:59:51 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~65
+2023/10/19 02:59:51 WatchBolt: (searches 51700/s) (+517000 searches in 10s)
+2023/10/19 02:59:51 L1: [fex=0/set:6265552] [get=0/mux=6265555] [del:5725330/bat:5956599] [g/s:0/0] cached:540225 (~33764/char)
+2023/10/19 02:59:51 L2: [fex=1/set:6265555] [get=0/mis=0] [del:5743456/bat:5875953] [g/s:0/0] cached:522100 (~32631/char)
+2023/10/19 02:59:51 L3: [fex=0/set:6265556] [get=0/mis=0] [del:5725329/bat:5956598] [g/s:0/0] cached:540226 (~33764/char)
+2023/10/19 02:59:51 BoltSpeed: 102959.92 tx/s ( did=1029597 in 10.0 sec ) totalTX=12531308 otx=16
+2023/10/19 03:00:01 WatchBolt: (inserted 50770/s) (+507705 inserted in 10s)
+2023/10/19 03:00:01 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~64
+2023/10/19 03:00:01 WatchBolt: (searches 47300/s) (+473000 searches in 10s)
+2023/10/19 03:00:01 L1: [fex=0/set:6739751] [get=0/mux=6739753] [del:6210551/bat:6469893] [g/s:0/0] cached:529202 (~33075/char)
+2023/10/19 03:00:01 L2: [fex=1/set:6739755] [get=0/mis=0] [del:6130929/bat:6392113] [g/s:0/0] cached:608827 (~38051/char)
+2023/10/19 03:00:01 L3: [fex=0/set:6739755] [get=0/mis=0] [del:6210550/bat:6469891] [g/s:0/0] cached:529203 (~33075/char)
+2023/10/19 03:00:01 BoltSpeed: 94840.44 tx/s ( did=948411 in 10.0 sec ) totalTX=13479719 otx=17
+2023/10/19 03:00:07 RUN test p=4 nntp-history added=1755276 dupes=0 cLock=2708920 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2535804 cretry2=0 7000000/50000000
+2023/10/19 03:00:07 RUN test p=3 nntp-history added=1750513 dupes=0 cLock=2712014 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2537473 cretry2=0 7000000/50000000
+2023/10/19 03:00:07 RUN test p=1 nntp-history added=1748250 dupes=0 cLock=2710138 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2541612 cretry2=0 7000000/50000000
+2023/10/19 03:00:07 RUN test p=2 nntp-history added=1745961 dupes=0 cLock=2711964 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2542075 cretry2=0 7000000/50000000
+2023/10/19 03:00:11 WatchBolt: (inserted 49729/s) (+497298 inserted in 10s)
+2023/10/19 03:00:11 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~64
+2023/10/19 03:00:11 WatchBolt: (searches 48200/s) (+482000 searches in 10s)
+2023/10/19 03:00:11 L1: [fex=0/set:7221861] [get=0/mux=7221861] [del:6717189/bat:6942593] [g/s:0/0] cached:504672 (~31542/char)
+2023/10/19 03:00:11 L2: [fex=1/set:7221896] [get=0/mis=0] [del:6637873/bat:6896965] [g/s:0/0] cached:584024 (~36501/char)
+2023/10/19 03:00:11 L3: [fex=0/set:7221896] [get=0/mis=0] [del:6717187/bat:6942591] [g/s:0/0] cached:504707 (~31544/char)
+2023/10/19 03:00:11 BoltSpeed: 96095.53 tx/s ( did=964294 in 10.0 sec ) totalTX=14444013 otx=16
+2023/10/19 03:00:21 WatchBolt: (inserted 47366/s) (+473663 inserted in 10s)
+2023/10/19 03:00:21 WatchBolt: (batchins 819/s) (+8191 batchins in 10s) medBS=~64
+2023/10/19 03:00:21 WatchBolt: (searches 48100/s) (+481000 searches in 10s)
+2023/10/19 03:00:21 L1: [fex=0/set:7702080] [get=0/mux=7702081] [del:7148782/bat:7389074] [g/s:0/0] cached:553299 (~34581/char)
+2023/10/19 03:00:21 L2: [fex=1/set:7702081] [get=0/mis=0] [del:7136069/bat:7374068] [g/s:0/0] cached:566013 (~35375/char)
+2023/10/19 03:00:21 L3: [fex=0/set:7702081] [get=0/mis=0] [del:7148780/bat:7389072] [g/s:0/0] cached:553299 (~34581/char)
+2023/10/19 03:00:21 BoltSpeed: 96303.71 tx/s ( did=960390 in 10.0 sec ) totalTX=15404403 otx=16
+2023/10/19 03:00:28 RUN test p=3 nntp-history added=2002347 dupes=0 cLock=3080104 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2917549 cretry2=0 8000000/50000000
+2023/10/19 03:00:28 RUN test p=1 nntp-history added=1997789 dupes=0 cLock=3077727 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2924484 cretry2=0 8000000/50000000
+2023/10/19 03:00:28 RUN test p=2 nntp-history added=1993002 dupes=0 cLock=3079853 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2927145 cretry2=0 8000000/50000000
+2023/10/19 03:00:28 RUN test p=4 nntp-history added=2006862 dupes=0 cLock=3076790 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=2916348 cretry2=0 8000000/50000000
+2023/10/19 03:00:31 WatchBolt: (inserted 47863/s) (+478639 inserted in 10s)
+2023/10/19 03:00:31 WatchBolt: (batchins 819/s) (+8191 batchins in 10s) medBS=~63
+2023/10/19 03:00:31 WatchBolt: (searches 46200/s) (+462000 searches in 10s)
+2023/10/19 03:00:31 L1: [fex=0/set:8165108] [get=0/mux=8165109] [del:7622546/bat:7843909] [g/s:0/0] cached:542563 (~33910/char)
+2023/10/19 03:00:31 L2: [fex=1/set:8165111] [get=0/mis=0] [del:7611124/bat:7843910] [g/s:0/0] cached:553988 (~34624/char)
+2023/10/19 03:00:31 L3: [fex=0/set:8165112] [get=0/mis=0] [del:7622544/bat:7843907] [g/s:0/0] cached:542566 (~33910/char)
+2023/10/19 03:00:31 BoltSpeed: 92675.15 tx/s ( did=926077 in 10.0 sec ) totalTX=16330480 otx=16
+2023/10/19 03:00:41 WatchBolt: (inserted 47914/s) (+479140 inserted in 10s)
+2023/10/19 03:00:41 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~63
+2023/10/19 03:00:41 WatchBolt: (searches 47500/s) (+475000 searches in 10s)
+2023/10/19 03:00:41 L1: [fex=0/set:8639815] [get=0/mux=8639818] [del:8087621/bat:8339649] [g/s:0/0] cached:552197 (~34512/char)
+2023/10/19 03:00:41 L2: [fex=1/set:8639815] [get=0/mis=0] [del:8089670/bat:8339650] [g/s:0/0] cached:550146 (~34384/char)
+2023/10/19 03:00:41 L3: [fex=0/set:8639815] [get=0/mis=0] [del:8087619/bat:8339647] [g/s:0/0] cached:552194 (~34512/char)
+2023/10/19 03:00:41 BoltSpeed: 94941.90 tx/s ( did=949424 in 10.0 sec ) totalTX=17279904 otx=17
+2023/10/19 03:00:49 RUN test p=3 nntp-history added=2250868 dupes=0 cLock=3449372 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3299760 cretry2=0 9000000/50000000
+2023/10/19 03:00:49 RUN test p=4 nntp-history added=2255879 dupes=0 cLock=3445741 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3298380 cretry2=0 9000000/50000000
+2023/10/19 03:00:49 RUN test p=1 nntp-history added=2246318 dupes=0 cLock=3447003 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3306679 cretry2=0 9000000/50000000
+2023/10/19 03:00:49 RUN test p=2 nntp-history added=2246935 dupes=0 cLock=3449259 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3303806 cretry2=0 9000000/50000000
+2023/10/19 03:00:51 WatchBolt: (inserted 46836/s) (+468367 inserted in 10s)
+2023/10/19 03:00:51 WatchBolt: (batchins 819/s) (+8192 batchins in 10s) medBS=~63
+2023/10/19 03:00:51 WatchBolt: (searches 44700/s) (+447000 searches in 10s)
+2023/10/19 03:00:51 L1: [fex=0/set:9086707] [get=0/mux=9086709] [del:8567489/bat:8806983] [g/s:0/0] cached:519220 (~32451/char)
+2023/10/19 03:00:51 L2: [fex=1/set:9086711] [get=0/mis=0] [del:8569026/bat:8806984] [g/s:0/0] cached:517686 (~32355/char)
+2023/10/19 03:00:51 L3: [fex=0/set:9086711] [get=0/mis=0] [del:8567487/bat:8806981] [g/s:0/0] cached:519222 (~32451/char)
+2023/10/19 03:00:51 BoltSpeed: 89335.06 tx/s ( did=893808 in 10.0 sec ) totalTX=18173712 otx=17
+2023/10/19 03:01:01 L1: [fex=0/set:9560215] [get=0/mux=9560216] [del:9035335/bat:9266226] [g/s:0/0] cached:524881 (~32805/char)
+2023/10/19 03:01:01 L2: [fex=1/set:9560218] [get=0/mis=0] [del:9036360/bat:9266227] [g/s:0/0] cached:523859 (~32741/char)
+2023/10/19 03:01:01 L3: [fex=0/set:9560219] [get=0/mis=0] [del:9035333/bat:9266224] [g/s:0/0] cached:524884 (~32805/char)
+2023/10/19 03:01:01 BoltSpeed: 94690.21 tx/s ( did=947030 in 10.0 sec ) totalTX=19120742 otx=16
+2023/10/19 03:01:01 WatchBolt: (inserted 47180/s) (+471807 inserted in 10s)
+2023/10/19 03:01:01 WatchBolt: (batchins 819/s) (+8190 batchins in 10s) medBS=~62
+2023/10/19 03:01:01 WatchBolt: (searches 47500/s) (+475000 searches in 10s)
+2023/10/19 03:01:11 RUN test p=2 nntp-history added=2497391 dupes=0 cLock=3804854 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3697755 cretry2=0 10000000/50000000
+2023/10/19 03:01:11 RUN test p=4 nntp-history added=2506863 dupes=0 cLock=3801719 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3691418 cretry2=0 10000000/50000000
+2023/10/19 03:01:11 RUN test p=3 nntp-history added=2498038 dupes=0 cLock=3805529 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3696433 cretry2=0 10000000/50000000
+2023/10/19 03:01:11 RUN test p=1 nntp-history added=2497708 dupes=0 cLock=3803340 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=3698952 cretry2=0 10000000/50000000
+2023/10/19 03:01:11 WatchBolt: (inserted 46794/s) (+467948 inserted in 10s)
+2023/10/19 03:01:11 WatchBolt: (batchins 798/s) (+7984 batchins in 10s) medBS=~62
+2023/10/19 03:01:11 WatchBolt: (searches 48300/s) (+483000 searches in 10s)
+2023/10/19 03:01:11 L1: [fex=0/set:10044548] [get=0/mux=10044551] [del:9504818/bat:9756211] [g/s:0/0] cached:539733 (~33733/char)
+2023/10/19 03:01:11 L2: [fex=2/set:10044551] [get=0/mis=0] [del:9507891/bat:9756213] [g/s:0/0] cached:536662 (~33541/char)
+2023/10/19 03:01:11 L3: [fex=0/set:10044552] [get=0/mis=0] [del:9504816/bat:9756209] [g/s:0/0] cached:539734 (~33733/char)
+2023/10/19 03:01:11 BoltSpeed: 96931.73 tx/s ( did=968682 in 10.0 sec ) totalTX=20089424 otx=17
+2023/10/19 03:01:21 WatchBolt: (inserted 46212/s) (+462127 inserted in 10s)
+2023/10/19 03:01:21 WatchBolt: (batchins 814/s) (+8140 batchins in 10s) medBS=~62
+2023/10/19 03:01:21 WatchBolt: (searches 46700/s) (+467000 searches in 10s)
+2023/10/19 03:01:21 L1: [fex=0/set:10511256] [get=0/mux=10511258] [del:9985587/bat:10216089] [g/s:0/0] cached:525671 (~32854/char)
+2023/10/19 03:01:21 L2: [fex=2/set:10511257] [get=0/mis=0] [del:9989173/bat:10216091] [g/s:0/0] cached:522086 (~32630/char)
+2023/10/19 03:01:21 L3: [fex=0/set:10511258] [get=0/mis=0] [del:9985585/bat:10216087] [g/s:0/0] cached:525671 (~32854/char)
+2023/10/19 03:01:21 BoltSpeed: 93211.74 tx/s ( did=933427 in 10.0 sec ) totalTX=21022851 otx=17
+2023/10/19 03:01:31 WatchBolt: (inserted 46817/s) (+468179 inserted in 10s)
+2023/10/19 03:01:31 WatchBolt: (batchins 811/s) (+8110 batchins in 10s) medBS=~62
+2023/10/19 03:01:31 WatchBolt: (searches 45200/s) (+452000 searches in 10s)
+2023/10/19 03:01:31 L1: [fex=0/set:10963374] [get=0/mux=10963376] [del:10454169/bat:10688198] [g/s:0/0] cached:509207 (~31825/char)
+2023/10/19 03:01:31 L2: [fex=2/set:10963375] [get=0/mis=0] [del:10453659/bat:10688200] [g/s:0/0] cached:509718 (~31857/char)
+2023/10/19 03:01:31 L3: [fex=0/set:10963375] [get=0/mis=0] [del:10454167/bat:10688196] [g/s:0/0] cached:509206 (~31825/char)
+2023/10/19 03:01:31 BoltSpeed: 90054.35 tx/s ( did=904250 in 10.0 sec ) totalTX=21927101 otx=16
+2023/10/19 03:01:32 RUN test p=2 nntp-history added=2747619 dupes=0 cLock=4157400 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4094981 cretry2=0 11000000/50000000
+2023/10/19 03:01:32 RUN test p=4 nntp-history added=2760053 dupes=0 cLock=4153677 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4086270 cretry2=0 11000000/50000000
+2023/10/19 03:01:32 RUN test p=1 nntp-history added=2744476 dupes=0 cLock=4155495 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4100029 cretry2=0 11000000/50000000
+2023/10/19 03:01:32 RUN test p=3 nntp-history added=2747852 dupes=0 cLock=4157771 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4094377 cretry2=0 11000000/50000000
+2023/10/19 03:01:41 L1: [fex=0/set:11425585] [get=0/mux=11425586] [del:10923718/bat:11157270] [g/s:0/0] cached:501868 (~31366/char)
+2023/10/19 03:01:41 L2: [fex=2/set:11425585] [get=0/mis=0] [del:10925768/bat:11157272] [g/s:0/0] cached:499819 (~31238/char)
+2023/10/19 03:01:41 L3: [fex=0/set:11425585] [get=0/mis=0] [del:10923716/bat:11157268] [g/s:0/0] cached:501867 (~31366/char)
+2023/10/19 03:01:41 BoltSpeed: 92942.80 tx/s ( did=924433 in 9.9 sec ) totalTX=22851534 otx=16
+2023/10/19 03:01:41 WatchBolt: (inserted 44981/s) (+449818 inserted in 10s)
+2023/10/19 03:01:41 WatchBolt: (batchins 795/s) (+7954 batchins in 10s) medBS=~61
+2023/10/19 03:01:41 WatchBolt: (searches 46300/s) (+463000 searches in 10s)
+2023/10/19 03:01:51 L1: [fex=0/set:11885029] [get=0/mux=11885033] [del:11387158/bat:11624933] [g/s:0/0] cached:497875 (~31117/char)
+2023/10/19 03:01:51 L2: [fex=2/set:11885029] [get=0/mis=0] [del:11390232/bat:11624935] [g/s:0/0] cached:494799 (~30924/char)
+2023/10/19 03:01:51 L3: [fex=0/set:11885029] [get=0/mis=0] [del:11387156/bat:11624931] [g/s:0/0] cached:497871 (~31116/char)
+2023/10/19 03:01:51 WatchBolt: (inserted 45830/s) (+458304 inserted in 10s)
+2023/10/19 03:01:51 WatchBolt: (batchins 803/s) (+8039 batchins in 10s) medBS=~61
+2023/10/19 03:01:51 WatchBolt: (searches 45900/s) (+459000 searches in 10s)
+2023/10/19 03:01:51 BoltSpeed: 91889.73 tx/s ( did=918939 in 10.0 sec ) totalTX=23770473 otx=16
+2023/10/19 03:01:54 RUN test p=2 nntp-history added=2995540 dupes=0 cLock=4532220 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4472240 cretry2=0 12000000/50000000
+2023/10/19 03:01:54 RUN test p=4 nntp-history added=3014397 dupes=0 cLock=4528394 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4457209 cretry2=0 12000000/50000000
+2023/10/19 03:01:54 RUN test p=1 nntp-history added=2992046 dupes=0 cLock=4530530 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4477424 cretry2=0 12000000/50000000
+2023/10/19 03:01:54 RUN test p=3 nntp-history added=2998017 dupes=0 cLock=4533135 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4468848 cretry2=0 12000000/50000000
+2023/10/19 03:02:01 L1: [fex=0/set:12361042] [get=0/mux=12361045] [del:11855333/bat:12094961] [g/s:0/0] cached:505712 (~31607/char)
+2023/10/19 03:02:01 WatchBolt: (inserted 46511/s) (+465110 inserted in 10s)
+2023/10/19 03:02:01 WatchBolt: (batchins 810/s) (+8106 batchins in 10s) medBS=~61
+2023/10/19 03:02:01 WatchBolt: (searches 47700/s) (+477000 searches in 10s)
+2023/10/19 03:02:01 L2: [fex=2/set:12361044] [get=0/mis=0] [del:11858407/bat:12094963] [g/s:0/0] cached:502639 (~31414/char)
+2023/10/19 03:02:01 L3: [fex=0/set:12361046] [get=0/mis=0] [del:11855331/bat:12094959] [g/s:0/0] cached:505713 (~31607/char)
+2023/10/19 03:02:01 BoltSpeed: 95220.18 tx/s ( did=952020 in 10.0 sec ) totalTX=24722493 otx=16
+2023/10/19 03:02:11 WatchBolt: (inserted 41209/s) (+412092 inserted in 10s)
+2023/10/19 03:02:11 WatchBolt: (batchins 749/s) (+7493 batchins in 10s) medBS=~61
+2023/10/19 03:02:11 WatchBolt: (searches 42800/s) (+428000 searches in 10s)
+2023/10/19 03:02:11 L1: [fex=0/set:12790145] [get=0/mux=12790147] [del:12326753/bat:12547940] [g/s:0/0] cached:463394 (~28962/char)
+2023/10/19 03:02:11 L2: [fex=2/set:12790148] [get=0/mis=0] [del:12328435/bat:12566085] [g/s:0/0] cached:461715 (~28857/char)
+2023/10/19 03:02:11 L3: [fex=0/set:12790150] [get=0/mis=0] [del:12326751/bat:12547938] [g/s:0/0] cached:463397 (~28962/char)
+2023/10/19 03:02:11 BoltSpeed: 85822.72 tx/s ( did=858227 in 10.0 sec ) totalTX=25580720 otx=17
+2023/10/19 03:02:16 RUN test p=1 nntp-history added=3243663 dupes=0 cLock=4891430 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4864907 cretry2=0 13000000/50000000
+2023/10/19 03:02:16 RUN test p=3 nntp-history added=3247856 dupes=0 cLock=4894847 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4857297 cretry2=0 13000000/50000000
+2023/10/19 03:02:16 RUN test p=4 nntp-history added=3263724 dupes=0 cLock=4889177 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4847099 cretry2=0 13000000/50000000
+2023/10/19 03:02:16 RUN test p=2 nntp-history added=3244757 dupes=0 cLock=4893510 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=4861733 cretry2=0 13000000/50000000
+2023/10/19 03:02:21 L1: [fex=0/set:13242719] [get=0/mux=13242720] [del:12769637/bat:12999122] [g/s:0/0] cached:473083 (~29567/char)
+2023/10/19 03:02:21 L2: [fex=3/set:13242721] [get=0/mis=0] [del:12771398/bat:12999124] [g/s:0/0] cached:471326 (~29457/char)
+2023/10/19 03:02:21 WatchBolt: (inserted 44227/s) (+442279 inserted in 10s)
+2023/10/19 03:02:21 L3: [fex=0/set:13242721] [get=0/mis=0] [del:12769635/bat:12999120] [g/s:0/0] cached:473084 (~29567/char)
+2023/10/19 03:02:21 WatchBolt: (batchins 808/s) (+8083 batchins in 10s) medBS=~60
+2023/10/19 03:02:21 WatchBolt: (searches 45400/s) (+454000 searches in 10s)
+2023/10/19 03:02:21 BoltSpeed: 90515.39 tx/s ( did=905155 in 10.0 sec ) totalTX=26485875 otx=16
+2023/10/19 03:02:31 WatchBolt: (inserted 46397/s) (+463972 inserted in 10s)
+2023/10/19 03:02:31 WatchBolt: (batchins 792/s) (+7926 batchins in 10s) medBS=~60
+2023/10/19 03:02:31 WatchBolt: (searches 48200/s) (+482000 searches in 10s)
+2023/10/19 03:02:31 L1: [fex=0/set:13724674] [get=0/mux=13724676] [del:13226451/bat:13468217] [g/s:0/0] cached:498225 (~31139/char)
+2023/10/19 03:02:31 L2: [fex=3/set:13724676] [get=0/mis=0] [del:13228500/bat:13468220] [g/s:0/0] cached:496179 (~31011/char)
+2023/10/19 03:02:31 L3: [fex=0/set:13724677] [get=0/mis=0] [del:13226449/bat:13468215] [g/s:0/0] cached:498226 (~31139/char)
+2023/10/19 03:02:31 BoltSpeed: 96393.18 tx/s ( did=963929 in 10.0 sec ) totalTX=27449804 otx=18
+2023/10/19 03:02:38 RUN test p=4 nntp-history added=3512169 dupes=0 cLock=5251668 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5236163 cretry2=0 14000000/50000000
+2023/10/19 03:02:38 RUN test p=1 nntp-history added=3491489 dupes=0 cLock=5253967 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5254544 cretry2=0 14000000/50000000
+2023/10/19 03:02:38 RUN test p=2 nntp-history added=3497270 dupes=0 cLock=5256213 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5246517 cretry2=0 14000000/50000000
+2023/10/19 03:02:38 RUN test p=3 nntp-history added=3499072 dupes=0 cLock=5258820 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5242108 cretry2=0 14000000/50000000
+2023/10/19 03:02:41 WatchBolt: (inserted 44797/s) (+447978 inserted in 10s)
+2023/10/19 03:02:41 WatchBolt: (batchins 770/s) (+7706 batchins in 10s) medBS=~60
+2023/10/19 03:02:41 WatchBolt: (searches 45700/s) (+457000 searches in 10s)
+2023/10/19 03:02:41 L1: [fex=0/set:14184390] [get=0/mux=14184392] [del:13706809/bat:13946661] [g/s:0/0] cached:477583 (~29848/char)
+2023/10/19 03:02:41 L2: [fex=3/set:14184391] [get=0/mis=0] [del:13709884/bat:13946664] [g/s:0/0] cached:474510 (~29656/char)
+2023/10/19 03:02:41 L3: [fex=0/set:14184392] [get=0/mis=0] [del:13706807/bat:13946659] [g/s:0/0] cached:477583 (~29848/char)
+2023/10/19 03:02:41 BoltSpeed: 91919.26 tx/s ( did=919442 in 10.0 sec ) totalTX=28369246 otx=16
+2023/10/19 03:02:51 L1: [fex=0/set:14639059] [get=0/mux=14639060] [del:14183717/bat:14410767] [g/s:0/0] cached:455343 (~28458/char)
+2023/10/19 03:02:51 L2: [fex=4/set:14639061] [get=0/mis=0] [del:14186280/bat:14410770] [g/s:0/0] cached:452785 (~28299/char)
+2023/10/19 03:02:51 L3: [fex=0/set:14639062] [get=0/mis=0] [del:14183715/bat:14410765] [g/s:0/0] cached:455345 (~28459/char)
+2023/10/19 03:02:51 BoltSpeed: 90960.34 tx/s ( did=909356 in 10.0 sec ) totalTX=29278602 otx=16
+2023/10/19 03:02:51 WatchBolt: (inserted 44236/s) (+442367 inserted in 10s)
+2023/10/19 03:02:51 WatchBolt: (batchins 789/s) (+7891 batchins in 10s) medBS=~60
+2023/10/19 03:02:51 WatchBolt: (searches 45600/s) (+456000 searches in 10s)
+2023/10/19 03:02:59 RUN test p=1 nntp-history added=3742094 dupes=0 cLock=5632315 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5625591 cretry2=0 15000000/50000000
+2023/10/19 03:02:59 RUN test p=3 nntp-history added=3748526 dupes=0 cLock=5637537 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5613937 cretry2=0 15000000/50000000
+2023/10/19 03:02:59 RUN test p=2 nntp-history added=3746113 dupes=0 cLock=5634858 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5619029 cretry2=0 15000000/50000000
+2023/10/19 03:02:59 RUN test p=4 nntp-history added=3763267 dupes=0 cLock=5630082 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5606651 cretry2=0 15000000/50000000
+2023/10/19 03:03:01 L1: [fex=0/set:15098685] [get=0/mux=15098686] [del:14524943/bat:14887628] [g/s:0/0] cached:573743 (~35858/char)
+2023/10/19 03:03:01 L2: [fex=4/set:15098685] [get=0/mis=0] [del:14672914/bat:14887632] [g/s:0/0] cached:425775 (~26610/char)
+2023/10/19 03:03:01 L3: [fex=0/set:15098685] [get=0/mis=0] [del:14524941/bat:14887626] [g/s:0/0] cached:573742 (~35858/char)
+2023/10/19 03:03:01 BoltSpeed: 91917.90 tx/s ( did=919263 in 10.0 sec ) totalTX=30197865 otx=16
+2023/10/19 03:03:01 WatchBolt: (inserted 46686/s) (+466864 inserted in 10s)
+2023/10/19 03:03:01 WatchBolt: (batchins 801/s) (+8011 batchins in 10s) medBS=~60
+2023/10/19 03:03:01 WatchBolt: (searches 45900/s) (+459000 searches in 10s)
+2023/10/19 03:03:11 WatchBolt: (inserted 43825/s) (+438250 inserted in 10s)
+2023/10/19 03:03:11 WatchBolt: (batchins 797/s) (+7978 batchins in 10s) medBS=~60
+2023/10/19 03:03:11 WatchBolt: (searches 44300/s) (+443000 searches in 10s)
+2023/10/19 03:03:11 L1: [fex=0/set:15540823] [get=0/mux=15540823] [del:15113932/bat:15230410] [g/s:0/0] cached:426891 (~26680/char)
+2023/10/19 03:03:11 L2: [fex=4/set:15540832] [get=0/mis=0] [del:15117008/bat:15380184] [g/s:0/0] cached:423828 (~26489/char)
+2023/10/19 03:03:11 L3: [fex=0/set:15540832] [get=0/mis=0] [del:15113930/bat:15230408] [g/s:0/0] cached:426900 (~26681/char)
+2023/10/19 03:03:11 BoltSpeed: 88341.37 tx/s ( did=884307 in 10.0 sec ) totalTX=31082172 otx=16
+2023/10/19 03:03:21 WatchBolt: (inserted 43628/s) (+436285 inserted in 10s)
+2023/10/19 03:03:21 WatchBolt: (batchins 802/s) (+8029 batchins in 10s) medBS=~60
+2023/10/19 03:03:21 WatchBolt: (searches 43900/s) (+439000 searches in 10s)
+2023/10/19 03:03:21 L1: [fex=0/set:15979990] [get=0/mux=15979990] [del:15326154/bat:15673594] [g/s:0/0] cached:653836 (~40864/char)
+2023/10/19 03:03:21 L2: [fex=4/set:15979991] [get=0/mis=0] [del:15380184/bat:15642328] [g/s:0/0] cached:599811 (~37488/char)
+2023/10/19 03:03:21 L3: [fex=0/set:15979991] [get=0/mis=0] [del:15326152/bat:15673592] [g/s:0/0] cached:653837 (~40864/char)
+2023/10/19 03:03:21 BoltSpeed: 87672.57 tx/s ( did=878335 in 10.0 sec ) totalTX=31960507 otx=16
+2023/10/19 03:03:22 RUN test p=1 nntp-history added=3992274 dupes=0 cLock=6004480 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6003246 cretry2=0 16000000/50000000
+2023/10/19 03:03:22 RUN test p=2 nntp-history added=3997274 dupes=0 cLock=6006023 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5996703 cretry2=0 16000000/50000000
+2023/10/19 03:03:22 RUN test p=3 nntp-history added=3997842 dupes=0 cLock=6009096 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5993062 cretry2=0 16000000/50000000
+2023/10/19 03:03:22 RUN test p=4 nntp-history added=4012610 dupes=0 cLock=6002039 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=5985351 cretry2=0 16000000/50000000
+2023/10/19 03:03:31 WatchBolt: (inserted 41355/s) (+413550 inserted in 10s)
+2023/10/19 03:03:31 WatchBolt: (batchins 809/s) (+8098 batchins in 10s) medBS=~59
+2023/10/19 03:03:31 WatchBolt: (searches 39900/s) (+399000 searches in 10s)
+2023/10/19 03:03:31 L1: [fex=0/set:16378607] [get=0/mux=16378607] [del:15809275/bat:16166869] [g/s:0/0] cached:569332 (~35583/char)
+2023/10/19 03:03:31 L2: [fex=4/set:16378612] [get=0/mis=0] [del:15904472/bat:16166616] [g/s:0/0] cached:474144 (~29634/char)
+2023/10/19 03:03:31 L3: [fex=0/set:16378613] [get=0/mis=0] [del:15809273/bat:16166867] [g/s:0/0] cached:569338 (~35583/char)
+2023/10/19 03:03:31 BoltSpeed: 79592.24 tx/s ( did=797408 in 10.0 sec ) totalTX=32757915 otx=17
+2023/10/19 03:03:41 WatchBolt: (inserted 39281/s) (+392812 inserted in 10s)
+2023/10/19 03:03:41 WatchBolt: (batchins 805/s) (+8051 batchins in 10s) medBS=~59
+2023/10/19 03:03:41 WatchBolt: (searches 41500/s) (+415000 searches in 10s)
+2023/10/19 03:03:41 L1: [fex=0/set:16795292] [get=0/mux=16795294] [del:16272853/bat:16346955] [g/s:0/0] cached:522441 (~32652/char)
+2023/10/19 03:03:41 L2: [fex=4/set:16795295] [get=0/mis=0] [del:16424672/bat:16428760] [g/s:0/0] cached:370627 (~23164/char)
+2023/10/19 03:03:41 L3: [fex=0/set:16795295] [get=0/mis=0] [del:16272851/bat:16346953] [g/s:0/0] cached:522442 (~32652/char)
+2023/10/19 03:03:41 BoltSpeed: 83725.46 tx/s ( did=833236 in 10.0 sec ) totalTX=33591151 otx=16
+2023/10/19 03:03:47 RUN test p=4 nntp-history added=4260750 dupes=0 cLock=6376314 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6362936 cretry2=0 17000000/50000000
+2023/10/19 03:03:47 RUN test p=2 nntp-history added=4246425 dupes=0 cLock=6380753 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6372822 cretry2=0 17000000/50000000
+2023/10/19 03:03:47 RUN test p=1 nntp-history added=4242538 dupes=0 cLock=6379147 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6378315 cretry2=0 17000000/50000000
+2023/10/19 03:03:47 RUN test p=3 nntp-history added=4250287 dupes=0 cLock=6383250 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6366463 cretry2=0 17000000/50000000
+2023/10/19 03:03:51 WatchBolt: (inserted 38991/s) (+389910 inserted in 10s)
+2023/10/19 03:03:51 WatchBolt: (batchins 799/s) (+7992 batchins in 10s) medBS=~59
+2023/10/19 03:03:51 WatchBolt: (searches 34700/s) (+347000 searches in 10s)
+2023/10/19 03:03:51 L1: [fex=0/set:17140975] [get=0/mux=17140977] [del:16707915/bat:16791112] [g/s:0/0] cached:433062 (~27066/char)
+2023/10/19 03:03:51 L2: [fex=4/set:17140979] [get=0/mis=0] [del:16690904/bat:16953048] [g/s:0/0] cached:450079 (~28129/char)
+2023/10/19 03:03:51 L3: [fex=0/set:17140980] [get=0/mis=0] [del:16707913/bat:16791110] [g/s:0/0] cached:433065 (~27066/char)
+2023/10/19 03:03:51 BoltSpeed: 69139.16 tx/s ( did=691389 in 10.0 sec ) totalTX=34282540 otx=18
+2023/10/19 03:04:01 L1: [fex=0/set:17570309] [get=0/mux=17570309] [del:17000012/bat:17237995] [g/s:0/0] cached:570297 (~35643/char)
+2023/10/19 03:04:01 L2: [fex=5/set:17570312] [get=0/mis=0] [del:17211104/bat:17215192] [g/s:0/0] cached:359213 (~22450/char)
+2023/10/19 03:04:01 L3: [fex=0/set:17570313] [get=0/mis=0] [del:17000010/bat:17237993] [g/s:0/0] cached:570301 (~35643/char)
+2023/10/19 03:04:01 BoltSpeed: 85867.22 tx/s ( did=858678 in 10.0 sec ) totalTX=35141218 otx=16
+2023/10/19 03:04:01 WatchBolt: (inserted 39783/s) (+397833 inserted in 10s)
+2023/10/19 03:04:01 WatchBolt: (batchins 805/s) (+8059 batchins in 10s) medBS=~59
+2023/10/19 03:04:01 WatchBolt: (searches 43000/s) (+430000 searches in 10s)
+2023/10/19 03:04:11 WatchBolt: (inserted 42164/s) (+421644 inserted in 10s)
+2023/10/19 03:04:11 L1: [fex=0/set:17969993] [get=0/mux=17969995] [del:17321964/bat:17663804] [g/s:0/0] cached:648031 (~40501/char)
+2023/10/19 03:04:11 WatchBolt: (batchins 809/s) (+8097 batchins in 10s) medBS=~58
+2023/10/19 03:04:11 WatchBolt: (searches 39800/s) (+398000 searches in 10s)
+2023/10/19 03:04:11 L2: [fex=5/set:17969996] [get=0/mis=0] [del:17477336/bat:17739480] [g/s:0/0] cached:492665 (~30791/char)
+2023/10/19 03:04:11 L3: [fex=0/set:17969996] [get=0/mis=0] [del:17321962/bat:17663802] [g/s:0/0] cached:648032 (~40502/char)
+2023/10/19 03:04:11 BoltSpeed: 79938.44 tx/s ( did=799382 in 10.0 sec ) totalTX=35940600 otx=16
+2023/10/19 03:04:12 RUN test p=3 nntp-history added=4497206 dupes=0 cLock=6756081 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6746713 cretry2=0 18000000/50000000
+2023/10/19 03:04:12 RUN test p=1 nntp-history added=4493469 dupes=0 cLock=6751522 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6755009 cretry2=0 18000000/50000000
+2023/10/19 03:04:12 RUN test p=4 nntp-history added=4510765 dupes=0 cLock=6748089 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6741146 cretry2=0 18000000/50000000
+2023/10/19 03:04:12 RUN test p=2 nntp-history added=4498560 dupes=0 cLock=6752780 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=6748660 cretry2=0 18000000/50000000
+2023/10/19 03:04:21 WatchBolt: (inserted 41532/s) (+415327 inserted in 10s)
+2023/10/19 03:04:21 WatchBolt: (batchins 811/s) (+8116 batchins in 10s) medBS=~58
+2023/10/19 03:04:21 WatchBolt: (searches 39900/s) (+399000 searches in 10s)
+2023/10/19 03:04:21 L1: [fex=0/set:18369260] [get=0/mux=18369261] [del:17761597/bat:17958716] [g/s:0/0] cached:607664 (~37979/char)
+2023/10/19 03:04:21 L2: [fex=6/set:18369264] [get=0/mis=0] [del:18001624/bat:18001624] [g/s:0/0] cached:367646 (~22977/char)
+2023/10/19 03:04:21 L3: [fex=0/set:18369265] [get=0/mis=0] [del:17761595/bat:17958714] [g/s:0/0] cached:607668 (~37979/char)
+2023/10/19 03:04:21 BoltSpeed: 79855.25 tx/s ( did=798554 in 10.0 sec ) totalTX=36739154 otx=18
+2023/10/19 03:04:31 WatchBolt: (inserted 41318/s) (+413185 inserted in 10s)
+2023/10/19 03:04:31 WatchBolt: (batchins 814/s) (+8144 batchins in 10s) medBS=~58
+2023/10/19 03:04:31 WatchBolt: (searches 41400/s) (+414000 searches in 10s)
+2023/10/19 03:04:31 L1: [fex=0/set:18781044] [get=0/mux=18781045] [del:18253117/bat:18339526] [g/s:0/0] cached:527928 (~32995/char)
+2023/10/19 03:04:31 L2: [fex=6/set:18781046] [get=0/mis=0] [del:18259680/bat:18525912] [g/s:0/0] cached:521372 (~32585/char)
+2023/10/19 03:04:31 L3: [fex=0/set:18781047] [get=0/mis=0] [del:18253115/bat:18339524] [g/s:0/0] cached:527930 (~32995/char)
+2023/10/19 03:04:31 BoltSpeed: 82316.91 tx/s ( did=823580 in 10.0 sec ) totalTX=37562734 otx=17
+2023/10/19 03:04:37 RUN test p=2 nntp-history added=4746685 dupes=0 cLock=7118916 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7134399 cretry2=0 19000000/50000000
+2023/10/19 03:04:37 RUN test p=4 nntp-history added=4760884 dupes=0 cLock=7114659 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7124457 cretry2=0 19000000/50000000
+2023/10/19 03:04:37 RUN test p=3 nntp-history added=4747491 dupes=0 cLock=7122778 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7129731 cretry2=0 19000000/50000000
+2023/10/19 03:04:37 RUN test p=1 nntp-history added=4744940 dupes=0 cLock=7118657 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7136403 cretry2=0 19000000/50000000
+2023/10/19 03:04:41 WatchBolt: (inserted 40776/s) (+407760 inserted in 10s)
+2023/10/19 03:04:41 WatchBolt: (batchins 812/s) (+8126 batchins in 10s) medBS=~58
+2023/10/19 03:04:41 WatchBolt: (searches 36900/s) (+369000 searches in 10s)
+2023/10/19 03:04:41 L1: [fex=0/set:19152339] [get=0/mux=19152342] [del:18663118/bat:18831046] [g/s:0/0] cached:489224 (~30576/char)
+2023/10/19 03:04:41 L2: [fex=6/set:19152341] [get=0/mis=0] [del:18783968/bat:19050200] [g/s:0/0] cached:368379 (~23023/char)
+2023/10/19 03:04:41 L3: [fex=0/set:19152342] [get=0/mis=0] [del:18663627/bat:18831044] [g/s:0/0] cached:488713 (~30544/char)
+2023/10/19 03:04:41 BoltSpeed: 74297.53 tx/s ( did=742605 in 10.0 sec ) totalTX=38305339 otx=16
+2023/10/19 03:04:51 WatchBolt: (inserted 43710/s) (+437104 inserted in 10s)
+2023/10/19 03:04:51 WatchBolt: (batchins 818/s) (+8189 batchins in 10s) medBS=~58
+2023/10/19 03:04:51 WatchBolt: (searches 44000/s) (+440000 searches in 10s)
+2023/10/19 03:04:51 L1: [fex=0/set:19590190] [get=0/mux=19590192] [del:18960585/bat:19322566] [g/s:0/0] cached:629607 (~39350/char)
+2023/10/19 03:04:51 L2: [fex=6/set:19590193] [get=0/mis=0] [del:19050200/bat:19312344] [g/s:0/0] cached:539999 (~33749/char)
+2023/10/19 03:04:51 L3: [fex=0/set:19590194] [get=0/mis=0] [del:18961094/bat:19322564] [g/s:0/0] cached:629098 (~39318/char)
+2023/10/19 03:04:51 BoltSpeed: 87572.26 tx/s ( did=875722 in 10.0 sec ) totalTX=39181061 otx=16
+2023/10/19 03:05:01 RUN test p=3 nntp-history added=4995312 dupes=0 cLock=7487616 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7517072 cretry2=0 20000000/50000000
+2023/10/19 03:05:01 RUN test p=4 nntp-history added=5009891 dupes=0 cLock=7479623 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7510486 cretry2=0 20000000/50000000
+2023/10/19 03:05:01 RUN test p=2 nntp-history added=4998212 dupes=0 cLock=7483294 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7518494 cretry2=0 20000000/50000000
+2023/10/19 03:05:01 RUN test p=1 nntp-history added=4996585 dupes=0 cLock=7483761 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7519654 cretry2=0 20000000/50000000
+2023/10/19 03:05:01 L1: [fex=0/set:20003501] [get=0/mux=20003503] [del:19355334/bat:19748550] [g/s:0/0] cached:648169 (~40510/char)
+2023/10/19 03:05:01 WatchBolt: (inserted 42498/s) (+424986 inserted in 10s)
+2023/10/19 03:05:01 WatchBolt: (batchins 811/s) (+8117 batchins in 10s) medBS=~57
+2023/10/19 03:05:01 WatchBolt: (searches 41300/s) (+413000 searches in 10s)
+2023/10/19 03:05:01 L2: [fex=7/set:20003504] [get=0/mis=0] [del:19574488/bat:19836632] [g/s:0/0] cached:429023 (~26813/char)
+2023/10/19 03:05:01 L3: [fex=0/set:20003506] [get=0/mis=0] [del:19355332/bat:19748548] [g/s:0/0] cached:648172 (~40510/char)
+2023/10/19 03:05:01 BoltSpeed: 82664.62 tx/s ( did=826641 in 10.0 sec ) totalTX=40007702 otx=16
+2023/10/19 03:05:11 WatchBolt: (inserted 40347/s) (+403474 inserted in 10s)
+2023/10/19 03:05:11 WatchBolt: (batchins 801/s) (+8013 batchins in 10s) medBS=~57
+2023/10/19 03:05:11 WatchBolt: (searches 41600/s) (+416000 searches in 10s)
+2023/10/19 03:05:11 L1: [fex=0/set:20420395] [get=0/mux=20420396] [del:19878600/bat:20043462] [g/s:0/0] cached:541796 (~33862/char)
+2023/10/19 03:05:11 L2: [fex=8/set:20420395] [get=0/mis=0] [del:20098265/bat:20098776] [g/s:0/0] cached:322138 (~20133/char)
+2023/10/19 03:05:11 L3: [fex=0/set:20420395] [get=0/mis=0] [del:19878598/bat:20043460] [g/s:0/0] cached:541795 (~33862/char)
+2023/10/19 03:05:11 BoltSpeed: 83360.22 tx/s ( did=833790 in 10.0 sec ) totalTX=40841492 otx=16
+2023/10/19 03:05:21 L1: [fex=0/set:20806830] [get=0/mux=20806832] [del:20369609/bat:20403910] [g/s:0/0] cached:437223 (~27326/char)
+2023/10/19 03:05:21 L2: [fex=8/set:20806830] [get=0/mis=0] [del:20360920/bat:20623064] [g/s:0/0] cached:445918 (~27869/char)
+2023/10/19 03:05:21 L3: [fex=0/set:20806830] [get=0/mis=0] [del:20369607/bat:20403908] [g/s:0/0] cached:437221 (~27326/char)
+2023/10/19 03:05:21 BoltSpeed: 77306.22 tx/s ( did=772889 in 10.0 sec ) totalTX=41614381 otx=17
+2023/10/19 03:05:21 WatchBolt: (inserted 39179/s) (+391791 inserted in 10s)
+2023/10/19 03:05:21 WatchBolt: (batchins 799/s) (+7999 batchins in 10s) medBS=~57
+2023/10/19 03:05:21 WatchBolt: (searches 38700/s) (+387000 searches in 10s)
+2023/10/19 03:05:25 RUN test p=2 nntp-history added=5246160 dupes=0 cLock=7845750 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7908090 cretry2=0 21000000/50000000
+2023/10/19 03:05:25 RUN test p=1 nntp-history added=5247899 dupes=0 cLock=7846231 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7905870 cretry2=0 21000000/50000000
+2023/10/19 03:05:25 RUN test p=3 nntp-history added=5244026 dupes=0 cLock=7850517 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7905457 cretry2=0 21000000/50000000
+2023/10/19 03:05:25 RUN test p=4 nntp-history added=5261915 dupes=0 cLock=7842244 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=7895841 cretry2=0 21000000/50000000
+2023/10/19 03:05:31 L1: [fex=0/set:21224343] [get=0/mux=21224346] [del:20665037/bat:20928198] [g/s:0/0] cached:559309 (~34956/char)
+2023/10/19 03:05:31 WatchBolt: (inserted 40504/s) (+405046 inserted in 10s)
+2023/10/19 03:05:31 WatchBolt: (batchins 792/s) (+7922 batchins in 10s) medBS=~57
+2023/10/19 03:05:31 WatchBolt: (searches 41600/s) (+416000 searches in 10s)
+2023/10/19 03:05:31 L2: [fex=8/set:21224345] [get=0/mis=0] [del:20885208/bat:20917976] [g/s:0/0] cached:339145 (~21196/char)
+2023/10/19 03:05:31 L3: [fex=0/set:21224350] [get=0/mis=0] [del:20677323/bat:20928196] [g/s:0/0] cached:547025 (~34189/char)
+2023/10/19 03:05:31 BoltSpeed: 83428.15 tx/s ( did=835067 in 10.0 sec ) totalTX=42449448 otx=16
+2023/10/19 03:05:41 L1: [fex=0/set:21651753] [get=0/mux=21651753] [del:20992712/bat:21354182] [g/s:0/0] cached:659041 (~41190/char)
+2023/10/19 03:05:41 L2: [fex=8/set:21651753] [get=0/mis=0] [del:21143264/bat:21409496] [g/s:0/0] cached:508497 (~31781/char)
+2023/10/19 03:05:41 L3: [fex=0/set:21651753] [get=0/mis=0] [del:20992710/bat:21354180] [g/s:0/0] cached:659041 (~41190/char)
+2023/10/19 03:05:41 BoltSpeed: 85560.71 tx/s ( did=854806 in 10.0 sec ) totalTX=43304254 otx=16
+2023/10/19 03:05:41 WatchBolt: (inserted 39350/s) (+393508 inserted in 10s)
+2023/10/19 03:05:41 WatchBolt: (batchins 789/s) (+7890 batchins in 10s) medBS=~57
+2023/10/19 03:05:41 WatchBolt: (searches 42800/s) (+428000 searches in 10s)
+2023/10/19 03:05:51 RUN test p=2 nntp-history added=5494418 dupes=0 cLock=8206636 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8298946 cretry2=0 22000000/50000000
+2023/10/19 03:05:51 RUN test p=3 nntp-history added=5491581 dupes=0 cLock=8212092 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8296327 cretry2=0 22000000/50000000
+2023/10/19 03:05:51 RUN test p=1 nntp-history added=5496080 dupes=0 cLock=8207226 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8296694 cretry2=0 22000000/50000000
+2023/10/19 03:05:51 RUN test p=4 nntp-history added=5517921 dupes=0 cLock=8204062 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8278017 cretry2=0 22000000/50000000
+2023/10/19 03:05:51 WatchBolt: (inserted 40300/s) (+403000 inserted in 10s)
+2023/10/19 03:05:51 WatchBolt: (batchins 797/s) (+7977 batchins in 10s) medBS=~57
+2023/10/19 03:05:51 WatchBolt: (searches 38700/s) (+387000 searches in 10s)
+2023/10/19 03:05:51 L1: [fex=0/set:22036753] [get=0/mux=22036756] [del:21452486/bat:21616326] [g/s:0/0] cached:584270 (~36516/char)
+2023/10/19 03:05:51 L2: [fex=8/set:22036755] [get=0/mis=0] [del:21667552/bat:21933784] [g/s:0/0] cached:369211 (~23075/char)
+2023/10/19 03:05:51 L3: [fex=0/set:22036756] [get=0/mis=0] [del:21452484/bat:21616324] [g/s:0/0] cached:584270 (~36516/char)
+2023/10/19 03:05:51 BoltSpeed: 77003.08 tx/s ( did=770026 in 10.0 sec ) totalTX=44074280 otx=16
+2023/10/19 03:06:01 WatchBolt: (inserted 40841/s) (+408419 inserted in 10s)
+2023/10/19 03:06:01 WatchBolt: (batchins 807/s) (+8071 batchins in 10s) medBS=~57
+2023/10/19 03:06:01 WatchBolt: (searches 42100/s) (+421000 searches in 10s)
+2023/10/19 03:06:01 L1: [fex=0/set:22458221] [get=0/mux=22458224] [del:21942984/bat:22042310] [g/s:0/0] cached:515240 (~32202/char)
+2023/10/19 03:06:01 L2: [fex=8/set:22458224] [get=0/mis=0] [del:21933784/bat:22195928] [g/s:0/0] cached:524448 (~32778/char)
+2023/10/19 03:06:01 L3: [fex=0/set:22458225] [get=0/mis=0] [del:21942982/bat:22042308] [g/s:0/0] cached:515241 (~32202/char)
+2023/10/19 03:06:01 BoltSpeed: 84295.04 tx/s ( did=842952 in 10.0 sec ) totalTX=44917232 otx=16
+2023/10/19 03:06:11 WatchBolt: (inserted 40140/s) (+401402 inserted in 10s)
+2023/10/19 03:06:11 WatchBolt: (batchins 806/s) (+8066 batchins in 10s) medBS=~56
+2023/10/19 03:06:11 WatchBolt: (searches 39100/s) (+391000 searches in 10s)
+2023/10/19 03:06:11 L1: [fex=0/set:22850838] [get=0/mux=22850839] [del:22399692/bat:22501062] [g/s:0/0] cached:451147 (~28196/char)
+2023/10/19 03:06:11 L2: [fex=10/set:22850840] [get=0/mis=0] [del:22458072/bat:22720216] [g/s:0/0] cached:392778 (~24548/char)
+2023/10/19 03:06:11 L3: [fex=0/set:22850841] [get=0/mis=0] [del:22399690/bat:22501060] [g/s:0/0] cached:451149 (~28196/char)
+2023/10/19 03:06:11 BoltSpeed: 78509.37 tx/s ( did=785249 in 10.0 sec ) totalTX=45702481 otx=17
+2023/10/19 03:06:15 RUN test p=4 nntp-history added=5764595 dupes=0 cLock=8568513 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8666892 cretry2=0 23000000/50000000
+2023/10/19 03:06:15 RUN test p=1 nntp-history added=5749352 dupes=0 cLock=8571126 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8679522 cretry2=0 23000000/50000000
+2023/10/19 03:06:15 RUN test p=3 nntp-history added=5737441 dupes=0 cLock=8575953 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8686606 cretry2=0 23000000/50000000
+2023/10/19 03:06:15 RUN test p=2 nntp-history added=5748612 dupes=0 cLock=8571746 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=8679642 cretry2=0 23000000/50000000
+2023/10/19 03:06:21 WatchBolt: (inserted 42584/s) (+425844 inserted in 10s)
+2023/10/19 03:06:21 WatchBolt: (batchins 814/s) (+8144 batchins in 10s) medBS=~56
+2023/10/19 03:06:21 WatchBolt: (searches 43800/s) (+438000 searches in 10s)
+2023/10/19 03:06:21 L1: [fex=0/set:23286241] [get=0/mux=23286244] [del:22598344/bat:22992582] [g/s:0/0] cached:687900 (~42993/char)
+2023/10/19 03:06:21 L2: [fex=11/set:23286244] [get=0/mis=0] [del:22716128/bat:22982360] [g/s:0/0] cached:570127 (~35632/char)
+2023/10/19 03:06:21 L3: [fex=0/set:23286245] [get=0/mis=0] [del:22598342/bat:22992580] [g/s:0/0] cached:687901 (~42993/char)
+2023/10/19 03:06:21 BoltSpeed: 87099.78 tx/s ( did=870827 in 10.0 sec ) totalTX=46573308 otx=17
+2023/10/19 03:06:31 WatchBolt: (inserted 40824/s) (+408240 inserted in 10s)
+2023/10/19 03:06:31 WatchBolt: (batchins 807/s) (+8075 batchins in 10s) medBS=~56
+2023/10/19 03:06:31 WatchBolt: (searches 39500/s) (+395000 searches in 10s)
+2023/10/19 03:06:31 L1: [fex=0/set:23684092] [get=0/mux=23684095] [del:23057607/bat:23418566] [g/s:0/0] cached:626488 (~39155/char)
+2023/10/19 03:06:31 L2: [fex=12/set:23684094] [get=0/mis=0] [del:23240416/bat:23506648] [g/s:0/0] cached:443690 (~27730/char)
+2023/10/19 03:06:31 L3: [fex=0/set:23684095] [get=0/mis=0] [del:23057605/bat:23418564] [g/s:0/0] cached:626488 (~39155/char)
+2023/10/19 03:06:31 BoltSpeed: 79571.34 tx/s ( did=795713 in 10.0 sec ) totalTX=47369021 otx=16
+2023/10/19 03:06:39 RUN test p=4 nntp-history added=6014391 dupes=0 cLock=8920321 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9065288 cretry2=0 24000000/50000000
+2023/10/19 03:06:39 RUN test p=3 nntp-history added=5984581 dupes=0 cLock=8928074 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9087345 cretry2=0 24000000/50000000
+2023/10/19 03:06:39 RUN test p=1 nntp-history added=6003439 dupes=0 cLock=8923590 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9072971 cretry2=0 24000000/50000000
+2023/10/19 03:06:39 RUN test p=2 nntp-history added=5997589 dupes=0 cLock=8923913 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9078498 cretry2=0 24000000/50000000
+2023/10/19 03:06:41 WatchBolt: (inserted 38744/s) (+387449 inserted in 10s)
+2023/10/19 03:06:41 WatchBolt: (batchins 768/s) (+7681 batchins in 10s) medBS=~56
+2023/10/19 03:06:41 WatchBolt: (searches 40200/s) (+402000 searches in 10s)
+2023/10/19 03:06:41 L1: [fex=0/set:24084009] [get=0/mux=24084011] [del:23549127/bat:23615174] [g/s:0/0] cached:534884 (~33430/char)
+2023/10/19 03:06:41 L2: [fex=12/set:24084008] [get=0/mis=0] [del:23515865/bat:23768792] [g/s:0/0] cached:568155 (~35509/char)
+2023/10/19 03:06:41 L3: [fex=0/set:24084008] [get=0/mis=0] [del:23549125/bat:23615172] [g/s:0/0] cached:534881 (~33430/char)
+2023/10/19 03:06:41 BoltSpeed: 79984.63 tx/s ( did=799844 in 10.0 sec ) totalTX=48168865 otx=16
+2023/10/19 03:06:51 WatchBolt: (inserted 40600/s) (+406008 inserted in 10s)
+2023/10/19 03:06:51 WatchBolt: (batchins 812/s) (+8126 batchins in 10s) medBS=~56
+2023/10/19 03:06:51 WatchBolt: (searches 41600/s) (+416000 searches in 10s)
+2023/10/19 03:06:51 L1: [fex=0/set:24501317] [get=0/mux=24501321] [del:23974600/bat:24073926] [g/s:0/0] cached:526721 (~32920/char)
+2023/10/19 03:06:51 L2: [fex=14/set:24501317] [get=0/mis=0] [del:24030936/bat:24293080] [g/s:0/0] cached:470395 (~29399/char)
+2023/10/19 03:06:51 L3: [fex=0/set:24501317] [get=0/mis=0] [del:23974598/bat:24073924] [g/s:0/0] cached:526716 (~32919/char)
+2023/10/19 03:06:51 BoltSpeed: 83440.59 tx/s ( did=834627 in 10.0 sec ) totalTX=49003492 otx=16
+2023/10/19 03:07:01 WatchBolt: (inserted 38228/s) (+382284 inserted in 10s)
+2023/10/19 03:07:01 WatchBolt: (batchins 789/s) (+7893 batchins in 10s) medBS=~56
+2023/10/19 03:07:01 WatchBolt: (searches 37100/s) (+371000 searches in 10s)
+2023/10/19 03:07:01 L1: [fex=0/set:24870849] [get=0/mux=24870851] [del:24268490/bat:24565446] [g/s:0/0] cached:602361 (~37647/char)
+2023/10/19 03:07:01 L2: [fex=15/set:24870849] [get=0/mis=0] [del:24551136/bat:24555224] [g/s:0/0] cached:319728 (~19983/char)
+2023/10/19 03:07:01 L3: [fex=0/set:24870851] [get=0/mis=0] [del:24268488/bat:24565443] [g/s:0/0] cached:602360 (~37647/char)
+2023/10/19 03:07:01 BoltSpeed: 73870.17 tx/s ( did=739087 in 10.0 sec ) totalTX=49742579 otx=17
+2023/10/19 03:07:05 RUN test p=3 nntp-history added=6237498 dupes=0 cLock=9283320 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9479182 cretry2=0 25000000/50000000
+2023/10/19 03:07:05 RUN test p=2 nntp-history added=6249692 dupes=0 cLock=9278959 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9471349 cretry2=0 25000000/50000000
+2023/10/19 03:07:05 RUN test p=4 nntp-history added=6261575 dupes=0 cLock=9275007 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9463418 cretry2=0 25000000/50000000
+2023/10/19 03:07:05 RUN test p=1 nntp-history added=6251235 dupes=0 cLock=9278567 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9470198 cretry2=0 25000000/50000000
+2023/10/19 03:07:11 L1: [fex=0/set:25247637] [get=0/mux=25247640] [del:24630471/bat:24925894] [g/s:0/0] cached:617169 (~38573/char)
+2023/10/19 03:07:11 L2: [fex=15/set:25247637] [get=0/mis=0] [del:24817368/bat:25079512] [g/s:0/0] cached:430284 (~26892/char)
+2023/10/19 03:07:11 L3: [fex=0/set:25247637] [get=0/mis=0] [del:24630468/bat:24925891] [g/s:0/0] cached:617166 (~38572/char)
+2023/10/19 03:07:11 BoltSpeed: 75417.80 tx/s ( did=753586 in 10.0 sec ) totalTX=50496165 otx=17
+2023/10/19 03:07:11 WatchBolt: (inserted 37291/s) (+372910 inserted in 10s)
+2023/10/19 03:07:11 WatchBolt: (batchins 804/s) (+8047 batchins in 10s) medBS=~56
+2023/10/19 03:07:11 WatchBolt: (searches 37500/s) (+375000 searches in 10s)
+2023/10/19 03:07:21 WatchBolt: (inserted 37627/s) (+376279 inserted in 10s)
+2023/10/19 03:07:21 L1: [fex=0/set:25626201] [get=0/mux=25626203] [del:25121480/bat:25155270] [g/s:0/0] cached:504723 (~31545/char)
+2023/10/19 03:07:21 WatchBolt: (batchins 808/s) (+8082 batchins in 10s) medBS=~55
+2023/10/19 03:07:21 WatchBolt: (searches 38100/s) (+381000 searches in 10s)
+2023/10/19 03:07:21 L2: [fex=15/set:25626203] [get=0/mis=0] [del:25079512/bat:25341656] [g/s:0/0] cached:546706 (~34169/char)
+2023/10/19 03:07:21 L3: [fex=0/set:25626204] [get=0/mis=0] [del:25121477/bat:25155267] [g/s:0/0] cached:504724 (~31545/char)
+2023/10/19 03:07:21 BoltSpeed: 75715.36 tx/s ( did=757154 in 10.0 sec ) totalTX=51253319 otx=16
+2023/10/19 03:07:31 RUN test p=3 nntp-history added=6487238 dupes=0 cLock=9642468 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9870294 cretry2=0 26000000/50000000
+2023/10/19 03:07:31 RUN test p=4 nntp-history added=6511697 dupes=0 cLock=9633621 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9854682 cretry2=0 26000000/50000000
+2023/10/19 03:07:31 RUN test p=1 nntp-history added=6500947 dupes=0 cLock=9637314 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9861739 cretry2=0 26000000/50000000
+2023/10/19 03:07:31 RUN test p=2 nntp-history added=6500118 dupes=0 cLock=9638364 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=9861518 cretry2=0 26000000/50000000
+2023/10/19 03:07:31 L1: [fex=0/set:26011243] [get=0/mux=26011244] [del:25546953/bat:25646790] [g/s:0/0] cached:464291 (~29018/char)
+2023/10/19 03:07:31 L2: [fex=16/set:26011246] [get=0/mis=0] [del:25603800/bat:25865944] [g/s:0/0] cached:407462 (~25466/char)
+2023/10/19 03:07:31 L3: [fex=0/set:26011246] [get=0/mis=0] [del:25547461/bat:25646787] [g/s:0/0] cached:463782 (~28986/char)
+2023/10/19 03:07:31 BoltSpeed: 77009.68 tx/s ( did=770096 in 10.0 sec ) totalTX=52023415 otx=16
+2023/10/19 03:07:31 WatchBolt: (inserted 38793/s) (+387936 inserted in 10s)
+2023/10/19 03:07:31 WatchBolt: (batchins 806/s) (+8061 batchins in 10s) medBS=~55
+2023/10/19 03:07:31 WatchBolt: (searches 38500/s) (+385000 searches in 10s)
+2023/10/19 03:07:41 WatchBolt: (inserted 40843/s) (+408433 inserted in 10s)
+2023/10/19 03:07:41 L1: [fex=0/set:26414923] [get=0/mux=26414925] [del:25744583/bat:26105542] [g/s:0/0] cached:670342 (~41896/char)
+2023/10/19 03:07:41 WatchBolt: (batchins 805/s) (+8057 batchins in 10s) medBS=~55
+2023/10/19 03:07:41 WatchBolt: (searches 40100/s) (+401000 searches in 10s)
+2023/10/19 03:07:41 L2: [fex=16/set:26414926] [get=0/mis=0] [del:25861856/bat:26128088] [g/s:0/0] cached:553086 (~34567/char)
+2023/10/19 03:07:41 L3: [fex=0/set:26414927] [get=0/mis=0] [del:25744580/bat:26105539] [g/s:0/0] cached:670344 (~41896/char)
+2023/10/19 03:07:41 BoltSpeed: 80738.09 tx/s ( did=807381 in 10.0 sec ) totalTX=52830796 otx=16
+2023/10/19 03:07:51 L1: [fex=0/set:26822620] [get=0/mux=26822620] [del:26171078/bat:26531526] [g/s:0/0] cached:651542 (~40721/char)
+2023/10/19 03:07:51 L2: [fex=16/set:26822622] [get=0/mis=0] [del:26386144/bat:26652376] [g/s:0/0] cached:436494 (~27280/char)
+2023/10/19 03:07:51 L3: [fex=0/set:26822622] [get=0/mis=0] [del:26171075/bat:26531523] [g/s:0/0] cached:651544 (~40721/char)
+2023/10/19 03:07:51 BoltSpeed: 81540.36 tx/s ( did=815404 in 10.0 sec ) totalTX=53646200 otx=16
+2023/10/19 03:07:51 WatchBolt: (inserted 41505/s) (+415051 inserted in 10s)
+2023/10/19 03:07:51 WatchBolt: (batchins 808/s) (+8087 batchins in 10s) medBS=~55
+2023/10/19 03:07:51 WatchBolt: (searches 40800/s) (+408000 searches in 10s)
+2023/10/19 03:07:56 RUN test p=4 nntp-history added=6764381 dupes=0 cLock=9997880 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10237739 cretry2=0 27000000/50000000
+2023/10/19 03:07:56 RUN test p=2 nntp-history added=6747399 dupes=0 cLock=10003189 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10249412 cretry2=0 27000000/50000000
+2023/10/19 03:07:56 RUN test p=1 nntp-history added=6749530 dupes=0 cLock=10001276 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10249194 cretry2=0 27000000/50000000
+2023/10/19 03:07:56 RUN test p=3 nntp-history added=6738690 dupes=0 cLock=10007115 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10254195 cretry2=0 27000000/50000000
+2023/10/19 03:08:01 WatchBolt: (inserted 36835/s) (+368356 inserted in 10s)
+2023/10/19 03:08:01 WatchBolt: (batchins 806/s) (+8064 batchins in 10s) medBS=~55
+2023/10/19 03:08:01 WatchBolt: (searches 36600/s) (+366000 searches in 10s)
+2023/10/19 03:08:01 L1: [fex=0/set:27188379] [get=0/mux=27188382] [del:26694855/bat:26760902] [g/s:0/0] cached:493527 (~30845/char)
+2023/10/19 03:08:01 L2: [fex=16/set:27188382] [get=0/mis=0] [del:26652376/bat:26914520] [g/s:0/0] cached:536022 (~33501/char)
+2023/10/19 03:08:01 L3: [fex=0/set:27188382] [get=0/mis=0] [del:26694852/bat:26760899] [g/s:0/0] cached:493527 (~30845/char)
+2023/10/19 03:08:01 BoltSpeed: 73153.71 tx/s ( did=731538 in 10.0 sec ) totalTX=54377738 otx=16
+2023/10/19 03:08:11 WatchBolt: (inserted 38571/s) (+385713 inserted in 10s)
+2023/10/19 03:08:11 WatchBolt: (batchins 806/s) (+8068 batchins in 10s) medBS=~55
+2023/10/19 03:08:11 WatchBolt: (searches 36500/s) (+365000 searches in 10s)
+2023/10/19 03:08:11 L1: [fex=0/set:27553178] [get=0/mux=27553180] [del:27118284/bat:27219654] [g/s:0/0] cached:434896 (~27181/char)
+2023/10/19 03:08:11 L2: [fex=17/set:27553180] [get=0/mis=0] [del:27172576/bat:27438808] [g/s:0/0] cached:380621 (~23788/char)
+2023/10/19 03:08:11 L3: [fex=0/set:27553181] [get=0/mis=0] [del:27118281/bat:27219651] [g/s:0/0] cached:434897 (~27181/char)
+2023/10/19 03:08:11 BoltSpeed: 72961.60 tx/s ( did=729614 in 10.0 sec ) totalTX=55107352 otx=16
+2023/10/19 03:08:21 WatchBolt: (inserted 37380/s) (+373801 inserted in 10s)
+2023/10/19 03:08:21 WatchBolt: (batchins 803/s) (+8031 batchins in 10s) medBS=~55
+2023/10/19 03:08:21 WatchBolt: (searches 37900/s) (+379000 searches in 10s)
+2023/10/19 03:08:21 L1: [fex=0/set:27933141] [get=0/mux=27933144] [del:27284679/bat:27645638] [g/s:0/0] cached:648465 (~40529/char)
+2023/10/19 03:08:21 L2: [fex=17/set:27933144] [get=0/mis=0] [del:27438808/bat:27700952] [g/s:0/0] cached:494353 (~30897/char)
+2023/10/19 03:08:21 L3: [fex=0/set:27933145] [get=0/mis=0] [del:27284676/bat:27645635] [g/s:0/0] cached:648466 (~40529/char)
+2023/10/19 03:08:21 BoltSpeed: 75994.07 tx/s ( did=759946 in 10.0 sec ) totalTX=55867298 otx=16
+2023/10/19 03:08:23 RUN test p=3 nntp-history added=6988330 dupes=0 cLock=10362551 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10649119 cretry2=0 28000000/50000000
+2023/10/19 03:08:23 RUN test p=2 nntp-history added=6998015 dupes=0 cLock=10357871 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10644114 cretry2=0 28000000/50000000
+2023/10/19 03:08:23 RUN test p=4 nntp-history added=7016037 dupes=0 cLock=10352909 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10631054 cretry2=0 28000000/50000000
+2023/10/19 03:08:23 RUN test p=1 nntp-history added=6997618 dupes=0 cLock=10356382 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=10646000 cretry2=0 28000000/50000000
+2023/10/19 03:08:31 L1: [fex=0/set:28278636] [get=0/mux=28278637] [del:27743942/bat:27842246] [g/s:0/0] cached:534695 (~33418/char)
+2023/10/19 03:08:31 L2: [fex=20/set:28278638] [get=0/mis=0] [del:27959008/bat:27963096] [g/s:0/0] cached:319650 (~19978/char)
+2023/10/19 03:08:31 L3: [fex=0/set:28278638] [get=0/mis=0] [del:27743939/bat:27842243] [g/s:0/0] cached:534696 (~33418/char)
+2023/10/19 03:08:31 BoltSpeed: 69099.91 tx/s ( did=690999 in 10.0 sec ) totalTX=56558297 otx=17
+2023/10/19 03:08:31 WatchBolt: (inserted 35922/s) (+359226 inserted in 10s)
+2023/10/19 03:08:31 WatchBolt: (batchins 800/s) (+8006 batchins in 10s) medBS=~55
+2023/10/19 03:08:31 WatchBolt: (searches 34700/s) (+347000 searches in 10s)
+2023/10/19 03:08:41 L1: [fex=0/set:28688477] [get=0/mux=28688477] [del:28186825/bat:28268230] [g/s:0/0] cached:501652 (~31353/char)
+2023/10/19 03:08:41 L2: [fex=22/set:28688477] [get=0/mis=0] [del:28225240/bat:28487384] [g/s:0/0] cached:463259 (~28953/char)
+2023/10/19 03:08:41 L3: [fex=0/set:28688476] [get=0/mis=0] [del:28188358/bat:28268227] [g/s:0/0] cached:500115 (~31257/char)
+2023/10/19 03:08:41 BoltSpeed: 81965.47 tx/s ( did=819691 in 10.0 sec ) totalTX=57377988 otx=16
+2023/10/19 03:08:41 WatchBolt: (inserted 38252/s) (+382526 inserted in 10s)
+2023/10/19 03:08:41 WatchBolt: (batchins 792/s) (+7923 batchins in 10s) medBS=~54
+2023/10/19 03:08:41 WatchBolt: (searches 41100/s) (+411000 searches in 10s)
+2023/10/19 03:08:49 RUN test p=2 nntp-history added=7248268 dupes=0 cLock=10722700 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11029032 cretry2=0 29000000/50000000
+2023/10/19 03:08:49 RUN test p=1 nntp-history added=7247176 dupes=0 cLock=10720972 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11031852 cretry2=0 29000000/50000000
+2023/10/19 03:08:49 RUN test p=4 nntp-history added=7266677 dupes=0 cLock=10717606 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11015717 cretry2=0 29000000/50000000
+2023/10/19 03:08:49 RUN test p=3 nntp-history added=7237879 dupes=0 cLock=10728017 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11034104 cretry2=0 29000000/50000000
+2023/10/19 03:08:51 L1: [fex=0/set:29074048] [get=0/mux=29074051] [del:28508876/bat:28792518] [g/s:0/0] cached:565175 (~35323/char)
+2023/10/19 03:08:51 L2: [fex=23/set:29074048] [get=0/mis=0] [del:28749528/bat:28749528] [g/s:0/0] cached:324543 (~20283/char)
+2023/10/19 03:08:51 WatchBolt: (inserted 38637/s) (+386378 inserted in 10s)
+2023/10/19 03:08:51 WatchBolt: (batchins 783/s) (+7839 batchins in 10s) medBS=~54
+2023/10/19 03:08:51 WatchBolt: (searches 38200/s) (+382000 searches in 10s)
+2023/10/19 03:08:51 L3: [fex=0/set:29074067] [get=0/mis=0] [del:28546762/bat:28792515] [g/s:0/0] cached:527302 (~32956/char)
+2023/10/19 03:08:51 BoltSpeed: 75912.43 tx/s ( did=771231 in 10.2 sec ) totalTX=58149219 otx=16
+2023/10/19 03:09:01 WatchBolt: (inserted 38090/s) (+380904 inserted in 10s)
+2023/10/19 03:09:01 WatchBolt: (batchins 795/s) (+7958 batchins in 10s) medBS=~54
+2023/10/19 03:09:01 WatchBolt: (searches 38300/s) (+383000 searches in 10s)
+2023/10/19 03:09:01 L1: [fex=0/set:29455002] [get=0/mux=29455006] [del:28857032/bat:29152966] [g/s:0/0] cached:597974 (~37373/char)
+2023/10/19 03:09:01 L2: [fex=24/set:29455002] [get=0/mis=0] [del:29011161/bat:29273816] [g/s:0/0] cached:443865 (~27741/char)
+2023/10/19 03:09:01 L3: [fex=0/set:29455002] [get=0/mis=0] [del:28857029/bat:29152963] [g/s:0/0] cached:597970 (~37373/char)
+2023/10/19 03:09:01 BoltSpeed: 77332.23 tx/s ( did=761854 in 9.9 sec ) totalTX=58911073 otx=16
+2023/10/19 03:09:11 WatchBolt: (inserted 36090/s) (+360907 inserted in 10s)
+2023/10/19 03:09:11 WatchBolt: (batchins 811/s) (+8116 batchins in 10s) medBS=~54
+2023/10/19 03:09:11 WatchBolt: (searches 37000/s) (+370000 searches in 10s)
+2023/10/19 03:09:11 L1: [fex=0/set:29823881] [get=0/mux=29823883] [del:29315784/bat:29382342] [g/s:0/0] cached:508099 (~31756/char)
+2023/10/19 03:09:11 L2: [fex=25/set:29823881] [get=0/mis=0] [del:29273816/bat:29535960] [g/s:0/0] cached:550090 (~34380/char)
+2023/10/19 03:09:11 L3: [fex=0/set:29823882] [get=0/mis=0] [del:29315781/bat:29382339] [g/s:0/0] cached:508098 (~31756/char)
+2023/10/19 03:09:11 BoltSpeed: 73812.12 tx/s ( did=737776 in 10.0 sec ) totalTX=59648849 otx=16
+2023/10/19 03:09:17 RUN test p=2 nntp-history added=7498453 dupes=0 cLock=11078562 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11422985 cretry2=0 30000000/50000000
+2023/10/19 03:09:17 RUN test p=1 nntp-history added=7499431 dupes=0 cLock=11076939 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11423630 cretry2=0 30000000/50000000
+2023/10/19 03:09:17 RUN test p=4 nntp-history added=7515790 dupes=0 cLock=11073589 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11410621 cretry2=0 30000000/50000000
+2023/10/19 03:09:17 RUN test p=3 nntp-history added=7486326 dupes=0 cLock=11084063 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11429611 cretry2=0 30000000/50000000
+2023/10/19 03:09:21 L1: [fex=0/set:30152586] [get=0/mux=30152588] [del:29707467/bat:29841094] [g/s:0/0] cached:445121 (~27820/char)
+2023/10/19 03:09:21 L2: [fex=26/set:30152588] [get=0/mis=0] [del:29798104/bat:30060248] [g/s:0/0] cached:354510 (~22156/char)
+2023/10/19 03:09:21 L3: [fex=0/set:30152589] [get=0/mis=0] [del:29707464/bat:29841091] [g/s:0/0] cached:445122 (~27820/char)
+2023/10/19 03:09:21 WatchBolt: (inserted 34282/s) (+342829 inserted in 10s)
+2023/10/19 03:09:21 WatchBolt: (batchins 795/s) (+7951 batchins in 10s) medBS=~54
+2023/10/19 03:09:21 WatchBolt: (searches 32700/s) (+327000 searches in 10s)
+2023/10/19 03:09:21 BoltSpeed: 65789.02 tx/s ( did=657431 in 10.0 sec ) totalTX=60306280 otx=16
+2023/10/19 03:09:31 WatchBolt: (inserted 37255/s) (+372553 inserted in 10s)
+2023/10/19 03:09:31 WatchBolt: (batchins 794/s) (+7943 batchins in 10s) medBS=~54
+2023/10/19 03:09:31 WatchBolt: (searches 37600/s) (+376000 searches in 10s)
+2023/10/19 03:09:31 L1: [fex=0/set:30527432] [get=0/mux=30527435] [del:29873351/bat:30267078] [g/s:0/0] cached:654084 (~40880/char)
+2023/10/19 03:09:31 L2: [fex=28/set:30527432] [get=0/mis=0] [del:30057182/bat:30322392] [g/s:0/0] cached:470278 (~29392/char)
+2023/10/19 03:09:31 L3: [fex=0/set:30527432] [get=0/mis=0] [del:29895365/bat:30267075] [g/s:0/0] cached:632064 (~39504/char)
+2023/10/19 03:09:31 BoltSpeed: 73504.48 tx/s ( did=749701 in 10.2 sec ) totalTX=61055981 otx=16
+2023/10/19 03:09:41 L1: [fex=0/set:30898525] [get=0/mux=30898529] [del:30364871/bat:30430918] [g/s:0/0] cached:533658 (~33353/char)
+2023/10/19 03:09:41 L2: [fex=29/set:30898525] [get=0/mis=0] [del:30580448/bat:30584536] [g/s:0/0] cached:318106 (~19881/char)
+2023/10/19 03:09:41 L3: [fex=0/set:30898525] [get=0/mis=0] [del:30364868/bat:30430915] [g/s:0/0] cached:533654 (~33353/char)
+2023/10/19 03:09:41 BoltSpeed: 75719.27 tx/s ( did=742204 in 9.8 sec ) totalTX=61798185 otx=16
+2023/10/19 03:09:41 WatchBolt: (inserted 36044/s) (+360447 inserted in 10s)
+2023/10/19 03:09:41 WatchBolt: (batchins 784/s) (+7848 batchins in 10s) medBS=~54
+2023/10/19 03:09:41 WatchBolt: (searches 37100/s) (+371000 searches in 10s)
+2023/10/19 03:09:44 RUN test p=2 nntp-history added=7749537 dupes=0 cLock=11447299 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11803164 cretry2=0 31000000/50000000
+2023/10/19 03:09:44 RUN test p=1 nntp-history added=7748419 dupes=0 cLock=11445599 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11805982 cretry2=0 31000000/50000000
+2023/10/19 03:09:44 RUN test p=3 nntp-history added=7737480 dupes=0 cLock=11453202 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11809318 cretry2=0 31000000/50000000
+2023/10/19 03:09:44 RUN test p=4 nntp-history added=7764564 dupes=0 cLock=11442302 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=11793134 cretry2=0 31000000/50000000
+2023/10/19 03:09:51 WatchBolt: (inserted 36086/s) (+360868 inserted in 10s)
+2023/10/19 03:09:51 L1: [fex=0/set:31260793] [get=0/mux=31260795] [del:30790344/bat:30889670] [g/s:0/0] cached:470451 (~29403/char)
+2023/10/19 03:09:51 WatchBolt: (batchins 798/s) (+7983 batchins in 10s) medBS=~54
+2023/10/19 03:09:51 WatchBolt: (searches 36100/s) (+361000 searches in 10s)
+2023/10/19 03:09:51 L2: [fex=29/set:31260795] [get=0/mis=0] [del:30846680/bat:31108824] [g/s:0/0] cached:414144 (~25884/char)
+2023/10/19 03:09:51 L3: [fex=0/set:31260796] [get=0/mis=0] [del:30790341/bat:30889667] [g/s:0/0] cached:470452 (~29403/char)
+2023/10/19 03:09:51 BoltSpeed: 72466.50 tx/s ( did=724557 in 10.0 sec ) totalTX=62522742 otx=16
+2023/10/19 03:10:01 L1: [fex=0/set:31677578] [get=0/mux=31677582] [del:30955206/bat:31348422] [g/s:0/0] cached:722376 (~45148/char)
+2023/10/19 03:10:01 L2: [fex=29/set:31677578] [get=0/mis=0] [del:31108313/bat:31370968] [g/s:0/0] cached:569294 (~35580/char)
+2023/10/19 03:10:01 WatchBolt: (inserted 39372/s) (+393726 inserted in 10s)
+2023/10/19 03:10:01 WatchBolt: (batchins 800/s) (+8003 batchins in 10s) medBS=~54
+2023/10/19 03:10:01 WatchBolt: (searches 41700/s) (+417000 searches in 10s)
+2023/10/19 03:10:01 L3: [fex=0/set:31677615] [get=0/mis=0] [del:30958276/bat:31348419] [g/s:0/0] cached:719336 (~44958/char)
+2023/10/19 03:10:01 BoltSpeed: 83320.79 tx/s ( did=833702 in 10.0 sec ) totalTX=63356444 otx=16
+2023/10/19 03:10:11 RUN test p=3 nntp-history added=7988858 dupes=0 cLock=11813626 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12197516 cretry2=0 32000000/50000000
+2023/10/19 03:10:11 RUN test p=1 nntp-history added=7998035 dupes=0 cLock=11805482 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12196483 cretry2=0 32000000/50000000
+2023/10/19 03:10:11 RUN test p=2 nntp-history added=7998950 dupes=0 cLock=11807246 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12193804 cretry2=0 32000000/50000000
+2023/10/19 03:10:11 RUN test p=4 nntp-history added=8014157 dupes=0 cLock=11801518 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12184325 cretry2=0 32000000/50000000
+2023/10/19 03:10:11 L1: [fex=0/set:32030182] [get=0/mux=32030185] [del:31413958/bat:31676102] [g/s:0/0] cached:616227 (~38514/char)
+2023/10/19 03:10:11 L2: [fex=30/set:32030182] [get=0/mis=0] [del:31632601/bat:31895256] [g/s:0/0] cached:397611 (~24850/char)
+2023/10/19 03:10:11 L3: [fex=0/set:32030182] [get=0/mis=0] [del:31413955/bat:31676099] [g/s:0/0] cached:616224 (~38514/char)
+2023/10/19 03:10:11 BoltSpeed: 70551.45 tx/s ( did=705101 in 10.0 sec ) totalTX=64061545 otx=16
+2023/10/19 03:10:11 WatchBolt: (inserted 38260/s) (+382607 inserted in 10s)
+2023/10/19 03:10:11 WatchBolt: (batchins 810/s) (+8105 batchins in 10s) medBS=~53
+2023/10/19 03:10:11 WatchBolt: (searches 35200/s) (+352000 searches in 10s)
+2023/10/19 03:10:21 WatchBolt: (inserted 34865/s) (+348658 inserted in 10s)
+2023/10/19 03:10:21 WatchBolt: (batchins 806/s) (+8068 batchins in 10s) medBS=~53
+2023/10/19 03:10:21 L1: [fex=0/set:32395051] [get=0/mux=32395054] [del:31904456/bat:31938246] [g/s:0/0] cached:490598 (~30662/char)
+2023/10/19 03:10:21 WatchBolt: (searches 36400/s) (+364000 searches in 10s)
+2023/10/19 03:10:21 L2: [fex=31/set:32395054] [get=0/mis=0] [del:31895256/bat:32157400] [g/s:0/0] cached:499829 (~31239/char)
+2023/10/19 03:10:21 L3: [fex=0/set:32395055] [get=0/mis=0] [del:31904453/bat:31938243] [g/s:0/0] cached:490599 (~30662/char)
+2023/10/19 03:10:21 BoltSpeed: 72976.78 tx/s ( did=729763 in 10.0 sec ) totalTX=64791308 otx=17
+2023/10/19 03:10:31 L1: [fex=0/set:32735847] [get=0/mux=32735849] [del:32262349/bat:32429766] [g/s:0/0] cached:473500 (~29593/char)
+2023/10/19 03:10:31 L2: [fex=32/set:32735847] [get=0/mis=0] [del:32419544/bat:32419544] [g/s:0/0] cached:316335 (~19770/char)
+2023/10/19 03:10:31 WatchBolt: (inserted 36711/s) (+367115 inserted in 10s)
+2023/10/19 03:10:31 WatchBolt: (batchins 803/s) (+8039 batchins in 10s) medBS=~53
+2023/10/19 03:10:31 WatchBolt: (searches 34300/s) (+343000 searches in 10s)
+2023/10/19 03:10:31 L3: [fex=0/set:32735848] [get=0/mis=0] [del:32262346/bat:32429763] [g/s:0/0] cached:473499 (~29593/char)
+2023/10/19 03:10:31 BoltSpeed: 68160.30 tx/s ( did=681603 in 10.0 sec ) totalTX=65472911 otx=16
+2023/10/19 03:10:38 RUN test p=4 nntp-history added=8262803 dupes=0 cLock=12148669 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12588528 cretry2=0 33000000/50000000
+2023/10/19 03:10:38 RUN test p=2 nntp-history added=8248588 dupes=0 cLock=12153947 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12597465 cretry2=0 33000000/50000000
+2023/10/19 03:10:38 RUN test p=3 nntp-history added=8240094 dupes=0 cLock=12161168 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12598738 cretry2=0 33000000/50000000
+2023/10/19 03:10:38 RUN test p=1 nntp-history added=8248515 dupes=0 cLock=12152632 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12598853 cretry2=0 33000000/50000000
+2023/10/19 03:10:41 WatchBolt: (inserted 37657/s) (+376576 inserted in 10s)
+2023/10/19 03:10:41 WatchBolt: (batchins 813/s) (+8133 batchins in 10s) medBS=~53
+2023/10/19 03:10:41 WatchBolt: (searches 37000/s) (+370000 searches in 10s)
+2023/10/19 03:10:41 L1: [fex=0/set:33105441] [get=0/mux=33105443] [del:32494791/bat:32855750] [g/s:0/0] cached:610652 (~38165/char)
+2023/10/19 03:10:41 L2: [fex=34/set:33105443] [get=0/mis=0] [del:32677600/bat:32943832] [g/s:0/0] cached:427877 (~26742/char)
+2023/10/19 03:10:41 L3: [fex=0/set:33105443] [get=0/mis=0] [del:32494788/bat:32855747] [g/s:0/0] cached:610652 (~38165/char)
+2023/10/19 03:10:41 BoltSpeed: 73895.77 tx/s ( did=739203 in 10.0 sec ) totalTX=66212114 otx=16
+2023/10/19 03:10:51 L1: [fex=0/set:33465121] [get=0/mux=33465124] [del:32986311/bat:33052358] [g/s:0/0] cached:478813 (~29925/char)
+2023/10/19 03:10:51 WatchBolt: (inserted 35344/s) (+353445 inserted in 10s)
+2023/10/19 03:10:51 L2: [fex=35/set:33465125] [get=0/mis=0] [del:32943832/bat:33205976] [g/s:0/0] cached:521328 (~32583/char)
+2023/10/19 03:10:51 WatchBolt: (batchins 803/s) (+8039 batchins in 10s) medBS=~53
+2023/10/19 03:10:51 WatchBolt: (searches 35800/s) (+358000 searches in 10s)
+2023/10/19 03:10:51 L3: [fex=0/set:33465127] [get=0/mis=0] [del:32986308/bat:33052355] [g/s:0/0] cached:478816 (~29926/char)
+2023/10/19 03:10:51 BoltSpeed: 71962.12 tx/s ( did=719385 in 10.0 sec ) totalTX=66931499 otx=16
+2023/10/19 03:11:01 WatchBolt: (inserted 33294/s) (+332948 inserted in 10s)
+2023/10/19 03:11:01 WatchBolt: (batchins 803/s) (+8039 batchins in 10s) medBS=~53
+2023/10/19 03:11:01 WatchBolt: (searches 30700/s) (+307000 searches in 10s)
+2023/10/19 03:11:01 L1: [fex=0/set:33770012] [get=0/mux=33770012] [del:33343693/bat:33511110] [g/s:0/0] cached:426319 (~26644/char)
+2023/10/19 03:11:01 L2: [fex=36/set:33770012] [get=0/mis=0] [del:33464032/bat:33468120] [g/s:0/0] cached:306016 (~19126/char)
+2023/10/19 03:11:01 L3: [fex=0/set:33770013] [get=0/mis=0] [del:33343690/bat:33511107] [g/s:0/0] cached:426320 (~26645/char)
+2023/10/19 03:11:01 BoltSpeed: 60933.42 tx/s ( did=609788 in 10.0 sec ) totalTX=67541287 otx=17
+2023/10/19 03:11:07 RUN test p=1 nntp-history added=8499457 dupes=0 cLock=12497333 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13003210 cretry2=0 34000000/50000000
+2023/10/19 03:11:07 RUN test p=3 nntp-history added=8490365 dupes=0 cLock=12505808 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13003827 cretry2=0 34000000/50000000
+2023/10/19 03:11:07 RUN test p=2 nntp-history added=8497380 dupes=0 cLock=12498440 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13004180 cretry2=0 34000000/50000000
+2023/10/19 03:11:07 RUN test p=4 nntp-history added=8512798 dupes=0 cLock=12492818 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=12994384 cretry2=0 34000000/50000000
+2023/10/19 03:11:11 L1: [fex=0/set:34124819] [get=0/mux=34124820] [del:33511110/bat:33871558] [g/s:0/0] cached:613710 (~38356/char)
+2023/10/19 03:11:11 L2: [fex=37/set:34124821] [get=0/mis=0] [del:33730264/bat:33992408] [g/s:0/0] cached:394594 (~24662/char)
+2023/10/19 03:11:11 L3: [fex=0/set:34124822] [get=0/mis=0] [del:33511107/bat:33871555] [g/s:0/0] cached:613712 (~38357/char)
+2023/10/19 03:11:11 BoltSpeed: 71003.39 tx/s ( did=709633 in 10.0 sec ) totalTX=68250920 otx=16
+2023/10/19 03:11:11 WatchBolt: (inserted 33756/s) (+337562 inserted in 10s)
+2023/10/19 03:11:11 WatchBolt: (batchins 795/s) (+7955 batchins in 10s) medBS=~53
+2023/10/19 03:11:11 WatchBolt: (searches 35600/s) (+356000 searches in 10s)
+2023/10/19 03:11:21 WatchBolt: (inserted 35080/s) (+350807 inserted in 10s)
+2023/10/19 03:11:21 WatchBolt: (batchins 779/s) (+7790 batchins in 10s) medBS=~53
+2023/10/19 03:11:21 WatchBolt: (searches 35500/s) (+355000 searches in 10s)
+2023/10/19 03:11:21 L1: [fex=0/set:34483026] [get=0/mux=34483028] [del:34001608/bat:34035398] [g/s:0/0] cached:481420 (~30088/char)
+2023/10/19 03:11:21 L2: [fex=38/set:34483028] [get=0/mis=0] [del:33988320/bat:34254552] [g/s:0/0] cached:494746 (~30921/char)
+2023/10/19 03:11:21 L3: [fex=0/set:34483028] [get=0/mis=0] [del:34001605/bat:34035395] [g/s:0/0] cached:481420 (~30088/char)
+2023/10/19 03:11:21 BoltSpeed: 71656.36 tx/s ( did=716432 in 10.0 sec ) totalTX=68967352 otx=16
+2023/10/19 03:11:31 WatchBolt: (inserted 38066/s) (+380667 inserted in 10s)
+2023/10/19 03:11:31 WatchBolt: (batchins 773/s) (+7732 batchins in 10s) medBS=~53
+2023/10/19 03:11:31 WatchBolt: (searches 41600/s) (+416000 searches in 10s)
+2023/10/19 03:11:31 L1: [fex=0/set:34895745] [get=0/mux=34895747] [del:34391758/bat:34559686] [g/s:0/0] cached:503989 (~31499/char)
+2023/10/19 03:11:31 L2: [fex=38/set:34895745] [get=0/mis=0] [del:34512608/bat:34778840] [g/s:0/0] cached:383175 (~23948/char)
+2023/10/19 03:11:31 L3: [fex=0/set:34895745] [get=0/mis=0] [del:34391755/bat:34559683] [g/s:0/0] cached:503987 (~31499/char)
+2023/10/19 03:11:31 BoltSpeed: 82387.34 tx/s ( did=825446 in 10.0 sec ) totalTX=69792798 otx=16
+2023/10/19 03:11:34 RUN test p=4 nntp-history added=8766154 dupes=0 cLock=12854610 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13379236 cretry2=0 35000000/50000000
+2023/10/19 03:11:34 RUN test p=3 nntp-history added=8737326 dupes=0 cLock=12866753 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13395921 cretry2=0 35000000/50000000
+2023/10/19 03:11:34 RUN test p=1 nntp-history added=8750663 dupes=0 cLock=12858890 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13390447 cretry2=0 35000000/50000000
+2023/10/19 03:11:34 RUN test p=2 nntp-history added=8745857 dupes=0 cLock=12860678 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13393465 cretry2=0 35000000/50000000
+2023/10/19 03:11:41 WatchBolt: (inserted 39010/s) (+390100 inserted in 10s)
+2023/10/19 03:11:41 WatchBolt: (batchins 805/s) (+8051 batchins in 10s) medBS=~52
+2023/10/19 03:11:41 WatchBolt: (searches 37900/s) (+379000 searches in 10s)
+2023/10/19 03:11:41 L1: [fex=0/set:35274498] [get=0/mux=35274499] [del:34624200/bat:34985670] [g/s:0/0] cached:650299 (~40643/char)
+2023/10/19 03:11:41 L2: [fex=39/set:35274498] [get=0/mis=0] [del:34778840/bat:35040984] [g/s:0/0] cached:495697 (~30981/char)
+2023/10/19 03:11:41 L3: [fex=0/set:35274498] [get=0/mis=0] [del:34624197/bat:34985667] [g/s:0/0] cached:650298 (~40643/char)
+2023/10/19 03:11:41 BoltSpeed: 75896.49 tx/s ( did=757520 in 10.0 sec ) totalTX=70550318 otx=16
+2023/10/19 03:11:51 WatchBolt: (inserted 33509/s) (+335097 inserted in 10s)
+2023/10/19 03:11:51 WatchBolt: (batchins 791/s) (+7917 batchins in 10s) medBS=~52
+2023/10/19 03:11:51 WatchBolt: (searches 32600/s) (+326000 searches in 10s)
+2023/10/19 03:11:51 L1: [fex=0/set:35605693] [get=0/mux=35605694] [del:35083463/bat:35149510] [g/s:0/0] cached:522231 (~32639/char)
+2023/10/19 03:11:51 L2: [fex=39/set:35605693] [get=0/mis=0] [del:35299040/bat:35303128] [g/s:0/0] cached:306692 (~19168/char)
+2023/10/19 03:11:51 L3: [fex=0/set:35605693] [get=0/mis=0] [del:35083460/bat:35149507] [g/s:0/0] cached:522230 (~32639/char)
+2023/10/19 03:11:51 BoltSpeed: 65905.07 tx/s ( did=662407 in 10.1 sec ) totalTX=71212725 otx=16
+2023/10/19 03:12:01 L1: [fex=0/set:35960373] [get=0/mux=35960374] [del:35508425/bat:35608262] [g/s:0/0] cached:451949 (~28246/char)
+2023/10/19 03:12:01 L2: [fex=39/set:35960373] [get=0/mis=0] [del:35565272/bat:35827416] [g/s:0/0] cached:395140 (~24696/char)
+2023/10/19 03:12:01 L3: [fex=0/set:35960373] [get=0/mis=0] [del:35508422/bat:35608259] [g/s:0/0] cached:451948 (~28246/char)
+2023/10/19 03:12:01 BoltSpeed: 71295.67 tx/s ( did=709375 in 9.9 sec ) totalTX=71922100 otx=16
+2023/10/19 03:12:01 WatchBolt: (inserted 34233/s) (+342334 inserted in 10s)
+2023/10/19 03:12:01 WatchBolt: (batchins 789/s) (+7890 batchins in 10s) medBS=~52
+2023/10/19 03:12:01 WatchBolt: (searches 35600/s) (+356000 searches in 10s)
+2023/10/19 03:12:03 RUN test p=1 nntp-history added=8999030 dupes=0 cLock=13215140 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13785830 cretry2=0 36000000/50000000
+2023/10/19 03:12:03 RUN test p=2 nntp-history added=9001525 dupes=0 cLock=13217411 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13781064 cretry2=0 36000000/50000000
+2023/10/19 03:12:03 RUN test p=3 nntp-history added=8985143 dupes=0 cLock=13224165 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13790692 cretry2=0 36000000/50000000
+2023/10/19 03:12:03 RUN test p=4 nntp-history added=9014302 dupes=0 cLock=13211633 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=13774065 cretry2=0 36000000/50000000
+2023/10/19 03:12:11 WatchBolt: (inserted 38323/s) (+383232 inserted in 10s)
+2023/10/19 03:12:11 WatchBolt: (batchins 803/s) (+8036 batchins in 10s) medBS=~52
+2023/10/19 03:12:11 WatchBolt: (searches 37600/s) (+376000 searches in 10s)
+2023/10/19 03:12:11 L1: [fex=0/set:36336665] [get=0/mux=36336666] [del:35673798/bat:36034246] [g/s:0/0] cached:662868 (~41429/char)
+2023/10/19 03:12:11 L2: [fex=39/set:36336667] [get=0/mis=0] [del:35823328/bat:36089560] [g/s:0/0] cached:513378 (~32086/char)
+2023/10/19 03:12:11 L3: [fex=0/set:36336667] [get=0/mis=0] [del:35673795/bat:36034243] [g/s:0/0] cached:662869 (~41429/char)
+2023/10/19 03:12:11 BoltSpeed: 75265.67 tx/s ( did=752606 in 10.0 sec ) totalTX=72674706 otx=16
+2023/10/19 03:12:21 L1: [fex=0/set:36729804] [get=0/mux=36729806] [del:36132550/bat:36361926] [g/s:0/0] cached:597256 (~37328/char)
+2023/10/19 03:12:21 L2: [fex=39/set:36729808] [get=0/mis=0] [del:36347616/bat:36613848] [g/s:0/0] cached:382231 (~23889/char)
+2023/10/19 03:12:21 L3: [fex=0/set:36729808] [get=0/mis=0] [del:36132547/bat:36361923] [g/s:0/0] cached:597258 (~37328/char)
+2023/10/19 03:12:21 BoltSpeed: 78627.76 tx/s ( did=786298 in 10.0 sec ) totalTX=73461004 otx=16
+2023/10/19 03:12:21 WatchBolt: (inserted 39117/s) (+391170 inserted in 10s)
+2023/10/19 03:12:21 WatchBolt: (batchins 794/s) (+7945 batchins in 10s) medBS=~52
+2023/10/19 03:12:21 WatchBolt: (searches 39700/s) (+397000 searches in 10s)
+2023/10/19 03:12:29 RUN test p=1 nntp-history added=9249999 dupes=0 cLock=13577735 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14172266 cretry2=0 37000000/50000000
+2023/10/19 03:12:29 RUN test p=2 nntp-history added=9252211 dupes=0 cLock=13581385 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14166404 cretry2=0 37000000/50000000
+2023/10/19 03:12:29 RUN test p=4 nntp-history added=9262728 dupes=0 cLock=13575003 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14162269 cretry2=0 37000000/50000000
+2023/10/19 03:12:29 RUN test p=3 nntp-history added=9235062 dupes=0 cLock=13587769 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14177169 cretry2=0 37000000/50000000
+2023/10/19 03:12:31 WatchBolt: (inserted 35486/s) (+354866 inserted in 10s)
+2023/10/19 03:12:31 WatchBolt: (batchins 785/s) (+7859 batchins in 10s) medBS=~52
+2023/10/19 03:12:31 WatchBolt: (searches 35000/s) (+350000 searches in 10s)
+2023/10/19 03:12:31 L1: [fex=0/set:37081284] [get=0/mux=37081287] [del:36623048/bat:36656838] [g/s:0/0] cached:458239 (~28639/char)
+2023/10/19 03:12:31 L2: [fex=43/set:37081286] [get=0/mis=0] [del:36613848/bat:36875992] [g/s:0/0] cached:467481 (~29217/char)
+2023/10/19 03:12:31 L3: [fex=0/set:37081288] [get=0/mis=0] [del:36623045/bat:36656835] [g/s:0/0] cached:458240 (~28640/char)
+2023/10/19 03:12:31 BoltSpeed: 70300.00 tx/s ( did=702977 in 10.0 sec ) totalTX=74163981 otx=17
+2023/10/19 03:12:41 WatchBolt: (inserted 35988/s) (+359883 inserted in 10s)
+2023/10/19 03:12:41 WatchBolt: (batchins 808/s) (+8085 batchins in 10s) medBS=~52
+2023/10/19 03:12:41 WatchBolt: (searches 34900/s) (+349000 searches in 10s)
+2023/10/19 03:12:41 L1: [fex=0/set:37428972] [get=0/mux=37428975] [del:36883659/bat:37148358] [g/s:0/0] cached:545316 (~34082/char)
+2023/10/19 03:12:41 L2: [fex=44/set:37428976] [get=0/mis=0] [del:37134048/bat:37138136] [g/s:0/0] cached:294972 (~18435/char)
+2023/10/19 03:12:41 L3: [fex=0/set:37428977] [get=0/mis=0] [del:36883656/bat:37148355] [g/s:0/0] cached:545318 (~34082/char)
+2023/10/19 03:12:41 BoltSpeed: 69539.37 tx/s ( did=695396 in 10.0 sec ) totalTX=74859377 otx=17
+2023/10/19 03:12:51 WatchBolt: (inserted 34137/s) (+341378 inserted in 10s)
+2023/10/19 03:12:51 WatchBolt: (batchins 808/s) (+8085 batchins in 10s) medBS=~52
+2023/10/19 03:12:51 WatchBolt: (searches 35000/s) (+350000 searches in 10s)
+2023/10/19 03:12:51 L1: [fex=0/set:37779602] [get=0/mux=37779603] [del:37181126/bat:37410502] [g/s:0/0] cached:598477 (~37404/char)
+2023/10/19 03:12:51 L2: [fex=46/set:37779605] [get=0/mis=0] [del:37400280/bat:37662424] [g/s:0/0] cached:379371 (~23710/char)
+2023/10/19 03:12:51 L3: [fex=0/set:37779607] [get=0/mis=0] [del:37181123/bat:37410499] [g/s:0/0] cached:598481 (~37405/char)
+2023/10/19 03:12:51 BoltSpeed: 70127.18 tx/s ( did=701275 in 10.0 sec ) totalTX=75560652 otx=16
+2023/10/19 03:12:58 RUN test p=4 nntp-history added=9515883 dupes=0 cLock=13927405 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14556712 cretry2=0 38000000/50000000
+2023/10/19 03:12:58 RUN test p=2 nntp-history added=9500912 dupes=0 cLock=13934553 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14564535 cretry2=0 38000000/50000000
+2023/10/19 03:12:58 RUN test p=3 nntp-history added=9485945 dupes=0 cLock=13940826 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14573229 cretry2=0 38000000/50000000
+2023/10/19 03:12:58 RUN test p=1 nntp-history added=9497260 dupes=0 cLock=13931060 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14571680 cretry2=0 38000000/50000000
+2023/10/19 03:13:01 WatchBolt: (inserted 35087/s) (+350879 inserted in 10s)
+2023/10/19 03:13:01 WatchBolt: (batchins 802/s) (+8024 batchins in 10s) medBS=~52
+2023/10/19 03:13:01 WatchBolt: (searches 32100/s) (+321000 searches in 10s)
+2023/10/19 03:13:01 L1: [fex=0/set:38101437] [get=0/mux=38101441] [del:37671624/bat:37705414] [g/s:0/0] cached:429817 (~26863/char)
+2023/10/19 03:13:01 L2: [fex=46/set:38101439] [get=0/mis=0] [del:37662424/bat:37924568] [g/s:0/0] cached:439061 (~27441/char)
+2023/10/19 03:13:01 L3: [fex=0/set:38101440] [get=0/mis=0] [del:37671621/bat:37705411] [g/s:0/0] cached:429816 (~26863/char)
+2023/10/19 03:13:01 BoltSpeed: 64368.84 tx/s ( did=643683 in 10.0 sec ) totalTX=76204335 otx=16
+2023/10/19 03:13:11 WatchBolt: (inserted 34161/s) (+341614 inserted in 10s)
+2023/10/19 03:13:11 WatchBolt: (batchins 796/s) (+7963 batchins in 10s) medBS=~52
+2023/10/19 03:13:11 WatchBolt: (searches 34000/s) (+340000 searches in 10s)
+2023/10/19 03:13:11 L1: [fex=0/set:38441489] [get=0/mux=38441493] [del:37932235/bat:38164166] [g/s:0/0] cached:509258 (~31828/char)
+2023/10/19 03:13:11 L2: [fex=46/set:38441494] [get=0/mis=0] [del:38182624/bat:38186712] [g/s:0/0] cached:258916 (~16182/char)
+2023/10/19 03:13:11 L3: [fex=0/set:38441495] [get=0/mis=0] [del:37932232/bat:38164163] [g/s:0/0] cached:509260 (~31828/char)
+2023/10/19 03:13:11 BoltSpeed: 68012.21 tx/s ( did=680125 in 10.0 sec ) totalTX=76884460 otx=17
+2023/10/19 03:13:21 L1: [fex=0/set:38800336] [get=0/mux=38800337] [del:38229702/bat:38426310] [g/s:0/0] cached:570635 (~35664/char)
+2023/10/19 03:13:21 L2: [fex=46/set:38800338] [get=0/mis=0] [del:38448856/bat:38711000] [g/s:0/0] cached:351528 (~21970/char)
+2023/10/19 03:13:21 L3: [fex=0/set:38800339] [get=0/mis=0] [del:38229699/bat:38426307] [g/s:0/0] cached:570637 (~35664/char)
+2023/10/19 03:13:21 BoltSpeed: 71754.52 tx/s ( did=717703 in 10.0 sec ) totalTX=77602163 otx=16
+2023/10/19 03:13:21 WatchBolt: (inserted 35863/s) (+358632 inserted in 10s)
+2023/10/19 03:13:21 WatchBolt: (batchins 791/s) (+7918 batchins in 10s) medBS=~52
+2023/10/19 03:13:21 WatchBolt: (searches 35800/s) (+358000 searches in 10s)
+2023/10/19 03:13:27 RUN test p=4 nntp-history added=9764064 dupes=0 cLock=14289634 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14946302 cretry2=0 39000000/50000000
+2023/10/19 03:13:27 RUN test p=1 nntp-history added=9749398 dupes=0 cLock=14292995 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14957607 cretry2=0 39000000/50000000
+2023/10/19 03:13:27 RUN test p=3 nntp-history added=9735689 dupes=0 cLock=14303327 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14960984 cretry2=0 39000000/50000000
+2023/10/19 03:13:27 RUN test p=2 nntp-history added=9750849 dupes=0 cLock=14297279 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=14951872 cretry2=0 39000000/50000000
+2023/10/19 03:13:31 WatchBolt: (inserted 32900/s) (+329002 inserted in 10s)
+2023/10/19 03:13:31 WatchBolt: (batchins 787/s) (+7877 batchins in 10s) medBS=~51
+2023/10/19 03:13:31 WatchBolt: (searches 34600/s) (+346000 searches in 10s)
+2023/10/19 03:13:31 L1: [fex=0/set:39146434] [get=0/mux=39146435] [del:38715080/bat:38753990] [g/s:0/0] cached:431355 (~26959/char)
+2023/10/19 03:13:31 L2: [fex=46/set:39146434] [get=0/mis=0] [del:38711000/bat:38973144] [g/s:0/0] cached:435480 (~27217/char)
+2023/10/19 03:13:32 L3: [fex=0/set:39146523] [get=0/mis=0] [del:38694085/bat:38753987] [g/s:0/0] cached:452435 (~28277/char)
+2023/10/19 03:13:32 BoltSpeed: 67455.45 tx/s ( did=692462 in 10.3 sec ) totalTX=78294625 otx=16
+2023/10/19 03:13:41 L1: [fex=0/set:39518361] [get=0/mux=39518363] [del:38948554/bat:39212742] [g/s:0/0] cached:569809 (~35613/char)
+2023/10/19 03:13:41 L2: [fex=47/set:39518361] [get=0/mis=0] [del:38973144/bat:39235288] [g/s:0/0] cached:545264 (~34079/char)
+2023/10/19 03:13:41 L3: [fex=0/set:39518361] [get=0/mis=0] [del:38948551/bat:39212739] [g/s:0/0] cached:569807 (~35612/char)
+2023/10/19 03:13:41 BoltSpeed: 76403.97 tx/s ( did=743613 in 9.7 sec ) totalTX=79038238 otx=16
+2023/10/19 03:13:41 WatchBolt: (inserted 35531/s) (+355312 inserted in 10s)
+2023/10/19 03:13:41 WatchBolt: (batchins 790/s) (+7906 batchins in 10s) medBS=~51
+2023/10/19 03:13:41 WatchBolt: (searches 37400/s) (+374000 searches in 10s)
+2023/10/19 03:13:51 L1: [fex=0/set:39832321] [get=0/mux=39832322] [del:39278278/bat:39474886] [g/s:0/0] cached:554044 (~34627/char)
+2023/10/19 03:13:51 WatchBolt: (inserted 34724/s) (+347247 inserted in 10s)
+2023/10/19 03:13:51 L2: [fex=48/set:39832323] [get=0/mis=0] [del:39497432/bat:39759576] [g/s:0/0] cached:334939 (~20933/char)
+2023/10/19 03:13:51 WatchBolt: (batchins 803/s) (+8033 batchins in 10s) medBS=~51
+2023/10/19 03:13:51 WatchBolt: (searches 31200/s) (+312000 searches in 10s)
+2023/10/19 03:13:51 L3: [fex=0/set:39832324] [get=0/mis=0] [del:39278275/bat:39474883] [g/s:0/0] cached:554046 (~34627/char)
+2023/10/19 03:13:51 BoltSpeed: 62796.88 tx/s ( did=627947 in 10.0 sec ) totalTX=79666185 otx=16
+2023/10/19 03:13:56 RUN test p=3 nntp-history added=9986396 dupes=0 cLock=14654601 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15359003 cretry2=0 40000000/50000000
+2023/10/19 03:13:56 RUN test p=2 nntp-history added=10003509 dupes=0 cLock=14648749 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15347742 cretry2=0 40000000/50000000
+2023/10/19 03:13:56 RUN test p=1 nntp-history added=9996365 dupes=0 cLock=14643853 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15359782 cretry2=0 40000000/50000000
+2023/10/19 03:13:56 RUN test p=4 nntp-history added=10013730 dupes=0 cLock=14640630 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15345640 cretry2=0 40000000/50000000
+2023/10/19 03:14:01 WatchBolt: (inserted 30910/s) (+309109 inserted in 10s)
+2023/10/19 03:14:01 WatchBolt: (batchins 802/s) (+8024 batchins in 10s) medBS=~51
+2023/10/19 03:14:01 WatchBolt: (searches 31800/s) (+318000 searches in 10s)
+2023/10/19 03:14:01 L1: [fex=0/set:40148731] [get=0/mux=40148733] [del:39703240/bat:39802566] [g/s:0/0] cached:445493 (~27843/char)
+2023/10/19 03:14:01 L2: [fex=49/set:40148734] [get=0/mis=0] [del:39759576/bat:40021720] [g/s:0/0] cached:389207 (~24325/char)
+2023/10/19 03:14:01 L3: [fex=0/set:40148735] [get=0/mis=0] [del:39703237/bat:39802563] [g/s:0/0] cached:445495 (~27843/char)
+2023/10/19 03:14:01 BoltSpeed: 63283.04 tx/s ( did=632838 in 10.0 sec ) totalTX=80299023 otx=17
+2023/10/19 03:14:11 L1: [fex=0/set:40466634] [get=0/mux=40466635] [del:39867080/bat:40228550] [g/s:0/0] cached:599555 (~37472/char)
+2023/10/19 03:14:11 L2: [fex=52/set:40466634] [get=0/mis=0] [del:40021720/bat:40283864] [g/s:0/0] cached:444966 (~27810/char)
+2023/10/19 03:14:11 L3: [fex=0/set:40466634] [get=0/mis=0] [del:39867077/bat:40228547] [g/s:0/0] cached:599554 (~37472/char)
+2023/10/19 03:14:11 BoltSpeed: 63569.18 tx/s ( did=635808 in 10.0 sec ) totalTX=80934831 otx=16
+2023/10/19 03:14:11 WatchBolt: (inserted 31828/s) (+318280 inserted in 10s)
+2023/10/19 03:14:11 WatchBolt: (batchins 781/s) (+7813 batchins in 10s) medBS=~51
+2023/10/19 03:14:11 WatchBolt: (searches 31400/s) (+314000 searches in 10s)
+2023/10/19 03:14:21 WatchBolt: (inserted 28286/s) (+282865 inserted in 10s)
+2023/10/19 03:14:21 WatchBolt: (batchins 786/s) (+7867 batchins in 10s) medBS=~51
+2023/10/19 03:14:21 WatchBolt: (searches 30300/s) (+303000 searches in 10s)
+2023/10/19 03:14:21 L1: [fex=0/set:40768487] [get=0/mux=40768488] [del:40326343/bat:40326854] [g/s:0/0] cached:442145 (~27634/char)
+2023/10/19 03:14:21 L2: [fex=53/set:40768489] [get=0/mis=0] [del:40283864/bat:40546008] [g/s:0/0] cached:484678 (~30292/char)
+2023/10/19 03:14:21 L3: [fex=0/set:40768490] [get=0/mis=0] [del:40326340/bat:40326851] [g/s:0/0] cached:442147 (~27634/char)
+2023/10/19 03:14:21 BoltSpeed: 60384.70 tx/s ( did=603730 in 10.0 sec ) totalTX=81538561 otx=17
+2023/10/19 03:14:30 RUN test p=2 nntp-history added=10250597 dupes=0 cLock=14982850 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15766553 cretry2=0 41000000/50000000
+2023/10/19 03:14:30 RUN test p=4 nntp-history added=10264729 dupes=0 cLock=14974922 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15760349 cretry2=0 41000000/50000000
+2023/10/19 03:14:30 RUN test p=3 nntp-history added=10241902 dupes=0 cLock=14988978 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15769120 cretry2=0 41000000/50000000
+2023/10/19 03:14:30 RUN test p=1 nntp-history added=10242772 dupes=0 cLock=14977877 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=15779351 cretry2=0 41000000/50000000
+2023/10/19 03:14:31 L1: [fex=0/set:41050470] [get=0/mux=41050473] [del:40554186/bat:40752838] [g/s:0/0] cached:496287 (~31017/char)
+2023/10/19 03:14:31 WatchBolt: (inserted 28699/s) (+286991 inserted in 10s)
+2023/10/19 03:14:31 L2: [fex=53/set:41050473] [get=0/mis=0] [del:40804064/bat:40808152] [g/s:0/0] cached:246462 (~15403/char)
+2023/10/19 03:14:31 WatchBolt: (batchins 805/s) (+8052 batchins in 10s) medBS=~51
+2023/10/19 03:14:31 WatchBolt: (searches 28500/s) (+285000 searches in 10s)
+2023/10/19 03:14:31 L3: [fex=0/set:41050473] [get=0/mis=0] [del:40554183/bat:40752835] [g/s:0/0] cached:496287 (~31017/char)
+2023/10/19 03:14:31 BoltSpeed: 56398.55 tx/s ( did=563984 in 10.0 sec ) totalTX=82102545 otx=16
+2023/10/19 03:14:41 WatchBolt: (inserted 28741/s) (+287416 inserted in 10s)
+2023/10/19 03:14:41 WatchBolt: (batchins 791/s) (+7912 batchins in 10s) medBS=~51
+2023/10/19 03:14:41 WatchBolt: (searches 28700/s) (+287000 searches in 10s)
+2023/10/19 03:14:41 L1: [fex=0/set:41338678] [get=0/mux=41338680] [del:40851142/bat:40916678] [g/s:0/0] cached:487538 (~30471/char)
+2023/10/19 03:14:41 L2: [fex=54/set:41338680] [get=0/mis=0] [del:41066208/bat:41070296] [g/s:0/0] cached:272526 (~17032/char)
+2023/10/19 03:14:41 L3: [fex=0/set:41338681] [get=0/mis=0] [del:40851139/bat:40916675] [g/s:0/0] cached:487538 (~30471/char)
+2023/10/19 03:14:41 BoltSpeed: 57558.35 tx/s ( did=576427 in 10.0 sec ) totalTX=82678972 otx=16
+2023/10/19 03:14:51 WatchBolt: (inserted 30473/s) (+304735 inserted in 10s)
+2023/10/19 03:14:51 WatchBolt: (batchins 799/s) (+7993 batchins in 10s) medBS=~50
+2023/10/19 03:14:51 WatchBolt: (searches 29600/s) (+296000 searches in 10s)
+2023/10/19 03:14:51 L1: [fex=0/set:41634747] [get=0/mux=41634749] [del:41209035/bat:41375430] [g/s:0/0] cached:425714 (~26607/char)
+2023/10/19 03:14:51 L2: [fex=54/set:41634750] [get=0/mis=0] [del:41331929/bat:41332440] [g/s:0/0] cached:302875 (~18929/char)
+2023/10/19 03:14:51 L3: [fex=0/set:41634751] [get=0/mis=0] [del:41209032/bat:41375427] [g/s:0/0] cached:425716 (~26607/char)
+2023/10/19 03:14:51 BoltSpeed: 59302.98 tx/s ( did=592162 in 10.0 sec ) totalTX=83271134 otx=17
+2023/10/19 03:15:01 WatchBolt: (inserted 34271/s) (+342713 inserted in 10s)
+2023/10/19 03:15:01 WatchBolt: (batchins 806/s) (+8064 batchins in 10s) medBS=~50
+2023/10/19 03:15:01 WatchBolt: (searches 33600/s) (+336000 searches in 10s)
+2023/10/19 03:15:01 L1: [fex=0/set:41970097] [get=0/mux=41970099] [del:41375430/bat:41670342] [g/s:0/0] cached:594669 (~37166/char)
+2023/10/19 03:15:01 L2: [fex=56/set:41970100] [get=0/mis=0] [del:41594584/bat:41856728] [g/s:0/0] cached:375572 (~23473/char)
+2023/10/19 03:15:01 L3: [fex=0/set:41970102] [get=0/mis=0] [del:41375427/bat:41670339] [g/s:0/0] cached:594672 (~37167/char)
+2023/10/19 03:15:01 BoltSpeed: 67071.36 tx/s ( did=670714 in 10.0 sec ) totalTX=83941848 otx=16
+2023/10/19 03:15:02 RUN test p=3 nntp-history added=10490526 dupes=0 cLock=15340708 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16168766 cretry2=0 42000000/50000000
+2023/10/19 03:15:02 RUN test p=4 nntp-history added=10515253 dupes=0 cLock=15327056 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16157691 cretry2=0 42000000/50000000
+2023/10/19 03:15:02 RUN test p=2 nntp-history added=10501889 dupes=0 cLock=15334495 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16163616 cretry2=0 42000000/50000000
+2023/10/19 03:15:02 RUN test p=1 nntp-history added=10492332 dupes=0 cLock=15329325 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16178343 cretry2=0 42000000/50000000
+2023/10/19 03:15:11 WatchBolt: (inserted 29928/s) (+299284 inserted in 10s)
+2023/10/19 03:15:11 WatchBolt: (batchins 775/s) (+7757 batchins in 10s) medBS=~50
+2023/10/19 03:15:11 WatchBolt: (searches 28900/s) (+289000 searches in 10s)
+2023/10/19 03:15:11 L1: [fex=0/set:42259152] [get=0/mux=42259155] [del:41865928/bat:41899718] [g/s:0/0] cached:393227 (~24576/char)
+2023/10/19 03:15:11 L2: [fex=56/set:42259155] [get=0/mis=0] [del:41856728/bat:42118872] [g/s:0/0] cached:402483 (~25155/char)
+2023/10/19 03:15:11 L3: [fex=0/set:42259156] [get=0/mis=0] [del:41865925/bat:41899715] [g/s:0/0] cached:393228 (~24576/char)
+2023/10/19 03:15:11 BoltSpeed: 57812.74 tx/s ( did=578127 in 10.0 sec ) totalTX=84519975 otx=16
+2023/10/19 03:15:21 WatchBolt: (inserted 27636/s) (+276366 inserted in 10s)
+2023/10/19 03:15:21 WatchBolt: (batchins 788/s) (+7882 batchins in 10s) medBS=~50
+2023/10/19 03:15:21 WatchBolt: (searches 28000/s) (+280000 searches in 10s)
+2023/10/19 03:15:21 L1: [fex=0/set:42541065] [get=0/mux=42541067] [del:41964743/bat:42260166] [g/s:0/0] cached:576324 (~36020/char)
+2023/10/19 03:15:21 L2: [fex=56/set:42541067] [get=0/mis=0] [del:42118872/bat:42381016] [g/s:0/0] cached:422251 (~26390/char)
+2023/10/19 03:15:21 L3: [fex=0/set:42541067] [get=0/mis=0] [del:41964740/bat:42260163] [g/s:0/0] cached:576324 (~36020/char)
+2023/10/19 03:15:21 BoltSpeed: 56383.32 tx/s ( did=563834 in 10.0 sec ) totalTX=85083809 otx=17
+2023/10/19 03:15:31 WatchBolt: (inserted 30256/s) (+302560 inserted in 10s)
+2023/10/19 03:15:31 WatchBolt: (batchins 803/s) (+8036 batchins in 10s) medBS=~50
+2023/10/19 03:15:31 WatchBolt: (searches 32800/s) (+328000 searches in 10s)
+2023/10/19 03:15:31 L1: [fex=0/set:42865927] [get=0/mux=42865927] [del:42422984/bat:42424006] [g/s:0/0] cached:442943 (~27683/char)
+2023/10/19 03:15:31 L2: [fex=56/set:42865928] [get=0/mis=0] [del:42381016/bat:42643160] [g/s:0/0] cached:484968 (~30310/char)
+2023/10/19 03:15:31 L3: [fex=0/set:42865929] [get=0/mis=0] [del:42422981/bat:42424003] [g/s:0/0] cached:442945 (~27684/char)
+2023/10/19 03:15:31 BoltSpeed: 64575.29 tx/s ( did=649740 in 10.1 sec ) totalTX=85733549 otx=16
+2023/10/19 03:15:37 RUN test p=3 nntp-history added=10739249 dupes=0 cLock=15685538 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16575213 cretry2=0 43000000/50000000
+2023/10/19 03:15:37 RUN test p=2 nntp-history added=10752458 dupes=0 cLock=15679742 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16567800 cretry2=0 43000000/50000000
+2023/10/19 03:15:37 RUN test p=1 nntp-history added=10744714 dupes=0 cLock=15674444 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16580842 cretry2=0 43000000/50000000
+2023/10/19 03:15:37 RUN test p=4 nntp-history added=10763579 dupes=0 cLock=15671804 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16564617 cretry2=0 43000000/50000000
+2023/10/19 03:15:41 WatchBolt: (inserted 29385/s) (+293850 inserted in 10s)
+2023/10/19 03:15:41 WatchBolt: (batchins 794/s) (+7943 batchins in 10s) medBS=~50
+2023/10/19 03:15:41 WatchBolt: (searches 27600/s) (+276000 searches in 10s)
+2023/10/19 03:15:41 L1: [fex=0/set:43142524] [get=0/mux=43142527] [del:42586313/bat:42849990] [g/s:0/0] cached:556214 (~34763/char)
+2023/10/19 03:15:41 L2: [fex=57/set:43142527] [get=0/mis=0] [del:42901216/bat:42905304] [g/s:0/0] cached:241368 (~15085/char)
+2023/10/19 03:15:41 L3: [fex=0/set:43142528] [get=0/mis=0] [del:42586310/bat:42849987] [g/s:0/0] cached:556214 (~34763/char)
+2023/10/19 03:15:41 BoltSpeed: 55665.13 tx/s ( did=553214 in 9.9 sec ) totalTX=86286763 otx=16
+2023/10/19 03:15:51 L1: [fex=0/set:43525015] [get=0/mux=43525019] [del:42948294/bat:43112134] [g/s:0/0] cached:576725 (~36045/char)
+2023/10/19 03:15:51 L2: [fex=57/set:43525015] [get=0/mis=0] [del:43163360/bat:43167448] [g/s:0/0] cached:361712 (~22607/char)
+2023/10/19 03:15:51 L3: [fex=0/set:43525015] [get=0/mis=0] [del:42948291/bat:43112130] [g/s:0/0] cached:576720 (~36045/char)
+2023/10/19 03:15:51 BoltSpeed: 76497.95 tx/s ( did=764989 in 10.0 sec ) totalTX=87051752 otx=16
+2023/10/19 03:15:51 WatchBolt: (inserted 35225/s) (+352257 inserted in 10s)
+2023/10/19 03:15:51 WatchBolt: (batchins 798/s) (+7983 batchins in 10s) medBS=~50
+2023/10/19 03:15:51 WatchBolt: (searches 38000/s) (+380000 searches in 10s)
+2023/10/19 03:16:01 L1: [fex=0/set:43752521] [get=0/mux=43752525] [del:43373767/bat:43472582] [g/s:0/0] cached:378758 (~23672/char)
+2023/10/19 03:16:01 L2: [fex=57/set:43752523] [get=0/mis=0] [del:43429592/bat:43691736] [g/s:0/0] cached:322988 (~20186/char)
+2023/10/19 03:16:01 L3: [fex=0/set:43752524] [get=0/mis=0] [del:43373763/bat:43472578] [g/s:0/0] cached:378757 (~23672/char)
+2023/10/19 03:16:01 BoltSpeed: 45500.33 tx/s ( did=455032 in 10.0 sec ) totalTX=87506784 otx=16
+2023/10/19 03:16:01 WatchBolt: (inserted 29837/s) (+298375 inserted in 10s)
+2023/10/19 03:16:01 WatchBolt: (batchins 792/s) (+7928 batchins in 10s) medBS=~50
+2023/10/19 03:16:01 WatchBolt: (searches 22900/s) (+229000 searches in 10s)
+2023/10/19 03:16:10 RUN test p=1 nntp-history added=10995528 dupes=0 cLock=16010276 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16994196 cretry2=0 44000000/50000000
+2023/10/19 03:16:10 RUN test p=4 nntp-history added=11012048 dupes=0 cLock=16007894 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16980058 cretry2=0 44000000/50000000
+2023/10/19 03:16:10 RUN test p=3 nntp-history added=10989821 dupes=0 cLock=16021791 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16988388 cretry2=0 44000000/50000000
+2023/10/19 03:16:10 RUN test p=2 nntp-history added=11002603 dupes=0 cLock=16015813 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=16981584 cretry2=0 44000000/50000000
+2023/10/19 03:16:11 WatchBolt: (inserted 24895/s) (+248956 inserted in 10s)
+2023/10/19 03:16:11 WatchBolt: (batchins 808/s) (+8085 batchins in 10s) medBS=~50
+2023/10/19 03:16:11 WatchBolt: (searches 30600/s) (+306000 searches in 10s)
+2023/10/19 03:16:11 L1: [fex=0/set:44058844] [get=0/mux=44058848] [del:43472582/bat:43669190] [g/s:0/0] cached:586266 (~36641/char)
+2023/10/19 03:16:11 L2: [fex=57/set:44058844] [get=0/mis=0] [del:43691736/bat:43953880] [g/s:0/0] cached:367165 (~22947/char)
+2023/10/19 03:16:11 L3: [fex=0/set:44058844] [get=0/mis=0] [del:43472578/bat:43669186] [g/s:0/0] cached:586262 (~36641/char)
+2023/10/19 03:16:11 BoltSpeed: 61263.86 tx/s ( did=612659 in 10.0 sec ) totalTX=88119443 otx=17
+2023/10/19 03:16:21 WatchBolt: (inserted 32210/s) (+322107 inserted in 10s)
+2023/10/19 03:16:21 WatchBolt: (batchins 805/s) (+8054 batchins in 10s) medBS=~49
+2023/10/19 03:16:21 WatchBolt: (searches 30500/s) (+305000 searches in 10s)
+2023/10/19 03:16:21 L1: [fex=0/set:44364194] [get=0/mux=44364197] [del:43930823/bat:43996870] [g/s:0/0] cached:433374 (~27085/char)
+2023/10/19 03:16:21 L2: [fex=57/set:44364194] [get=0/mis=0] [del:43953880/bat:44216024] [g/s:0/0] cached:410371 (~25648/char)
+2023/10/19 03:16:21 L3: [fex=0/set:44364194] [get=0/mis=0] [del:43930819/bat:43996866] [g/s:0/0] cached:433371 (~27085/char)
+2023/10/19 03:16:21 BoltSpeed: 60987.69 tx/s ( did=610713 in 10.0 sec ) totalTX=88730156 otx=16
+2023/10/19 03:16:31 WatchBolt: (inserted 33017/s) (+330171 inserted in 10s)
+2023/10/19 03:16:31 WatchBolt: (batchins 792/s) (+7925 batchins in 10s) medBS=~49
+2023/10/19 03:16:31 WatchBolt: (searches 34400/s) (+344000 searches in 10s)
+2023/10/19 03:16:31 L1: [fex=0/set:44710093] [get=0/mux=44710095] [del:44094152/bat:44422854] [g/s:0/0] cached:615943 (~38496/char)
+2023/10/19 03:16:31 L2: [fex=58/set:44710095] [get=0/mis=0] [del:44216024/bat:44478168] [g/s:0/0] cached:494129 (~30883/char)
+2023/10/19 03:16:31 L3: [fex=0/set:44710096] [get=0/mis=0] [del:44094148/bat:44422850] [g/s:0/0] cached:615944 (~38496/char)
+2023/10/19 03:16:31 BoltSpeed: 69284.70 tx/s ( did=691821 in 10.0 sec ) totalTX=89421977 otx=16
+2023/10/19 03:16:40 RUN test p=1 nntp-history added=11249047 dupes=0 cLock=16344450 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17406503 cretry2=0 45000000/50000000
+2023/10/19 03:16:40 RUN test p=2 nntp-history added=11253184 dupes=0 cLock=16349890 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17396926 cretry2=0 45000000/50000000
+2023/10/19 03:16:40 RUN test p=3 nntp-history added=11240087 dupes=0 cLock=16355442 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17404471 cretry2=0 45000000/50000000
+2023/10/19 03:16:40 RUN test p=4 nntp-history added=11257682 dupes=0 cLock=16342453 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17399865 cretry2=0 45000000/50000000
+2023/10/19 03:16:41 L1: [fex=0/set:45025435] [get=0/mux=45025438] [del:44521158/bat:44586694] [g/s:0/0] cached:504280 (~31517/char)
+2023/10/19 03:16:41 L2: [fex=59/set:45025437] [get=0/mis=0] [del:44736224/bat:44740312] [g/s:0/0] cached:289272 (~18079/char)
+2023/10/19 03:16:41 L3: [fex=0/set:45025438] [get=0/mis=0] [del:44521154/bat:44586690] [g/s:0/0] cached:504280 (~31517/char)
+2023/10/19 03:16:41 BoltSpeed: 63069.91 tx/s ( did=630699 in 10.0 sec ) totalTX=90052676 otx=16
+2023/10/19 03:16:41 WatchBolt: (inserted 32750/s) (+327502 inserted in 10s)
+2023/10/19 03:16:41 WatchBolt: (batchins 792/s) (+7922 batchins in 10s) medBS=~49
+2023/10/19 03:16:41 WatchBolt: (searches 31800/s) (+318000 searches in 10s)
+2023/10/19 03:16:51 WatchBolt: (inserted 31742/s) (+317429 inserted in 10s)
+2023/10/19 03:16:51 WatchBolt: (batchins 781/s) (+7819 batchins in 10s) medBS=~49
+2023/10/19 03:16:51 WatchBolt: (searches 31800/s) (+318000 searches in 10s)
+2023/10/19 03:16:51 L1: [fex=0/set:45343716] [get=0/mux=45343717] [del:44945098/bat:45045446] [g/s:0/0] cached:398619 (~24913/char)
+2023/10/19 03:16:51 L2: [fex=59/set:45343718] [get=0/mis=0] [del:45002456/bat:45231832] [g/s:0/0] cached:341321 (~21332/char)
+2023/10/19 03:16:51 L3: [fex=0/set:45343718] [get=0/mis=0] [del:44945094/bat:45045442] [g/s:0/0] cached:398620 (~24913/char)
+2023/10/19 03:16:51 BoltSpeed: 62750.52 tx/s ( did=636577 in 10.1 sec ) totalTX=90689253 otx=16
+2023/10/19 03:17:01 WatchBolt: (inserted 31160/s) (+311602 inserted in 10s)
+2023/10/19 03:17:01 L1: [fex=0/set:45657538] [get=0/mux=45657540] [del:45077703/bat:45340358] [g/s:0/0] cached:579837 (~36239/char)
+2023/10/19 03:17:01 WatchBolt: (batchins 797/s) (+7970 batchins in 10s) medBS=~49
+2023/10/19 03:17:01 WatchBolt: (searches 31300/s) (+313000 searches in 10s)
+2023/10/19 03:17:01 L2: [fex=59/set:45657540] [get=0/mis=0] [del:45264600/bat:45526744] [g/s:0/0] cached:392999 (~24562/char)
+2023/10/19 03:17:01 L3: [fex=0/set:45657541] [get=0/mis=0] [del:45077699/bat:45340354] [g/s:0/0] cached:579838 (~36239/char)
+2023/10/19 03:17:01 BoltSpeed: 63686.71 tx/s ( did=627662 in 9.9 sec ) totalTX=91316915 otx=16
+2023/10/19 03:17:11 RUN test p=2 nntp-history added=11501899 dupes=0 cLock=16697978 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17800123 cretry2=0 46000000/50000000
+2023/10/19 03:17:11 RUN test p=4 nntp-history added=11507483 dupes=0 cLock=16690403 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17802114 cretry2=0 46000000/50000000
+2023/10/19 03:17:11 RUN test p=1 nntp-history added=11501678 dupes=0 cLock=16692680 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17805642 cretry2=0 46000000/50000000
+2023/10/19 03:17:11 RUN test p=3 nntp-history added=11488940 dupes=0 cLock=16703353 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=17807707 cretry2=0 46000000/50000000
+2023/10/19 03:17:11 WatchBolt: (inserted 33238/s) (+332380 inserted in 10s)
+2023/10/19 03:17:11 WatchBolt: (batchins 784/s) (+7844 batchins in 10s) medBS=~49
+2023/10/19 03:17:11 L1: [fex=0/set:46000641] [get=0/mux=46000644] [del:45568201/bat:45569734] [g/s:0/0] cached:432443 (~27027/char)
+2023/10/19 03:17:11 WatchBolt: (searches 34300/s) (+343000 searches in 10s)
+2023/10/19 03:17:11 L2: [fex=62/set:46000641] [get=0/mis=0] [del:45526744/bat:45788888] [g/s:0/0] cached:473959 (~29622/char)
+2023/10/19 03:17:11 L3: [fex=0/set:46000641] [get=0/mis=0] [del:45568197/bat:45569730] [g/s:0/0] cached:432440 (~27027/char)
+2023/10/19 03:17:11 BoltSpeed: 68592.01 tx/s ( did=686218 in 10.0 sec ) totalTX=92003133 otx=16
+2023/10/19 03:17:21 WatchBolt: (inserted 25574/s) (+255744 inserted in 10s)
+2023/10/19 03:17:21 WatchBolt: (batchins 809/s) (+8097 batchins in 10s) medBS=~49
+2023/10/19 03:17:21 WatchBolt: (searches 24700/s) (+247000 searches in 10s)
+2023/10/19 03:17:21 L1: [fex=0/set:46245516] [get=0/mux=46245518] [del:45732041/bat:45995718] [g/s:0/0] cached:513477 (~32092/char)
+2023/10/19 03:17:21 L2: [fex=63/set:46245518] [get=0/mis=0] [del:45788888/bat:46051032] [g/s:0/0] cached:456693 (~28543/char)
+2023/10/19 03:17:21 L3: [fex=0/set:46245519] [get=0/mis=0] [del:45732037/bat:45995714] [g/s:0/0] cached:513478 (~32092/char)
+2023/10/19 03:17:21 BoltSpeed: 48998.78 tx/s ( did=489773 in 10.0 sec ) totalTX=92492906 otx=18
+2023/10/19 03:17:31 WatchBolt: (inserted 30847/s) (+308473 inserted in 10s)
+2023/10/19 03:17:31 WatchBolt: (batchins 801/s) (+8014 batchins in 10s) medBS=~49
+2023/10/19 03:17:31 WatchBolt: (searches 31000/s) (+310000 searches in 10s)
+2023/10/19 03:17:31 L1: [fex=0/set:46556672] [get=0/mux=46556674] [del:46093511/bat:46126790] [g/s:0/0] cached:463163 (~28947/char)
+2023/10/19 03:17:31 L2: [fex=63/set:46556674] [get=0/mis=0] [del:46051032/bat:46313176] [g/s:0/0] cached:505705 (~31606/char)
+2023/10/19 03:17:31 L3: [fex=0/set:46556675] [get=0/mis=0] [del:46093507/bat:46126786] [g/s:0/0] cached:463164 (~28947/char)
+2023/10/19 03:17:31 BoltSpeed: 62232.60 tx/s ( did=622329 in 10.0 sec ) totalTX=93115235 otx=17
+2023/10/19 03:17:41 WatchBolt: (inserted 31020/s) (+310207 inserted in 10s)
+2023/10/19 03:17:41 WatchBolt: (batchins 788/s) (+7889 batchins in 10s) medBS=~49
+2023/10/19 03:17:41 WatchBolt: (searches 29100/s) (+291000 searches in 10s)
+2023/10/19 03:17:41 L1: [fex=0/set:46850036] [get=0/mux=46850040] [del:46386890/bat:46585542] [g/s:0/0] cached:463150 (~28946/char)
+2023/10/19 03:17:41 L2: [fex=64/set:46850036] [get=0/mis=0] [del:46571232/bat:46575320] [g/s:0/0] cached:278868 (~17429/char)
+2023/10/19 03:17:41 L3: [fex=0/set:46850036] [get=0/mis=0] [del:46386886/bat:46585538] [g/s:0/0] cached:463146 (~28946/char)
+2023/10/19 03:17:41 BoltSpeed: 58658.09 tx/s ( did=586735 in 10.0 sec ) totalTX=93701970 otx=16
+2023/10/19 03:17:46 RUN test p=3 nntp-history added=11738336 dupes=0 cLock=17053861 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18207803 cretry2=0 47000000/50000000
+2023/10/19 03:17:46 RUN test p=1 nntp-history added=11750811 dupes=0 cLock=17043621 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18205568 cretry2=0 47000000/50000000
+2023/10/19 03:17:46 RUN test p=4 nntp-history added=11760312 dupes=0 cLock=17041629 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18198059 cretry2=0 47000000/50000000
+2023/10/19 03:17:46 RUN test p=2 nntp-history added=11750541 dupes=0 cLock=17048761 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18200698 cretry2=0 47000000/50000000
+2023/10/19 03:17:51 L1: [fex=0/set:47151049] [get=0/mux=47151050] [del:46618310/bat:46716614] [g/s:0/0] cached:532740 (~33296/char)
+2023/10/19 03:17:51 L2: [fex=65/set:47151051] [get=0/mis=0] [del:46837464/bat:46837464] [g/s:0/0] cached:313652 (~19603/char)
+2023/10/19 03:17:51 L3: [fex=0/set:47151051] [get=0/mis=0] [del:46618306/bat:46716610] [g/s:0/0] cached:532741 (~33296/char)
+2023/10/19 03:17:51 BoltSpeed: 60220.59 tx/s ( did=602045 in 10.0 sec ) totalTX=94304015 otx=16
+2023/10/19 03:17:51 WatchBolt: (inserted 29249/s) (+292493 inserted in 10s)
+2023/10/19 03:17:51 WatchBolt: (batchins 784/s) (+7842 batchins in 10s) medBS=~49
+2023/10/19 03:17:51 WatchBolt: (searches 30200/s) (+302000 searches in 10s)
+2023/10/19 03:18:01 WatchBolt: (inserted 30763/s) (+307633 inserted in 10s)
+2023/10/19 03:18:01 WatchBolt: (batchins 790/s) (+7908 batchins in 10s) medBS=~49
+2023/10/19 03:18:01 WatchBolt: (searches 31000/s) (+310000 searches in 10s)
+2023/10/19 03:18:01 L1: [fex=0/set:47458673] [get=0/mux=47458674] [del:47042761/bat:47142598] [g/s:0/0] cached:415913 (~25994/char)
+2023/10/19 03:18:01 L2: [fex=65/set:47458673] [get=0/mis=0] [del:47099608/bat:47361752] [g/s:0/0] cached:359130 (~22445/char)
+2023/10/19 03:18:01 L3: [fex=0/set:47458673] [get=0/mis=0] [del:47042757/bat:47142594] [g/s:0/0] cached:415912 (~25994/char)
+2023/10/19 03:18:01 BoltSpeed: 61510.74 tx/s ( did=615258 in 10.0 sec ) totalTX=94919273 otx=16
+2023/10/19 03:18:11 L1: [fex=0/set:47746702] [get=0/mux=47746702] [del:47174855/bat:47470278] [g/s:0/0] cached:571847 (~35740/char)
+2023/10/19 03:18:11 L2: [fex=66/set:47746709] [get=0/mis=0] [del:47361752/bat:47623896] [g/s:0/0] cached:385023 (~24063/char)
+2023/10/19 03:18:11 L3: [fex=0/set:47746709] [get=0/mis=0] [del:47174851/bat:47470274] [g/s:0/0] cached:571854 (~35740/char)
+2023/10/19 03:18:11 BoltSpeed: 57587.24 tx/s ( did=576090 in 10.0 sec ) totalTX=95495363 otx=16
+2023/10/19 03:18:11 WatchBolt: (inserted 29474/s) (+294748 inserted in 10s)
+2023/10/19 03:18:11 WatchBolt: (batchins 778/s) (+7784 batchins in 10s) medBS=~48
+2023/10/19 03:18:11 WatchBolt: (searches 28800/s) (+288000 searches in 10s)
+2023/10/19 03:18:19 RUN test p=4 nntp-history added=12013798 dupes=0 cLock=17400316 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18585886 cretry2=0 48000000/50000000
+2023/10/19 03:18:19 RUN test p=3 nntp-history added=11986883 dupes=0 cLock=17412378 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18600739 cretry2=0 48000000/50000000
+2023/10/19 03:18:19 RUN test p=2 nntp-history added=12002609 dupes=0 cLock=17407445 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18589946 cretry2=0 48000000/50000000
+2023/10/19 03:18:19 RUN test p=1 nntp-history added=11996710 dupes=0 cLock=17401616 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18601674 cretry2=0 48000000/50000000
+2023/10/19 03:18:21 WatchBolt: (inserted 31136/s) (+311366 inserted in 10s)
+2023/10/19 03:18:21 WatchBolt: (batchins 797/s) (+7974 batchins in 10s) medBS=~48
+2023/10/19 03:18:21 WatchBolt: (searches 34200/s) (+342000 searches in 10s)
+2023/10/19 03:18:21 L1: [fex=0/set:48092285] [get=0/mux=48092288] [del:47624904/bat:47666886] [g/s:0/0] cached:467384 (~29211/char)
+2023/10/19 03:18:21 L2: [fex=68/set:48092289] [get=0/mis=0] [del:47623896/bat:47886040] [g/s:0/0] cached:468461 (~29278/char)
+2023/10/19 03:18:21 L3: [fex=0/set:48092292] [get=0/mis=0] [del:47626436/bat:47666882] [g/s:0/0] cached:465852 (~29115/char)
+2023/10/19 03:18:21 BoltSpeed: 69154.09 tx/s ( did=691182 in 10.0 sec ) totalTX=96186545 otx=17
+2023/10/19 03:18:31 WatchBolt: (inserted 31655/s) (+316551 inserted in 10s)
+2023/10/19 03:18:31 WatchBolt: (batchins 790/s) (+7905 batchins in 10s) medBS=~48
+2023/10/19 03:18:31 WatchBolt: (searches 28500/s) (+285000 searches in 10s)
+2023/10/19 03:18:31 L1: [fex=0/set:48373003] [get=0/mux=48373003] [del:47863499/bat:48092870] [g/s:0/0] cached:509504 (~31844/char)
+2023/10/19 03:18:31 L2: [fex=70/set:48373004] [get=0/mis=0] [del:48144096/bat:48148184] [g/s:0/0] cached:228978 (~14311/char)
+2023/10/19 03:18:31 L3: [fex=0/set:48373005] [get=0/mis=0] [del:47864007/bat:48092866] [g/s:0/0] cached:508994 (~31812/char)
+2023/10/19 03:18:31 BoltSpeed: 56149.56 tx/s ( did=561442 in 10.0 sec ) totalTX=96747987 otx=17
+2023/10/19 03:18:41 WatchBolt: (inserted 31223/s) (+312236 inserted in 10s)
+2023/10/19 03:18:41 WatchBolt: (batchins 803/s) (+8039 batchins in 10s) medBS=~48
+2023/10/19 03:18:41 WatchBolt: (searches 31800/s) (+318000 searches in 10s)
+2023/10/19 03:18:41 L1: [fex=0/set:48692863] [get=0/mux=48692865] [del:48191174/bat:48256710] [g/s:0/0] cached:501691 (~31355/char)
+2023/10/19 03:18:41 L2: [fex=71/set:48692863] [get=0/mis=0] [del:48406240/bat:48410328] [g/s:0/0] cached:286694 (~17918/char)
+2023/10/19 03:18:41 L3: [fex=0/set:48692863] [get=0/mis=0] [del:48191170/bat:48256706] [g/s:0/0] cached:501689 (~31355/char)
+2023/10/19 03:18:41 BoltSpeed: 62889.68 tx/s ( did=639767 in 10.2 sec ) totalTX=97387754 otx=16
+2023/10/19 03:18:51 L1: [fex=0/set:48986726] [get=0/mux=48986728] [del:48550600/bat:48715462] [g/s:0/0] cached:436128 (~27258/char)
+2023/10/19 03:18:51 L2: [fex=72/set:48986729] [get=0/mis=0] [del:48672472/bat:48672472] [g/s:0/0] cached:314329 (~19645/char)
+2023/10/19 03:18:51 L3: [fex=0/set:48986730] [get=0/mis=0] [del:48550596/bat:48715458] [g/s:0/0] cached:436130 (~27258/char)
+2023/10/19 03:18:51 WatchBolt: (inserted 28746/s) (+287460 inserted in 10s)
+2023/10/19 03:18:51 WatchBolt: (batchins 774/s) (+7748 batchins in 10s) medBS=~48
+2023/10/19 03:18:51 WatchBolt: (searches 29400/s) (+294000 searches in 10s)
+2023/10/19 03:18:51 BoltSpeed: 59805.59 tx/s ( did=587717 in 9.8 sec ) totalTX=97975471 otx=16
+2023/10/19 03:18:52 RUN test p=3 nntp-history added=12235328 dupes=0 cLock=17750040 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19014632 cretry2=0 49000000/50000000
+2023/10/19 03:18:52 RUN test p=1 nntp-history added=12243529 dupes=0 cLock=17739117 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19017354 cretry2=0 49000000/50000000
+2023/10/19 03:18:52 RUN test p=2 nntp-history added=12251172 dupes=0 cLock=17744762 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19004066 cretry2=0 49000000/50000000
+2023/10/19 03:18:52 RUN test p=4 nntp-history added=12269971 dupes=0 cLock=17738078 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=18991951 cretry2=0 49000000/50000000
+2023/10/19 03:19:01 WatchBolt: (inserted 31753/s) (+317534 inserted in 10s)
+2023/10/19 03:19:01 WatchBolt: (batchins 791/s) (+7917 batchins in 10s) medBS=~48
+2023/10/19 03:19:01 WatchBolt: (searches 30600/s) (+306000 searches in 10s)
+2023/10/19 03:19:01 L1: [fex=0/set:49294189] [get=0/mux=49294192] [del:48715462/bat:48977606] [g/s:0/0] cached:578730 (~36170/char)
+2023/10/19 03:19:01 L2: [fex=75/set:49294189] [get=0/mis=0] [del:48934616/bat:49196760] [g/s:0/0] cached:359648 (~22478/char)
+2023/10/19 03:19:01 L3: [fex=0/set:49294188] [get=0/mis=0] [del:48724675/bat:48977602] [g/s:0/0] cached:569509 (~35594/char)
+2023/10/19 03:19:01 BoltSpeed: 61455.48 tx/s ( did=614932 in 10.0 sec ) totalTX=98590403 otx=16
+2023/10/19 03:19:11 WatchBolt: (inserted 28155/s) (+281557 inserted in 10s)
+2023/10/19 03:19:11 WatchBolt: (batchins 795/s) (+7955 batchins in 10s) medBS=~48
+2023/10/19 03:19:11 WatchBolt: (searches 29300/s) (+293000 searches in 10s)
+2023/10/19 03:19:11 L1: [fex=0/set:49586881] [get=0/mux=49586883] [del:49141446/bat:49239750] [g/s:0/0] cached:445437 (~27839/char)
+2023/10/19 03:19:11 L2: [fex=75/set:49586883] [get=0/mis=0] [del:49196760/bat:49458904] [g/s:0/0] cached:390198 (~24387/char)
+2023/10/19 03:19:11 L3: [fex=0/set:49586883] [get=0/mis=0] [del:49141442/bat:49239746] [g/s:0/0] cached:445437 (~27839/char)
+2023/10/19 03:19:11 BoltSpeed: 58576.66 tx/s ( did=585408 in 10.0 sec ) totalTX=99175811 otx=17
+2023/10/19 03:19:21 L1: [fex=0/set:49876188] [get=0/mux=49876192] [del:49304264/bat:49600198] [g/s:0/0] cached:571928 (~35745/char)
+2023/10/19 03:19:21 L2: [fex=75/set:49876188] [get=0/mis=0] [del:49458904/bat:49721048] [g/s:0/0] cached:417359 (~26084/char)
+2023/10/19 03:19:21 WatchBolt: (inserted 30494/s) (+304945 inserted in 10s)
+2023/10/19 03:19:21 WatchBolt: (batchins 778/s) (+7782 batchins in 10s) medBS=~48
+2023/10/19 03:19:21 WatchBolt: (searches 29000/s) (+290000 searches in 10s)
+2023/10/19 03:19:21 L3: [fex=0/set:49876188] [get=0/mis=0] [del:49304260/bat:49632962] [g/s:0/0] cached:571924 (~35745/char)
+2023/10/19 03:19:21 BoltSpeed: 57732.42 tx/s ( did=578620 in 10.0 sec ) totalTX=99754431 otx=16
+2023/10/19 03:19:25 End test p=4 nntp-history added=12524808 dupes=0 cLock=18090241 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19384951 cretry2=0 sum=50000000/50000000 errors=0 locked=12524808
+2023/10/19 03:19:25 End test p=1 nntp-history added=12490578 dupes=0 cLock=18091112 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19418310 cretry2=0 sum=50000000/50000000 errors=0 locked=12490578
+2023/10/19 03:19:25 End test p=2 nntp-history added=12501546 dupes=0 cLock=18097291 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19401163 cretry2=0 sum=50000000/50000000 errors=0 locked=12501546
+2023/10/19 03:19:25 End test p=3 nntp-history added=12483068 dupes=0 cLock=18102023 addretry=0 retry=0 adddupes=0 cdupes=0 cretry1=19414909 cretry2=0 sum=50000000/50000000 errors=0 locked=12483068
+2023/10/19 03:19:25 main: CLOSING HISTORY
+2023/10/19 03:19:25 CLOSE_HISTORY aquire lock
+2023/10/19 03:19:25 CLOSE_HISTORY aquired lock ok
+2023/10/19 03:19:25 CLOSE_HISTORY: his.WriterChan <- nil
+2023/10/19 03:19:25 WAIT CLOSE_HISTORY: lock1=true=1 lock2=true=1 lock3=true=16 lock4=true=16 lock5=true=4096 batchQueued=true=73551 batchLocked=true=86
+2023/10/19 03:19:25 history_Writer closed fp='history/history.dat' wbt=5100000000 offset=5100004096 wroteLines=50000000
+2023/10/19 03:19:26 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=16 lock4=true=16 lock5=true=3552 batchQueued=true=49316 batchLocked=true=22
+2023/10/19 03:19:27 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=16 lock4=true=16 lock5=true=2649 batchQueued=true=19405 batchLocked=true=20
+2023/10/19 03:19:28 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=16 lock4=true=16 lock5=true=1952 batchQueued=true=2930 batchLocked=true=11
+2023/10/19 03:19:29 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=16 lock4=true=16 lock5=true=1155 batchQueued=true=1155 batchLocked=false=0
+2023/10/19 03:19:30 WAIT CLOSE_HISTORY: lock1=false=0 lock2=false=0 lock3=true=16 lock4=true=16 lock5=true=299 batchQueued=true=299 batchLocked=false=0
+2023/10/19 03:19:31 stopCPUProfile
+2023/10/19 03:19:31 CLOSE_HISTORY DONE
+2023/10/19 03:19:31 key_add=49999923 key_app=77 total=50000000 fseeks=75 eof=0 BoltDB_decodedOffsets=144 addoffset=0 appoffset=77 trymultioffsets=0 tryoffset=77 searches=49992000 inserted=50000000
+2023/10/19 03:19:31 L1=0:50000000:0 L2=0:50000000:75 L3=0:50000000:0
+2023/10/19 03:19:31 done=200000000 (took 1294 seconds) (closewait 6 seconds)
+2023/10/19 03:19:31 CrunchBatchLogs DBG_BS_LOG=false
+Alloc: 1979 MiB, TotalAlloc: 802648 MiB, Sys: 3336 MiB, NumGC: 541
+2023/10/19 03:19:31 runtime.GC() [ 1 / 5 ] sleep 10 sec
+2023/10/19 03:19:31 WatchBolt: (inserted 19195/s) (+191952 inserted in 10s)
+2023/10/19 03:19:31 WatchBolt: (batchins 695/s) (+6958 batchins in 10s) medBS=~48
+2023/10/19 03:19:31 WatchBolt: (searches 12400/s) (+124000 searches in 10s)
+2023/10/19 03:19:31 L1: [fex=0/set:50000000] [get=0/mux=50000000] [del:49762505/bat:50000000] [g/s:0/0] cached:237495 (~14843/char)
+2023/10/19 03:19:31 L2: [fex=75/set:50000000] [get=0/mis=0] [del:49721048/bat:50000075] [g/s:0/0] cached:279027 (~17439/char)
+2023/10/19 03:19:31 L3: [fex=0/set:50000000] [get=0/mis=0] [del:49762501/bat:49999996] [g/s:0/0] cached:237495 (~14843/char)
+2023/10/19 03:19:41 L1: [fex=0/set:50000000] [get=0/mux=50000000] [del:50000000/bat:50000000] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:19:41 L2: [fex=75/set:50000000] [get=0/mis=0] [del:50000075/bat:50000075] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:19:41 L3: [fex=0/set:50000000] [get=0/mis=0] [del:49999996/bat:49999996] [g/s:0/0] cached:0 (~0/char)
+Alloc: 354 MiB, TotalAlloc: 802666 MiB, Sys: 3336 MiB, NumGC: 542
+2023/10/19 03:19:42 runtime.GC() [ 2 / 5 ] sleep 10 sec
+2023/10/19 03:19:51 L1: [fex=0/set:50000000] [get=0/mux=50000000] [del:50000000/bat:50000000] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:19:51 L2: [fex=75/set:50000000] [get=0/mis=0] [del:50000075/bat:50000075] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:19:51 L3: [fex=0/set:50000000] [get=0/mis=0] [del:49999996/bat:49999996] [g/s:0/0] cached:0 (~0/char)
+Alloc: 306 MiB, TotalAlloc: 802666 MiB, Sys: 3336 MiB, NumGC: 543
+2023/10/19 03:19:52 runtime.GC() [ 3 / 5 ] sleep 10 sec
+2023/10/19 03:20:01 L1: [fex=0/set:50000000] [get=0/mux=50000000] [del:50000000/bat:50000000] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:20:01 L2: [fex=75/set:50000000] [get=0/mis=0] [del:50000075/bat:50000075] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:20:01 L3: [fex=0/set:50000000] [get=0/mis=0] [del:49999996/bat:49999996] [g/s:0/0] cached:0 (~0/char)
+Alloc: 306 MiB, TotalAlloc: 802666 MiB, Sys: 3336 MiB, NumGC: 544
+2023/10/19 03:20:02 runtime.GC() [ 4 / 5 ] sleep 10 sec
+2023/10/19 03:20:11 L1: [fex=0/set:50000000] [get=0/mux=50000000] [del:50000000/bat:50000000] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:20:11 L2: [fex=75/set:50000000] [get=0/mis=0] [del:50000075/bat:50000075] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:20:11 L3: [fex=0/set:50000000] [get=0/mis=0] [del:49999996/bat:49999996] [g/s:0/0] cached:0 (~0/char)
+Alloc: 306 MiB, TotalAlloc: 802666 MiB, Sys: 3336 MiB, NumGC: 545
+2023/10/19 03:20:12 runtime.GC() [ 5 / 5 ] sleep 10 sec
+2023/10/19 03:20:21 L1: [fex=0/set:50000000] [get=0/mux=50000000] [del:50000000/bat:50000000] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:20:21 L2: [fex=75/set:50000000] [get=0/mis=0] [del:50000075/bat:50000075] [g/s:0/0] cached:0 (~0/char)
+2023/10/19 03:20:21 L3: [fex=0/set:50000000] [get=0/mis=0] [del:49999996/bat:49999996] [g/s:0/0] cached:0 (~0/char)
+
+
