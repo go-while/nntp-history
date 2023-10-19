@@ -34,8 +34,8 @@ type L1CACHE struct {
 	Counter map[string]*CCC
 	prioQue map[string]*L1PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
-	//pqMuxer map[string]*L1MUXER      // Priority queue Muxers
-	arenas map[string]*L1Arena
+	pqMuxer map[string]*L1MUXER      // Priority queue Muxers
+	arenas  map[string]*L1Arena
 }
 
 type L1CACHEMAP struct {
@@ -82,7 +82,7 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
 	l1.prioQue = make(map[string]*L1PQ, intBoltDBs)
 	l1.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	//l1.pqMuxer = make(map[string]*L1MUXER, intBoltDBs)
+	l1.pqMuxer = make(map[string]*L1MUXER, intBoltDBs)
 	l1.arenas = make(map[string]*L1Arena, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
@@ -91,7 +91,7 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 		l1.prioQue[char] = &L1PQ{}
 		l1.pqChans[char] = make(chan struct{}, 1)
-		//l1.pqMuxer[char] = &L1MUXER{}
+		l1.pqMuxer[char] = &L1MUXER{}
 		l1.arenas[char] = &L1Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
 		l1.arenas[char].prioQue = arena.New[L1PQ](l1.arenas[char].pqmem)
 		l1.arenas[char].dqslice = arena.New[DQSlice](l1.arenas[char].dqmem)
@@ -183,13 +183,14 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		cnt := l1.Counter[char]
 		extC := l1.Extend[char]
 		mux := l1.Muxers[char]
-		//pq := l1.prioQue[char]
-		a := l1.arenas[char]
-		pq := a.prioQue
-		//pq := l1.arenas[char].prioQue
+		pq := l1.prioQue[char]
 		pqC := l1.pqChans[char]
-		//pqM := l1.pqMuxer[char]
-		pqM := a
+		pqM := l1.pqMuxer[char]
+		//if UseArenas {
+		//	a := l1.arenas[char]
+		//	pq = a.prioQue
+		//	pqM = a
+		//}
 
 		//forever:
 		for {
@@ -241,14 +242,17 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	//start := utils.UnixTimeMilliSec()
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
+	//extC := l1.Extend[char]
 	mux := l1.Muxers[char]
-	//pq := l1.prioQue[char]
-	a := l1.arenas[char]
-	pq := a.prioQue
-	//pq := l1.arenas[char].prioQue
+	pq := l1.prioQue[char]
 	pqC := l1.pqChans[char]
-	//pqM := l1.pqMuxer[char]
-	pqM := a
+	pqM := l1.pqMuxer[char]
+	/*if UseArenas {
+		a := l1.arenas[char]
+		pq := a.prioQue
+		pqC := l1.pqChans[char]
+		pqM := a
+	}*/
 
 	mux.mux.Lock()
 
@@ -360,17 +364,22 @@ func (pq *L1PQ) Push(x interface{}) {
 func (l1 *L1CACHE) pqExpire(char string) {
 	l1.mux.Lock() // waits for boot to finish
 	l1.mux.Unlock()
-	cnt := l1.Counter[char]
+
+	//start := utils.UnixTimeMilliSec()
 	ptr := l1.Caches[char]
+	cnt := l1.Counter[char]
+	//extC := l1.Extend[char]
 	mux := l1.Muxers[char]
-	//pq := l1.prioQue[char]
-	a := l1.arenas[char]
-	pq := a.prioQue
-	dq := a.dqslice // delete queue slice in memory arena
-	//dq := []string{}
+	pq := l1.prioQue[char]
 	pqC := l1.pqChans[char]
-	//pqM := l1.pqMuxer[char]
-	pqM := a
+	pqM := l1.pqMuxer[char]
+	dq := []string{} // with arenas needs to change dq to *dq below
+	/*if UseArenas {
+		a := l1.arenas[char]
+		pq := a.prioQue
+		dq := a.dqslice // delete queue slice in memory arena
+		pqM := a
+	}*/
 	//var item *L1PQItem
 	var empty bool
 	lpq, dqcnt, dqmax := 0, 0, 512
@@ -381,12 +390,12 @@ forever:
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L1Purge && dqcnt > 0) {
 			//log.Printf("L1 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
-			for _, delkey := range *dq {
+			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
 				cnt.Counter["Count_Delete"]++
 			}
 			mux.mux.Unlock()
-			dqcnt, *dq, lastdel = 0, nil, time.Now().Unix()
+			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
 		pqM.mux.RLock()
@@ -436,7 +445,7 @@ forever:
 			//cnt.Counter["Count_Delete"]++
 			heap.Pop(pq)
 			pqM.mux.Unlock()
-			*dq = append(*dq, item.Key)
+			dq = append(dq, item.Key)
 			dqcnt++
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
