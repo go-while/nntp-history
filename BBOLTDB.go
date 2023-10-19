@@ -54,11 +54,11 @@ var (
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
-	RootBucketFillPercent = 0.3
+	RootBucketFillPercent = 0.9
 
 	// adjust sub buckets page splitting behavior
 	// unsure if it does anything in sub buckets?
-	SubBucketFillPercent = 0.3
+	SubBucketFillPercent = 0.9
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
