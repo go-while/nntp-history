@@ -82,7 +82,7 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false (debug batchlogs)") // debug batchlogs
-	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", true, "true | false  (experimental)")   // adaptive batchsize
+	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")  // adaptive batchsize
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "16-65536 (default: 256)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 10000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
@@ -90,9 +90,9 @@ func main() {
 	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
 	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 1000, "milliseconds (default: 10)")
 	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65535, "0-65536 default: -1 = 1000")
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
-	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1)")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65536, "0-65536 default: -1 = 1000")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 256, "KB (default: 4)")
+	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
