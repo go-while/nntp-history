@@ -28,7 +28,7 @@ var TESTHASH = history.TESTHASH
 
 func main() {
 	numCPU := runtime.NumCPU()
-	debug.SetGCPercent(200)
+	debug.SetGCPercent(100)
 	var offset int64
 	var hexoff string
 	var todo int // todo x parallelTest
@@ -86,7 +86,7 @@ func main() {
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "16-65536 (default: 256)")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 10000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
 	//flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
@@ -96,14 +96,14 @@ func main() {
 	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 100, "milliseconds (default: 10)")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 1000, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 16384, "0-65536 default: -1 = 1000")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
 	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 256, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 64, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
@@ -126,8 +126,6 @@ func main() {
 	flag.Parse()
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
-	} else {
-		runtime.GOMAXPROCS(1)
 	}
 	if todo <= 0 {
 		log.Printf("??? todo=0")

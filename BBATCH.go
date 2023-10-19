@@ -126,26 +126,26 @@ fetchbatch:
 				//if bo.key == TESTKEY {
 				//	log.Printf("DEBUG [%s|%s] db.Batch TESTKEY='%s' TESTBUK='%s' offsets='%s' bo='%#v'", char, bucket, bo.key, TESTBUK, string(bo.encodedOffsets), bo)
 				//}
-				puterr := root.Put([]byte(bo.key), bo.encodedOffsets) // don't use a subbucket co-exists in boltBucketGetOffsets
-				if puterr != nil {
-					err = puterr
-					break batch1insert
-				}
 				/*
-					// Setup sub buckets
-					subbName := bo.key[0:his.keyIndex]
-					subb, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets
-					if err != nil {
-						return err
-					}
-					key := bo.key[his.keyIndex:]
-					subb.FillPercent = SubBucketFillPercent
-					puterr := subb.Put([]byte(key), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
+					puterr := root.Put([]byte(bo.key), bo.encodedOffsets) // don't use a subbucket co-exists in boltBucketGetOffsets
 					if puterr != nil {
 						err = puterr
 						break batch1insert
 					}
 				*/
+				// Setup sub buckets
+				subbName := string(bo.key[0:his.keyIndex])
+				subb, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets
+				if err != nil {
+					return err
+				}
+				key := bo.key[his.keyIndex:]
+				subb.FillPercent = SubBucketFillPercent
+				puterr := subb.Put([]byte(key), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
+				if puterr != nil {
+					err = puterr
+					break batch1insert
+				}
 				inserted++
 			}
 			return err

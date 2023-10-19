@@ -54,11 +54,11 @@ var (
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
-	RootBucketFillPercent = 0.2
+	RootBucketFillPercent = 0.5
 
 	// adjust sub buckets page splitting behavior
 	// unsure if it does anything in sub buckets?
-	SubBucketFillPercent = 0.2
+	SubBucketFillPercent = 0.5
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
@@ -145,8 +145,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
 
 	for _, char := range HEXCHARS {
-		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset) // maps bucket => chan
-		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}           // pointer to boltDB
+		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset, intBoltDBs) // maps bucket => chan
+		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}                       // pointer to boltDB
 	}
 	his.IndexChan = make(chan *HistoryIndex, QIndexChan) // main index chan to query the index
 	his.charsMap = make(map[string]int, intBoltDBs)      // maps char from HEXCHARS to i
@@ -387,16 +387,17 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	// make the batchQueues: if CharBucketBatchSize > 0
 	batchQcap := 1024
 	var timer int64 = 125 // milliseconds
+	batchQcap = CharBucketBatchSize * 2
 	switch his.bUCKETSperDB {
 	case 16:
-		batchQcap = 1024
 		timer = 250
 	case 256:
-		batchQcap = 256
 		timer = 500
 	case 4096:
-		batchQcap = 64
 		timer = 1000
+	}
+	if batchQcap < 1 {
+		batchQcap = 1
 	}
 	closedBuckets := make(chan struct{}, his.bUCKETSperDB)
 	for _, bucket := range ROOTBUCKETS {
@@ -544,7 +545,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				return
 			}
 		}
-		//log.Printf("BOOTED boltDB_Worker [%s] (took %d ms)", char, 1000-BQtimeout)
+		//log.Printf("BOOTED boltDB_Worker [%s] (took %d ms)", char, 60*1000-BQtimeout)
 	} else {
 		//log.Printf("BOOTED boltDB_Worker [%s]")
 	}
@@ -894,15 +895,16 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	var encodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
 		root := tx.Bucket([]byte(bucket))
-		v := root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatch
-		/*
-			subb := root.Bucket([]byte(key[0:his.keyIndex])) // subbucket co-exists in boltBucketPutBatch
-			if subb == nil {
-				// bucket not yet created
-				return nil
-			}
-			v := subb.Get([]byte(key[his.keyIndex:])) // subbucket co-exists in boltBucketPutBatch
-		*/
+		//v := root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatch
+		subbName := string(key[0:his.keyIndex])
+		subb := root.Bucket([]byte(subbName)) // subbucket co-exists in boltBucketPutBatch
+		if subb == nil {
+			// bucket not yet created
+			return nil
+		}
+		key := key[his.keyIndex:]
+		v := subb.Get([]byte(key)) // subbucket co-exists in boltBucketPutBatch
+
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
 			if newoffset == FlagSearch { // is a search
