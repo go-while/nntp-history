@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	UseArenas             bool  = true
+	UseArenas             bool
 	DBG_CGS               bool              // DEBUG_CACHE_GROW_SHRINK
 	DefaultCacheExpires   int64 = 5         // search only
 	DefaultCacheExtend    int64 = 5         // extends cached items after writes
