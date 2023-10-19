@@ -81,27 +81,27 @@ func main() {
 	// options for our pre-batching
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
-	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
-	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", true, "true | false  (experimental)")    // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536 (default: 256)")
+	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false (debug batchlogs)") // debug batchlogs
+	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", true, "true | false  (experimental)")   // adaptive batchsize
+	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "16-65536 (default: 256)")
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 10000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
 	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 100, "milliseconds (default: 10)")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 1000, "milliseconds (default: 10)")
 	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65535, "0-65536 default: -1 = 1000")
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
-	flag.BoolVar(&NoSync, "NoSync", true, "bbolt.NoSync: default false!")
+	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
 	// NoGrowSync: When true, skips the truncate call when growing the database,
 	//  but it's only safe on non-ext3/ext4 systems.
-	flag.BoolVar(&NoGrowSync, "NoGrowSync", true, "bbolt.NoGrowSync: default false!")
+	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync: default false!")
 	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
 	// This can improve write performance but may require a full database re-sync during recovery.
-	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
+	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", false, "bbolt.NoFreelistSync")
 
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
@@ -271,6 +271,7 @@ func main() {
 		os.Exit(0)
 	} // end if BootHistoryClient
 
+	// cmdline -getHL offset | -getHEX hexoff
 	if hexoff != "" {
 		value, err := strconv.ParseInt(hexoff, 16, 64) // reads hex
 		if value <= 0 || err != nil {
@@ -282,6 +283,7 @@ func main() {
 	}
 	if offset >= 0 {
 		history.NoReplayHisDat = true
+		history.BootVerbose = false
 	}
 	if useHashDB {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
