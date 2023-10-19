@@ -443,7 +443,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 				wt--
 			}
-			defaultTimer := timer
+			//defaultTimer := timer
 			var idle int64
 
 		forbatchqueue:
@@ -488,25 +488,30 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					lft = now - lastflush
 					lastflush = now
 					// reduce hibernate
-					if timer > defaultTimer {
-						timer = timer / 2
-					}
-					if timer < defaultTimer {
-						timer = defaultTimer
-					}
+					/*
+						if timer > defaultTimer {
+							timer = timer / 2
+						}
+						if timer < defaultTimer {
+							timer = defaultTimer
+						}
+					*/
 					idle = 0
 				} else {
-					// slowly enter hibernate
-					if !forced {
-						idle++
-						if idle > 15 {
-							idle = 0
-							if timer < 4000 {
-								timer += 100
+					idle++
+					/*
+						// slowly enter hibernate
+						if !forced {
+							idle++
+							if idle > 15 {
+								idle = 0
+								if timer < 4000 {
+									timer += 100
+								}
+								//log.Printf("idle [%s|%s] timer=%d", char, bucket, timer)
 							}
-							//log.Printf("idle [%s|%s] timer=%d", char, bucket, timer)
 						}
-					}
+					*/
 				} // end if inserted > 0
 
 				if forced {
