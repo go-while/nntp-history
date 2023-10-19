@@ -210,10 +210,10 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		// run manually: go history.History.WatchBolt()
 		go his.WatchBolt()
 	}
-	log.Printf("boltDB_Init HashDB='%s.[0-9a-f]'", his.hisDatDB)
-	log.Printf("  KeyAlgo=%d KeyLen=%d his.indexPar=%d", his.keyalgo, his.keylen, his.indexPar)
-	log.Printf("  adaptBatch=%t QIndexChan=%d QindexChans=%d", his.adaptBatch, QIndexChan, QindexChans)
-	log.Printf("  BatchSize=%d  BatchFlushEvery=%d", CharBucketBatchSize, BatchFlushEvery)
+	logf(BootVerbose, "boltDB_Init HashDB='%s.[0-9a-f]'", his.hisDatDB)
+	logf(BootVerbose, "  KeyAlgo=%d KeyLen=%d his.indexPar=%d", his.keyalgo, his.keylen, his.indexPar)
+	logf(BootVerbose, "  adaptBatch=%t QIndexChan=%d QindexChans=%d", his.adaptBatch, QIndexChan, QindexChans)
+	logf(BootVerbose, "  BatchSize=%d  BatchFlushEvery=%d", CharBucketBatchSize, BatchFlushEvery)
 } // end func boltDB_Init
 
 // boltDB_Index listens to incoming HistoryIndex structs on the IndexChan channel
@@ -1004,16 +1004,17 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string, reopen bool) error {
 		his.batchQueues.mux.Lock()
 		defer his.batchQueues.mux.Unlock()
 	}
+	startwait := utils.UnixTimeMilliSec()
 	his.LockAllBatchLocks(char)
-
 	start := utils.UnixTimeMilliSec()
+	waited := start - startwait
 	//logf(DEBUG2, "BoltDB SYNC [%s]", char)
 	// Manually sync the database to flush changes to disk
 	if err := db.Sync(); err != nil {
 		log.Printf("ERROR BoltSync [%s] db.Sync failed err='%v'", char, err)
 		return err
 	}
-	logf(DEBUG, "BoltDB SYNC [%s] reopen=%t (took=%d ms) ", char, reopen, utils.UnixTimeMilliSec()-start)
+	logf(DEBUG, "BoltDB SYNC [%s] reopen=%t (took=%d ms) waited=%d", char, reopen, utils.UnixTimeMilliSec()-start, waited)
 
 	his.returnLockAllBatchLocks(char)
 

@@ -31,6 +31,7 @@ const (
 )
 
 var (
+	BootVerbose = true
 	TESTHASH0   = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
 	TESTHASH1   = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
 	TESTHASH2   = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
@@ -308,7 +309,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	his.CacheEvictThread()
 
-	log.Printf("\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
+	logf(BootVerbose, "\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func History_Boot
