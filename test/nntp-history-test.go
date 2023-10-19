@@ -84,21 +84,37 @@ func main() {
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")  // adaptive batchsize
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "16-65536 (default: 256)")
+
+	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 10000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
-	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 1000, "milliseconds (default: 10)")
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
+	//flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
+
+	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
+	// up to a point where performance degrades but write BW stays very low.
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 50, "milliseconds (default: 10)")
+
+	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65536, "0-65536 default: -1 = 1000")
+
+	// lower RootBucketFillPercent produces more page splits
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
+
+	// lower pagesize produces more pagesplits too
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 256, "KB (default: 4)")
-	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1)")
+
+	// no need to grow before 1G of size per db
+	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
+
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
+
 	// NoGrowSync: When true, skips the truncate call when growing the database,
 	//  but it's only safe on non-ext3/ext4 systems.
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync: default false!")
+
 	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
 	// This can improve write performance but may require a full database re-sync during recovery.
 	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", false, "bbolt.NoFreelistSync")
