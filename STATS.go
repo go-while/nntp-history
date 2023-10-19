@@ -147,7 +147,7 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 		return
 	}
 	if char != "" {
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			if his.BoltDBsMap.dbptr[char].BoltDB != nil {
 				stats, err := his.getBucketStats(his.BoltDBsMap.dbptr[char].BoltDB, bucket)
 				if print {
@@ -157,7 +157,7 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 		}
 	}
 	for _, char := range HEXCHARS {
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			if his.BoltDBsMap.dbptr[char].BoltDB != nil {
 				stats, err := his.getBucketStats(his.BoltDBsMap.dbptr[char].BoltDB, bucket)
 				if print {
