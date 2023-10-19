@@ -87,8 +87,9 @@ func main() {
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 10000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
-	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9") // key length used for sub buckets
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
+	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 100, "milliseconds (default: 10)")
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1)")
