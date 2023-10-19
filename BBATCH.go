@@ -40,7 +40,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	Q := len(batchQueue)
 	Qcap := cap(batchQueue)
-	if Q >= Qcap/2 {
+	if Q >= int(Qcap/100*95) {
 		log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
 		//pass
 	} else if Q < workerCharBucketBatchSize && !forced {

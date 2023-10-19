@@ -43,8 +43,8 @@ var (
 	QIndexChan           int     = 16                              // Main-indexchan can queue this
 	QindexChans          int     = 16                              // every sub-indexchans for a `char` can queue this
 	BoltDB_AllocSize     int                                       // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
-	BoltSyncEveryS       int64   = 5                               // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
-	BoltSyncEveryN       uint64  = 100                             // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
+	BoltSyncEveryS       int64   = 60                              // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
+	BoltSyncEveryN       uint64  = 500000                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
 	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling History_Boot.
 	BoltHashOpen                 = make(chan struct{}, intBoltDBs) // dont change this
@@ -54,11 +54,11 @@ var (
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
-	RootBucketFillPercent = 0.5
+	RootBucketFillPercent = 0.2
 
 	// adjust sub buckets page splitting behavior
 	// unsure if it does anything in sub buckets?
-	SubBucketFillPercent = 0.5
+	SubBucketFillPercent = 0.2
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
@@ -1013,7 +1013,7 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string, reopen bool) error {
 		log.Printf("ERROR BoltSync [%s] db.Sync failed err='%v'", char, err)
 		return err
 	}
-	logf(DEBUG2, "BoltDB SYNC [%s] reopen=%t (took=%d ms) ", char, reopen, utils.UnixTimeMilliSec()-start)
+	logf(DEBUG, "BoltDB SYNC [%s] reopen=%t (took=%d ms) ", char, reopen, utils.UnixTimeMilliSec()-start)
 
 	his.returnLockAllBatchLocks(char)
 
