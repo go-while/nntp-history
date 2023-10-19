@@ -181,7 +181,7 @@ func main() {
 		}
 		boltOpts = &bO
 	}
-	start := utils.UnixTimeSec()
+	start := time.Now().Unix()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
 
 	if RunTCPonly {
@@ -222,7 +222,7 @@ func main() {
 					//if hash == TESTHASH {
 					//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 					//}
-					now := utils.UnixTimeSec()
+					now := time.Now().Unix()
 					expires := now + 86400*10 // expires in 10 days
 					//expires := int64(1234) // will expire on next expiry run
 					doa := now // date of article
@@ -420,7 +420,7 @@ func main() {
 				// place code here to add article to storage and overview
 				// when done: send the history object to history_writer
 
-				now := utils.UnixTimeSec()
+				now := time.Now().Unix()
 				expires := now + 86400*10 // expires in 10 days
 				//expires := int64(1234) // will expire on next expiry run
 				doa := now // date of article
@@ -465,13 +465,13 @@ func main() {
 		}
 		time.Sleep(time.Second / 10)
 	}
-	took := utils.UnixTimeSec() - start
+	took := time.Now().Unix() - start
 	log.Printf("main: CLOSING HISTORY")
 	// close history
-	closewait := utils.UnixTimeSec()
+	closewait := time.Now().Unix()
 	history.History.CLOSE_HISTORY()
 	go MemoryProfile(time.Second*10, 0, pprofmem)
-	waited := utils.UnixTimeSec() - closewait
+	waited := time.Now().Unix() - closewait
 
 	// get some numbers
 	key_add := history.History.GetCounter("key_add")
