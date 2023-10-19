@@ -395,7 +395,7 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	//var item *L3PQItem
 	var empty bool
 	dqcnt, dqmax := 0, 512
-	dq := make([]string, dqmax)
+	dq := []string{}
 	lastdel := time.Now().Unix()
 forever:
 	for {

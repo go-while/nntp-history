@@ -6,6 +6,7 @@ package history
  */
 import (
 	//"fmt"
+	"container/heap"
 	"github.com/go-while/go-utils"
 	"log"
 	"strconv"
@@ -31,6 +32,9 @@ type L2CACHE struct {
 	Muxers  map[string]*L2MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
+	prioQue map[string]*L2PQ         // Priority queue for item expiration
+	pqChans map[string]chan struct{} // Priority queue notify channels
+	pqMuxer map[string]*L2MUXER      // Priority queue Muxers
 }
 
 type L2CACHEMAP struct {
@@ -59,16 +63,22 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 	l2.Extend = make(map[string]*IntECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
 	l2.Counter = make(map[string]*CCC)
+	l2.prioQue = make(map[string]*L2PQ, intBoltDBs)
+	l2.pqChans = make(map[string]chan struct{}, intBoltDBs)
+	l2.pqMuxer = make(map[string]*L2MUXER, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &IntECH{ch: make(chan []int64, his.cEvCap)}
 		l2.Muxers[char] = &L2MUXER{}
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-
+		l2.prioQue[char] = &L2PQ{}
+		l2.pqChans[char] = make(chan struct{}, 1)
+		l2.pqMuxer[char] = &L2MUXER{}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
 		// stupid race condition on boot when placed in loop before
+		go l2.pqExpire(char)
 		go l2.L2Cache_Thread(char)
 	}
 
@@ -94,9 +104,9 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 		cnt := l2.Counter[char]
 		extC := l2.Extend[char]
 		mux := l2.Muxers[char]
-		//pq := l2.prioQue[char]
-		//pqC := l2.pqChans[char]
-		//pqM := l2.pqMuxer[char]
+		pq := l2.prioQue[char]
+		pqC := l2.pqChans[char]
+		pqM := l2.pqMuxer[char]
 		//forever:
 		for {
 		forextends:
@@ -116,8 +126,22 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 				mux.mux.Lock()
 				for _, offset := range extends {
 					if _, exists := ptr.cache[offset]; exists {
+						pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
 						ptr.cache[offset].expires = now + L2ExtendExpires
 						cnt.Counter["Count_BatchD"]++
+
+						pqM.mux.Lock()
+						heap.Push(pq, &L2PQItem{
+							Key:     offset,
+							Expires: pqEX,
+						})
+						pqM.mux.Unlock()
+						select {
+						case pqC <- struct{}{}:
+							// pass
+						default:
+							// pass too: notify chan is full
+						}
 					}
 				}
 				mux.mux.Unlock()
@@ -127,51 +151,53 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 		} // end forever
 	}() // end gofunc1
 
-	go func(ptr *L2CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
-		defer log.Printf("LEFT L2T gofunc2 delete [%s]", char)
-		timer := time.NewTimer(time.Duration(l2purge) * time.Second)
-		start := utils.UnixTimeMilliSec()
-		now := int64(start / 1000)
-		//forever:
-		for {
-			select {
-			case <-timer.C:
-				start = utils.UnixTimeMilliSec()
-				now = int64(start / 1000)
+	/*
+		go func(ptr *L2CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
+			defer log.Printf("LEFT L2T gofunc2 delete [%s]", char)
+			timer := time.NewTimer(time.Duration(l2purge) * time.Second)
+			start := utils.UnixTimeMilliSec()
+			now := int64(start / 1000)
+			//forever:
+			for {
+				select {
+				case <-timer.C:
+					start = utils.UnixTimeMilliSec()
+					now = int64(start / 1000)
 
-				//mux.RLock()
-				mux.Lock()
-				//getexpired:
-				for offset, item := range ptr.cache {
-					if item.expires > 0 && item.expires < now {
-						//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v' age=%d l2exp=%d", char, offset, item, now-item.addtime, L2CacheExpires)
-						//cleanup = append(cleanup, offset)
-						cnt.Counter["Count_Delete"]++
-						delete(ptr.cache, offset)
-					}
-				} // end for getexpired
-				mux.Unlock()
-				//mux.RUnlock()
-
-				//maplen := len(ptr.cache)
-				/*
-					if len(cleanup) > 0 {
-						mux.Lock()
-						//maplen -= len(cleanup)
-						for _, offset := range cleanup {
-							delete(ptr.cache, offset)
+					//mux.RLock()
+					mux.Lock()
+					//getexpired:
+					for offset, item := range ptr.cache {
+						if item.expires > 0 && item.expires < now {
+							//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v' age=%d l2exp=%d", char, offset, item, now-item.addtime, L2CacheExpires)
+							//cleanup = append(cleanup, offset)
 							cnt.Counter["Count_Delete"]++
+							delete(ptr.cache, offset)
 						}
-						mux.Unlock()
-						cleanup = nil
-						//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
-					}
-					//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-				*/
-				timer.Reset(time.Duration(l2purge) * time.Second)
-			} // end select
-		} // end for
-	}(l2.Caches[char], &l2.Muxers[char].mux, l2.Counter[char]) // end gofunc2
+					} // end for getexpired
+					mux.Unlock()
+					//mux.RUnlock()
+
+					//maplen := len(ptr.cache)
+					/,*
+						if len(cleanup) > 0 {
+							mux.Lock()
+							//maplen -= len(cleanup)
+							for _, offset := range cleanup {
+								delete(ptr.cache, offset)
+								cnt.Counter["Count_Delete"]++
+							}
+							mux.Unlock()
+							cleanup = nil
+							//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
+						}
+						//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
+					*,/
+					timer.Reset(time.Duration(l2purge) * time.Second)
+				} // end select
+			} // end for
+		}(l2.Caches[char], &l2.Muxers[char].mux, l2.Counter[char]) // end gofunc2
+	*/
 } //end func L2Cache_Thread
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
@@ -213,7 +239,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	ptr.cache[offset] = &L2ITEM{hash: hash, expires: expires}
 	mux.mux.Unlock()
 } // end func SetOffsetHash
-
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
 func (l2 *L2CACHE) GetHashFromOffset(offset int64, rethash *string) {
 	if offset <= 0 || rethash == nil {
@@ -277,3 +302,121 @@ func (l2 *L2CACHE) L2Stats(statskey string) (retval uint64, retmap map[string]ui
 	}
 	return
 } // end func L2Stats
+
+type L2PQ []*L2PQItem
+
+type L2PQItem struct {
+	Key     int64
+	Expires int64
+}
+
+func (pq L2PQ) Len() int { return len(pq) }
+
+func (pq L2PQ) Less(i, j int) bool {
+	//log.Printf("L2PQ Less()")
+	return pq[i].Expires < pq[j].Expires
+}
+
+func (pq L2PQ) Swap(i, j int) {
+	//log.Printf("L2PQ Swap()")
+	pq[i], pq[j] = pq[j], pq[i]
+}
+
+func (pq *L2PQ) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	*pq = old[0 : n-1]
+	old = nil
+	//log.Printf("L2PQ POP() item='%#v", item)
+	return item
+}
+
+func (pq *L2PQ) Push(x interface{}) {
+	item := x.(*L2PQItem)
+	*pq = append(*pq, item)
+}
+
+// Remove expired items from the cache
+func (l2 *L2CACHE) pqExpire(char string) {
+	l2.mux.Lock() // waits for boot to finish
+	l2.mux.Unlock()
+	cnt := l2.Counter[char]
+	ptr := l2.Caches[char]
+	mux := l2.Muxers[char]
+	pq := l2.prioQue[char]
+	pqC := l2.pqChans[char]
+	pqM := l2.pqMuxer[char]
+	//var item *L2PQItem
+	var empty bool
+	dqcnt, dqmax := 0, 512
+	dq := []int64{}
+	lastdel := time.Now().Unix()
+forever:
+	for {
+		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L2Purge && dqcnt > 0) {
+			//log.Printf("pqExpire [%s] cleanup dqcnt=%d", char, dqcnt)
+			mux.mux.Lock()
+			for _, delkey := range dq {
+				delete(ptr.cache, delkey)
+				cnt.Counter["Count_Delete"]++
+			}
+			mux.mux.Unlock()
+			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
+		}
+
+		pqM.mux.RLock()
+		if len(*pq) == 0 {
+			empty = true
+			pqM.mux.RUnlock()
+		waiter:
+			for {
+				//log.Printf("L2 pqExpire [%s] blocking wait dqcnt=%d", char, dqcnt)
+				select {
+				case <-pqC: // waits for notify to run
+					// pass
+				default:
+					time.Sleep(time.Duration(L2Purge) * time.Second)
+					pqM.mux.RLock() // watch this! RLock gets opened here
+					if len(*pq) > 0 {
+						empty = false
+					}
+					if !empty {
+						//log.Printf("L2 pqExpire [%s] released wait: !empty", char)
+						break waiter
+					}
+					// RUnlock here but the break !empty before keeps it open to get the item!
+					pqM.mux.RUnlock()
+				} // end select
+				if empty {
+					if dqcnt > 0 {
+						continue forever
+					}
+				}
+			} // end for waiter
+		} // end if len(*pq) == 0 {
+
+		// Get the item with the nearest expiration time
+		item := (*pq)[0]
+		pqM.mux.RUnlock()
+
+		currentTime := time.Now().UnixNano()
+
+		if item.Expires <= currentTime {
+			// This item has expired, remove it from the cache and priority queue
+			//log.Printf("L2 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
+			pqM.mux.Lock()
+			//delete(ptr.cache, item.Key)
+			//cnt.Counter["Count_Delete"]++
+			heap.Pop(pq)
+			pqM.mux.Unlock()
+			dq = append(dq, item.Key)
+			dqcnt++
+		} else {
+			// The nearest item hasn't expired yet, sleep until it does
+			sleepTime := time.Duration(item.Expires - currentTime)
+			//log.Printf("L2 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			time.Sleep(sleepTime)
+		}
+	} // end for
+} // end func pqExpire
