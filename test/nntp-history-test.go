@@ -46,7 +46,6 @@ func main() {
 	var NoGrowSync bool
 	var NoFreelistSync bool
 	var pprofmem bool
-	var BootHistoryClient bool
 	var RunTCPonly bool
 	var BoltDB_PageSize int
 	var InitialMmapSize int
@@ -70,7 +69,7 @@ func main() {
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
 
 	// experimental flags
-	flag.BoolVar(&BootHistoryClient, "BootHistoryClient", false, "experimental client/server")
+	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
 	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
 
 	// profiling
@@ -184,20 +183,23 @@ func main() {
 	}
 	start := utils.UnixTimeSec()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
-	if history.DEBUG {
-		history.DefaultACL = make(map[string]bool)
-		history.DefaultACL["::1"] = true
-		history.DefaultACL["127.0.0.1"] = true
 
-	} else if RunTCPonly {
+	if RunTCPonly {
 		history.DefaultACL = make(map[string]bool)
-		history.DefaultACL["::1"] = true
-		history.DefaultACL["127.0.0.1"] = true
+		if history.DEBUG {
+			history.DefaultACL["::1"] = true
+			history.DefaultACL["127.0.0.1"] = true
+		}
 		history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
 
-	} else if BootHistoryClient {
+	} else if history.BootHisCli {
+		log.Printf("main: history.BootHisCli=%t", history.BootHisCli)
+		//if BootHisCli {
+		//	return
+		//}
+		history.NoReplayHisDat = true
 		P_donechan := make(chan struct{}, parallelTest)
 		go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
 		for p := 1; p <= parallelTest; p++ {

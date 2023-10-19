@@ -130,6 +130,9 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 // It creates worker channels for each character in HEXCHARS and launches corresponding worker goroutines.
 // The provided boltOpts parameter allows configuring the BoltDB database options.
 func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
+	if BootHisCli {
+		return
+	}
 	gob.Register(HistorySettings{})
 
 	his.L2Cache.L2CACHE_Boot(his)

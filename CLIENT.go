@@ -9,6 +9,7 @@ import (
 )
 
 var (
+	BootHisCli bool
 	// set only once before boot
 	TCPchanQ           = 128
 	DefaultDialTimeout = 5   // seconds

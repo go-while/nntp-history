@@ -138,6 +138,9 @@ func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key str
 } // end func DoCacheEvict
 
 func (his *HISTORY) CacheEvictThread() {
+	if BootHisCli {
+		return
+	}
 	if his.cacheEvicts != nil {
 		log.Printf("ERROR CacheEvictThread already running!")
 		return
@@ -223,17 +226,19 @@ func (his *HISTORY) CacheEvictThread() {
 					}
 				} // end select
 				if del1 { // L1
+					//log.Printf("L13 flush tmpHash=%d", len(tmpHash))
 					l1ext.ch <- tmpHash
 					tmpHash = nil
 					del1, add1 = false, 0
 				}
 				if del2 { // L2
-					log.Printf("L2 flush tmpOffset=%d", len(tmpOffset))
+					//log.Printf("L2 flush tmpOffset=%d", len(tmpOffset))
 					l2ext.ch <- tmpOffset
 					tmpOffset = nil
 					del2, add2 = false, 0
 				}
 				if del3 { // L3
+					//log.Printf("L3 flush tmpKey=%d", len(tmpKey))
 					l3ext.ch <- tmpKey
 					tmpKey = nil
 					del3, add3 = false, 0
