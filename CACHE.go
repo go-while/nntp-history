@@ -190,7 +190,6 @@ func (his *HISTORY) CacheEvictThread() {
 					//if Q > 0 {
 					//	logf(DEBUG2, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
 					//}
-					//break fetchdel
 				case item, ok := <-evictChan: // channel receives a ClearCache struct from DoCacheEvict()
 					if !ok {
 						log.Printf("evictChan [%s] closed", char)
