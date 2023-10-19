@@ -67,8 +67,9 @@ func main() {
 
 	// keylen & keyalgo are constants once hashdb is initalized!
 	// change needs a RebuildHashDB and updating history.dat settings header. but latter func does not exist yet!
-	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default) | 22=FNV32 | 33=FNV32a | 44=FNV64 | 55=FNV64a")
+	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
+	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5") // key length used for sub buckets. cuts KeyLen by this.
 
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
@@ -89,7 +90,6 @@ func main() {
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
-	//flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5 (disabled!!!)") // key length used for sub buckets
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
