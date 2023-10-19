@@ -89,7 +89,7 @@ func main() {
 	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
-	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1)")
+	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
 	flag.BoolVar(&NoSync, "NoSync", false, "bbolt.NoSync: default false!")
