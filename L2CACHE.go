@@ -150,54 +150,6 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 			}
 		} // end forever
 	}() // end gofunc1
-
-	/*
-		go func(ptr *L2CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
-			defer log.Printf("LEFT L2T gofunc2 delete [%s]", char)
-			timer := time.NewTimer(time.Duration(l2purge) * time.Second)
-			start := utils.UnixTimeMilliSec()
-			now := int64(start / 1000)
-			//forever:
-			for {
-				select {
-				case <-timer.C:
-					start = utils.UnixTimeMilliSec()
-					now = int64(start / 1000)
-
-					//mux.RLock()
-					mux.Lock()
-					//getexpired:
-					for offset, item := range ptr.cache {
-						if item.expires > 0 && item.expires < now {
-							//logf(DEBUG, "L2 expire [%s] offset='%#v' item='%#v' age=%d l2exp=%d", char, offset, item, now-item.addtime, L2CacheExpires)
-							//cleanup = append(cleanup, offset)
-							cnt.Counter["Count_Delete"]++
-							delete(ptr.cache, offset)
-						}
-					} // end for getexpired
-					mux.Unlock()
-					//mux.RUnlock()
-
-					//maplen := len(ptr.cache)
-					/,*
-						if len(cleanup) > 0 {
-							mux.Lock()
-							//maplen -= len(cleanup)
-							for _, offset := range cleanup {
-								delete(ptr.cache, offset)
-								cnt.Counter["Count_Delete"]++
-							}
-							mux.Unlock()
-							cleanup = nil
-							//logf(DEBUG, "L2Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
-						}
-						//logf(DEBUG, "L2Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-					*,/
-					timer.Reset(time.Duration(l2purge) * time.Second)
-				} // end select
-			} // end for
-		}(l2.Caches[char], &l2.Muxers[char].mux, l2.Counter[char]) // end gofunc2
-	*/
 } //end func L2Cache_Thread
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
@@ -217,13 +169,18 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	ptr := l2.Caches[char]
 	cnt := l2.Counter[char]
 	mux := l2.Muxers[char]
+	pq := l2.prioQue[char]
+	pqC := l2.pqChans[char]
+	pqM := l2.pqMuxer[char]
 
 	mux.mux.Lock()
 
 	expires := NoExpiresVal
+	var pqEX int64
 	if flagexpires {
-		expires = utils.UnixTimeSec() + L2CacheExpires
 		cnt.Counter["Count_FlagEx"]++
+		expires = utils.UnixTimeSec() + L2CacheExpires
+		pqEX = time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
 	} else {
 		cnt.Counter["Count_Set"]++
 	}
@@ -237,6 +194,27 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		return
 	}
 	ptr.cache[offset] = &L2ITEM{hash: hash, expires: expires}
+
+	// Update the priority queue
+	if flagexpires {
+		//log.Printf("l1.set [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
+		pqM.mux.Lock()
+		heap.Push(pq, &L2PQItem{
+			Key:     offset,
+			Expires: pqEX,
+		})
+		pqM.mux.Unlock()
+		mux.mux.Unlock()
+		//log.Printf("l1.set [%s] heap.push unlocked", char)
+		select {
+		case pqC <- struct{}{}:
+			// pass
+		default:
+			// pass too: notify chan is full
+		}
+		//log.Printf("l1.set [%s] heap.push passed pqC", char)
+		return
+	}
 	mux.mux.Unlock()
 } // end func SetOffsetHash
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
@@ -349,13 +327,13 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	pqM := l2.pqMuxer[char]
 	//var item *L2PQItem
 	var empty bool
-	dqcnt, dqmax := 0, 512
+	lpq, dqcnt, dqmax := 0, 0, 512
 	dq := []int64{}
 	lastdel := time.Now().Unix()
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L2Purge && dqcnt > 0) {
-			//log.Printf("pqExpire [%s] cleanup dqcnt=%d", char, dqcnt)
+			//log.Printf("L2 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
 			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
@@ -366,23 +344,25 @@ forever:
 		}
 
 		pqM.mux.RLock()
-		if len(*pq) == 0 {
+		lpq = len(*pq)
+		if lpq == 0 {
 			empty = true
 			pqM.mux.RUnlock()
 		waiter:
 			for {
-				//log.Printf("L2 pqExpire [%s] blocking wait dqcnt=%d", char, dqcnt)
+				//log.Printf("L2 pqExpire [%s] blocking wait dqcnt=%d lpq=%d", char, dqcnt, lpq)
 				select {
 				case <-pqC: // waits for notify to run
-					// pass
+					//log.Printf("L2 pqExpire [%s] got notify <-pqC dqcnt=%d lpq=%d", char, dqcnt, lpq)
 				default:
 					time.Sleep(time.Duration(L2Purge) * time.Second)
 					pqM.mux.RLock() // watch this! RLock gets opened here
-					if len(*pq) > 0 {
+					lpq = len(*pq)
+					if lpq > 0 {
 						empty = false
 					}
 					if !empty {
-						//log.Printf("L2 pqExpire [%s] released wait: !empty", char)
+						//log.Printf("L2 pqExpire [%s] released wait: !empty dqcnt=%d lpq=%d", char, dqcnt, lpq)
 						break waiter
 					}
 					// RUnlock here but the break !empty before keeps it open to get the item!
@@ -404,10 +384,8 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//log.Printf("L2 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
+			//log.Printf("L2 pqExpire [%s] key='%d' diff=%d", char, item.Key, item.Expires-currentTime)
 			pqM.mux.Lock()
-			//delete(ptr.cache, item.Key)
-			//cnt.Counter["Count_Delete"]++
 			heap.Pop(pq)
 			pqM.mux.Unlock()
 			dq = append(dq, item.Key)

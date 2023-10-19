@@ -188,7 +188,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		his.charsMap[char] = i
 		his.indexChans[i] = make(chan *HistoryIndex, QindexChans)
 		his.BatchLocks[char] = &BATCHLOCKS{bl: make(map[string]*BLCH)}
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			his.BatchLocks[char].bl[bucket] = &BLCH{ch: make(chan struct{}, 1)}
 		}
 	}
@@ -328,7 +328,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	tocheck, checked, created := his.bUCKETSperDB, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
-	for _, bucket := range ALLBUCKETS {
+	for _, bucket := range ROOTBUCKETS {
 		retbool, err := boltCreateBucket(db, char, bucket)
 		if err != nil || !retbool {
 			if err == bolt.ErrBucketExists {
@@ -396,7 +396,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		timer = 1000
 	}
 	closedBuckets := make(chan struct{}, his.bUCKETSperDB)
-	for _, bucket := range ALLBUCKETS {
+	for _, bucket := range ROOTBUCKETS {
 		if CharBucketBatchSize <= 0 {
 			continue
 		}
@@ -549,7 +549,7 @@ forever:
 			if !ok || hi == nil || len(hi.Hash) < 32 { // at least md5
 				// receiving a nil object stops history_dbz_worker
 				logf(DEBUG9, "Stopping boltDB_Worker indexchan[%s] received nil pointer", char)
-				for _, bucket := range ALLBUCKETS {
+				for _, bucket := range ROOTBUCKETS {
 					his.batchQueues.Maps[char][bucket] <- nil
 				}
 				break forever
@@ -636,12 +636,12 @@ forever:
 		} // end select
 	} // end forever
 	if CharBucketBatchSize > 0 {
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			his.batchQueues.Maps[char][bucket] <- nil
 			close(his.batchQueues.Maps[char][bucket])
 		}
 	}
-	for _, bucket := range ALLBUCKETS {
+	for _, bucket := range ROOTBUCKETS {
 		logf(DEBUG2, "FINAL-BATCH HDBZW [%s|%s]", char, bucket)
 		his.boltBucketPutBatch(db, char, bucket, his.batchQueues.Maps[char][bucket], true, fmt.Sprintf("defer:[%s|%s]", char, bucket), -1, -1)
 	}
@@ -957,7 +957,7 @@ func (his *HISTORY) BoltSyncAll() error {
 func (his *HISTORY) returnLockAllBatchLocks(char string) {
 	logf(DEBUG9, "UNLOCKING BoltSync BatchLocks")
 	if his.BatchLocks != nil {
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			// unlocks buckets in this char db
 			his.returnBatchLock(char, bucket)
 		}
@@ -968,7 +968,7 @@ func (his *HISTORY) returnLockAllBatchLocks(char string) {
 func (his *HISTORY) LockAllBatchLocks(char string) {
 	if his.BatchLocks != nil {
 		logf(DEBUG9, "LOCKING BoltSync BatchLocks")
-		for _, bucket := range ALLBUCKETS {
+		for _, bucket := range ROOTBUCKETS {
 			// locks every bucket in this char db for syncing
 			his.BatchLocks[char].bl[bucket].ch <- struct{}{}
 

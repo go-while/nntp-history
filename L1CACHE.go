@@ -241,7 +241,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 
 	// Update the priority queue
 	if flagexpires {
-		log.Printf("l1.set [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
+		//log.Printf("l1.set [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
 		pqM.mux.Lock()
 		heap.Push(pq, &L1PQItem{
 			Key:     hash,
@@ -249,14 +249,14 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		})
 		pqM.mux.Unlock()
 		mux.mux.Unlock()
-		log.Printf("l1.set [%s] heap.push unlocked", char)
+		//log.Printf("l1.set [%s] heap.push unlocked", char)
 		select {
 		case pqC <- struct{}{}:
 			// pass
 		default:
 			// pass too: notify chan is full
 		}
-		log.Printf("l1.set [%s] heap.push passed pqC", char)
+		//log.Printf("l1.set [%s] heap.push passed pqC", char)
 		return
 	}
 	mux.mux.Unlock()
@@ -336,13 +336,13 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	pqM := l1.pqMuxer[char]
 	//var item *L1PQItem
 	var empty bool
-	dqcnt, dqmax := 0, 512
+	lpq, dqcnt, dqmax := 0, 0, 512
 	dq := []string{}
 	lastdel := time.Now().Unix()
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L1Purge && dqcnt > 0) {
-			//log.Printf("pqExpire [%s] cleanup dqcnt=%d", char, dqcnt)
+			//log.Printf("L1 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
 			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
@@ -353,23 +353,25 @@ forever:
 		}
 
 		pqM.mux.RLock()
-		if len(*pq) == 0 {
+		lpq = len(*pq)
+		if lpq == 0 {
 			empty = true
 			pqM.mux.RUnlock()
 		waiter:
 			for {
-				//log.Printf("L1 pqExpire [%s] blocking wait dqcnt=%d", char, dqcnt)
+				//log.Printf("L1 pqExpire [%s] blocking wait dqcnt=%d lpq=%d", char, dqcnt, lpq)
 				select {
 				case <-pqC: // waits for notify to run
-					// pass
+					//log.Printf("L1 pqExpire [%s] got notify <-pqC dqcnt=%d lpq=%d", char, dqcnt, lpq)
 				default:
 					time.Sleep(time.Duration(L1Purge) * time.Second)
 					pqM.mux.RLock() // watch this! RLock gets opened here
-					if len(*pq) > 0 {
+					lpq = len(*pq)
+					if lpq > 0 {
 						empty = false
 					}
 					if !empty {
-						//log.Printf("L1 pqExpire [%s] released wait: !empty", char)
+						//log.Printf("L1 pqExpire [%s] released wait: !empty dqcnt=%d lpq=%d", char, dqcnt, lpq)
 						break waiter
 					}
 					// RUnlock here but the break !empty before keeps it open to get the item!

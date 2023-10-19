@@ -201,38 +201,39 @@ func (his *HISTORY) CacheEvictThread() {
 					//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
 					if item.offset > 0 { // l2 offset
 						tmpOffset = append(tmpOffset, item.offset)
-						add2++
+						add2++ // L2
 					} else {
 						if item.hash != "" { // l1 hash
 							tmpHash = append(tmpHash, item.hash)
-							add1++
+							add1++ // L1
 						}
 						if item.key != "" { // l3 key
 							tmpKey = append(tmpKey, item.key)
-							add3++
+							add3++ // L3
 						}
 					}
 					if add1 >= clearEveryN {
-						del1 = true
+						del1 = true // L1
 					}
 					if add2 >= clearEveryN {
-						del2 = true
+						del2 = true // L2
 					}
 					if add3 >= clearEveryN {
-						del3 = true
+						del3 = true // L3
 					}
 				} // end select
-				if del1 {
+				if del1 { // L1
 					l1ext.ch <- tmpHash
 					tmpHash = nil
 					del1, add1 = false, 0
 				}
-				if del2 {
+				if del2 { // L2
+					log.Printf("L2 flush tmpOffset=%d", len(tmpOffset))
 					l2ext.ch <- tmpOffset
 					tmpOffset = nil
 					del2, add2 = false, 0
 				}
-				if del3 {
+				if del3 { // L3
 					l3ext.ch <- tmpKey
 					tmpKey = nil
 					del3, add3 = false, 0

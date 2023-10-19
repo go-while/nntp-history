@@ -394,13 +394,13 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	pqM := l3.pqMuxer[char]
 	//var item *L3PQItem
 	var empty bool
-	dqcnt, dqmax := 0, 512
+	lpq, dqcnt, dqmax := 0, 0, 512
 	dq := []string{}
 	lastdel := time.Now().Unix()
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L3Purge && dqcnt > 0) {
-			//log.Printf("pqExpire [%s] cleanup dqcnt=%d", char, dqcnt)
+			//log.Printf("L3 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
 			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
@@ -411,23 +411,25 @@ forever:
 		}
 
 		pqM.mux.RLock()
-		if len(*pq) == 0 {
+		lpq = len(*pq)
+		if lpq == 0 {
 			empty = true
 			pqM.mux.RUnlock()
 		waiter:
 			for {
-				//log.Printf("L3 pqExpire [%s] blocking wait dqcnt=%d", char, dqcnt)
+				//log.Printf("L3 pqExpire [%s] blocking wait dqcnt=%d lpq=%d", char, dqcnt, lpq)
 				select {
 				case <-pqC: // waits for notify to run
-					// pass
+					//log.Printf("L3 pqExpire [%s] got notify <-pqC dqcnt=%d lpq=%d", char, dqcnt, lpq)
 				default:
 					time.Sleep(time.Duration(L3Purge) * time.Second)
 					pqM.mux.RLock() // watch this! RLock gets opened here
-					if len(*pq) > 0 {
+					lpq = len(*pq)
+					if lpq > 0 {
 						empty = false
 					}
 					if !empty {
-						//log.Printf("L3 pqExpire [%s] released wait: !empty", char)
+						//log.Printf("L3 pqExpire [%s] released wait: !empty dqcnt=%d lpq=%d", char, dqcnt, lpq)
 						break waiter
 					}
 					// RUnlock here but the break !empty before keeps it open to get the item!

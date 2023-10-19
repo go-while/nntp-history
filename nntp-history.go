@@ -39,7 +39,7 @@ var (
 	TESTKEY     = "784ae1"
 	TESTBUK     = "0d"
 	TESTDB      = "f"
-	ALLBUCKETS  []string
+	ROOTBUCKETS []string
 	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History     HISTORY
 	DEBUG       bool = true
@@ -278,13 +278,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	case 16:
 		his.cutFirst = 2
 		for _, c1 := range HEXCHARS {
-			ALLBUCKETS = append(ALLBUCKETS, c1)
+			ROOTBUCKETS = append(ROOTBUCKETS, c1)
 		}
 	case 256:
 		his.cutFirst = 3
 		for _, c1 := range HEXCHARS {
 			for _, c2 := range HEXCHARS {
-				ALLBUCKETS = append(ALLBUCKETS, c1+c2)
+				ROOTBUCKETS = append(ROOTBUCKETS, c1+c2)
 			}
 		}
 	case 4096:
@@ -292,7 +292,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		for _, c1 := range HEXCHARS {
 			for _, c2 := range HEXCHARS {
 				for _, c3 := range HEXCHARS {
-					ALLBUCKETS = append(ALLBUCKETS, c1+c2+c3)
+					ROOTBUCKETS = append(ROOTBUCKETS, c1+c2+c3)
 				}
 			}
 		}
@@ -739,7 +739,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		batchQ, batchLOCKS := 0, 0
 		if his.useHashDB {
 			for _, char := range HEXCHARS {
-				for _, bucket := range ALLBUCKETS {
+				for _, bucket := range ROOTBUCKETS {
 					batchQ += len(his.batchQueues.Maps[char][bucket])
 					batchLOCKS += len(his.BatchLocks[char].bl[bucket].ch)
 				}
