@@ -344,17 +344,17 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 
 func (his *HISTORY) Wait4HashDB() {
 	if his.useHashDB {
-		now := utils.UnixTimeSec()
+		now := time.Now().Unix()
 		for {
 			time.Sleep(10 * time.Millisecond)
 			if len(BoltHashOpen) == intBoltDBs {
 				//logf(DEBUG2, "Booted HashDB")
 				return
 			}
-			took := utils.UnixTimeSec() - now
+			took := time.Now().Unix() - now
 			if took >= 15 {
 				log.Printf("Wait booting HashDB")
-				now = utils.UnixTimeSec()
+				now = time.Now().Unix()
 			}
 		}
 		log.Printf("Wait4HashDB OK his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
@@ -418,7 +418,7 @@ forever:
 				break forever
 			}
 			if hobj.Arrival == 0 {
-				hobj.Arrival = utils.UnixTimeSec()
+				hobj.Arrival = time.Now().Unix()
 			}
 
 			if his.useHashDB {
