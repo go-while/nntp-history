@@ -1,8 +1,8 @@
 package history
 
 import (
+	"arena"
 	"container/heap"
-	"github.com/go-while/go-utils"
 	"log"
 	"sync"
 	"time"
@@ -20,6 +20,7 @@ var (
 	// settings this greater 0 limits the amount of articles a client can lock&send
 	//    1ms is a max of 1000 messages/sec per conn
 	//  100ms is a max of   10 messages/sec per conn
+	//  250ms is a max of    4 messages/sec per conn
 	// 1000ms is a max of    1 message /sec per conn
 	// text peers mostly dont need more than 4 msg per sec
 	L1LockDelay int = 0
@@ -33,7 +34,8 @@ type L1CACHE struct {
 	Counter map[string]*CCC
 	prioQue map[string]*L1PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
-	pqMuxer map[string]*L1MUXER      // Priority queue Muxers
+	//pqMuxer map[string]*L1MUXER      // Priority queue Muxers
+	arenas map[string]*L1Arena
 }
 
 type L1CACHEMAP struct {
@@ -47,6 +49,22 @@ type L1ITEM struct {
 
 type L1MUXER struct {
 	mux sync.RWMutex
+}
+
+/*
+mem := arena.NewArena()
+//defer mem.Free()
+memhash := arena.New[AHASH](mem)
+memhash.buffer = make([]byte, bufferSize)
+*/
+type L1Arena struct {
+	mux sync.RWMutex
+
+	pqmem   *arena.Arena
+	prioQue *L1PQ
+
+	dqmem   *arena.Arena
+	dqslice *DQSlice
 }
 
 // The L1CACHE_Boot method initializes the cache system.
@@ -64,7 +82,8 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
 	l1.prioQue = make(map[string]*L1PQ, intBoltDBs)
 	l1.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	l1.pqMuxer = make(map[string]*L1MUXER, intBoltDBs)
+	//l1.pqMuxer = make(map[string]*L1MUXER, intBoltDBs)
+	l1.arenas = make(map[string]*L1Arena, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &StrECH{ch: make(chan []string, his.cEvCap)}
@@ -72,7 +91,10 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 		l1.prioQue[char] = &L1PQ{}
 		l1.pqChans[char] = make(chan struct{}, 1)
-		l1.pqMuxer[char] = &L1MUXER{}
+		//l1.pqMuxer[char] = &L1MUXER{}
+		l1.arenas[char] = &L1Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
+		l1.arenas[char].prioQue = arena.New[L1PQ](l1.arenas[char].pqmem)
+		l1.arenas[char].dqslice = arena.New[DQSlice](l1.arenas[char].dqmem)
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -130,7 +152,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		if !useHashDB {
 			value = CaseDupes
 		}
-		ptr.cache[hash] = &L1ITEM{value: value, expires: utils.UnixTimeSec() + L1CacheExpires}
+		ptr.cache[hash] = &L1ITEM{value: value, expires: time.Now().Unix() + L1CacheExpires}
 		mux.mux.Unlock()
 		return CasePass
 	} else {
@@ -161,14 +183,19 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		cnt := l1.Counter[char]
 		extC := l1.Extend[char]
 		mux := l1.Muxers[char]
-		pq := l1.prioQue[char]
+		//pq := l1.prioQue[char]
+		a := l1.arenas[char]
+		pq := a.prioQue
+		//pq := l1.arenas[char].prioQue
 		pqC := l1.pqChans[char]
-		pqM := l1.pqMuxer[char]
+		//pqM := l1.pqMuxer[char]
+		pqM := a
+
 		//forever:
 		for {
 			select {
 			case extends := <-extC.ch: // receives stuff from CacheEvictThread()
-				now := utils.UnixTimeSec()
+				now := time.Now().Unix()
 				mux.mux.Lock()
 				//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
 				for _, hash := range extends {
@@ -215,9 +242,13 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
+	//pq := l1.prioQue[char]
+	a := l1.arenas[char]
+	pq := a.prioQue
+	//pq := l1.arenas[char].prioQue
 	pqC := l1.pqChans[char]
-	pqM := l1.pqMuxer[char]
+	//pqM := l1.pqMuxer[char]
+	pqM := a
 
 	mux.mux.Lock()
 
@@ -225,7 +256,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	var pqEX int64
 	if flagexpires {
 		cnt.Counter["Count_FlagEx"]++
-		expires = utils.UnixTimeSec() + L1CacheExpires
+		expires = time.Now().Unix() + L1CacheExpires
 		pqEX = time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
 	} else if !flagexpires && value == CaseWrite {
 		cnt.Counter["Count_Set"]++
@@ -241,6 +272,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 
 	// Update the priority queue
 	if flagexpires {
+		mux.mux.Unlock()
 		//log.Printf("l1.set [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
 		pqM.mux.Lock()
 		heap.Push(pq, &L1PQItem{
@@ -248,7 +280,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 			Expires: pqEX,
 		})
 		pqM.mux.Unlock()
-		mux.mux.Unlock()
+
 		//log.Printf("l1.set [%s] heap.push unlocked", char)
 		select {
 		case pqC <- struct{}{}:
@@ -331,25 +363,30 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	cnt := l1.Counter[char]
 	ptr := l1.Caches[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
+	//pq := l1.prioQue[char]
+	a := l1.arenas[char]
+	pq := a.prioQue
+	dq := a.dqslice // delete queue slice in memory arena
+	//dq := []string{}
 	pqC := l1.pqChans[char]
-	pqM := l1.pqMuxer[char]
+	//pqM := l1.pqMuxer[char]
+	pqM := a
 	//var item *L1PQItem
 	var empty bool
 	lpq, dqcnt, dqmax := 0, 0, 512
-	dq := []string{}
+
 	lastdel := time.Now().Unix()
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L1Purge && dqcnt > 0) {
 			//log.Printf("L1 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
-			for _, delkey := range dq {
+			for _, delkey := range *dq {
 				delete(ptr.cache, delkey)
 				cnt.Counter["Count_Delete"]++
 			}
 			mux.mux.Unlock()
-			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
+			dqcnt, *dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
 		pqM.mux.RLock()
@@ -399,7 +436,7 @@ forever:
 			//cnt.Counter["Count_Delete"]++
 			heap.Pop(pq)
 			pqM.mux.Unlock()
-			dq = append(dq, item.Key)
+			*dq = append(*dq, item.Key)
 			dqcnt++
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
