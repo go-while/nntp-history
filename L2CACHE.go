@@ -7,7 +7,6 @@ package history
 import (
 	//"fmt"
 	"container/heap"
-	"github.com/go-while/go-utils"
 	"log"
 	"strconv"
 	"sync"
@@ -121,7 +120,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 				} // end select
 			} // end forextends
 			if len(extends) > 0 {
-				now := utils.UnixTimeSec()
+				now := time.Now().Unix()
 				//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
 				mux.mux.Lock()
 				for _, offset := range extends {
@@ -179,7 +178,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	var pqEX int64
 	if flagexpires {
 		cnt.Counter["Count_FlagEx"]++
-		expires = utils.UnixTimeSec() + L2CacheExpires
+		expires = time.Now().Unix() + L2CacheExpires
 		pqEX = time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
 	} else {
 		cnt.Counter["Count_Set"]++
