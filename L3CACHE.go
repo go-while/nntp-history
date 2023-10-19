@@ -26,10 +26,10 @@ type L3CACHE struct {
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	//prioQue map[string]*L3PQ         // Priority queue for item expiration
+	prioQue map[string]*L3PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
-	//pqMuxer map[string]*L3MUXER      // Priority queue Muxers
-	arenas map[string]*L3Arena
+	pqMuxer map[string]*L3MUXER      // Priority queue Muxers
+	arenas  map[string]*L3Arena
 }
 
 type L3CACHEMAP struct {
@@ -68,18 +68,18 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Extend = make(map[string]*StrECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
-	//l3.prioQue = make(map[string]*L3PQ, intBoltDBs)
+	l3.prioQue = make(map[string]*L3PQ, intBoltDBs)
 	l3.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	//l3.pqMuxer = make(map[string]*L3MUXER, intBoltDBs)
+	l3.pqMuxer = make(map[string]*L3MUXER, intBoltDBs)
 	l3.arenas = make(map[string]*L3Arena, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &StrECH{ch: make(chan []string, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		//l3.prioQue[char] = &L3PQ{}
+		l3.prioQue[char] = &L3PQ{}
 		l3.pqChans[char] = make(chan struct{}, 1)
-		//l3.pqMuxer[char] = &L3MUXER{}
+		l3.pqMuxer[char] = &L3MUXER{}
 		l3.arenas[char] = &L3Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
 		l3.arenas[char].prioQue = arena.New[L3PQ](l3.arenas[char].pqmem)
 		l3.arenas[char].dqslice = arena.New[DQSlice](l3.arenas[char].dqmem)
@@ -113,13 +113,14 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 		cnt := l3.Counter[char]
 		extC := l3.Extend[char]
 		mux := l3.Muxers[char]
-		//pq := l3.prioQue[char]
-		a := l3.arenas[char]
-		pq := a.prioQue
-		//pq := l3.arenas[char].prioQue
+		pq := l3.prioQue[char]
 		pqC := l3.pqChans[char]
-		//pqM := l3.pqMuxer[char]
-		pqM := a
+		pqM := l3.pqMuxer[char]
+		//if UseArenas {
+		//	a := l3.arenas[char]
+		//	pq = a.prioQue
+		//	pqM = a
+		//}
 		//forever:
 		for {
 		forextends:
@@ -231,14 +232,17 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
+	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
-	//pq := l3.prioQue[char]
-	a := l3.arenas[char]
-	pq := a.prioQue
-	//pq := l3.arenas[char].prioQue
+	pq := l3.prioQue[char]
 	pqC := l3.pqChans[char]
-	//pqM := l3.pqMuxer[char]
-	pqM := a
+	pqM := l3.pqMuxer[char]
+	/*if UseArenas {
+		a := l3.arenas[char]
+		pq := a.prioQue
+		pqC := l3.pqChans[char]
+		pqM := a
+	}*/
 
 	mux.mux.Lock()
 
@@ -409,33 +413,37 @@ func (pq *L3PQ) Push(x interface{}) {
 func (l3 *L3CACHE) pqExpire(char string) {
 	l3.mux.Lock() // waits for boot to finish
 	l3.mux.Unlock()
-	cnt := l3.Counter[char]
+	//start := utils.UnixTimeMilliSec()
 	ptr := l3.Caches[char]
+	cnt := l3.Counter[char]
+	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
-	//pq := l3.prioQue[char]
-	a := l3.arenas[char]
-	pq := a.prioQue
-	dq := a.dqslice // delete queue slice in memory arena
-	//dq := []string{}
+	pq := l3.prioQue[char]
 	pqC := l3.pqChans[char]
-	//pqM := l3.pqMuxer[char]
-	pqM := a
+	pqM := l3.pqMuxer[char]
+	dq := []string{} // with arenas needs to change dq to *dq below
+	/*if UseArenas {
+		a := l3.arenas[char]
+		pq := a.prioQue
+		dq := a.dqslice // delete queue slice in memory arena
+		pqM := a
+	}*/
 	//var item *L3PQItem
 	var empty bool
 	lpq, dqcnt, dqmax := 0, 0, 512
-	//dq := []string{}
+
 	lastdel := time.Now().Unix()
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L3Purge && dqcnt > 0) {
 			//log.Printf("L3 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
-			for _, delkey := range *dq {
+			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
 				cnt.Counter["Count_Delete"]++
 			}
 			mux.mux.Unlock()
-			dqcnt, *dq, lastdel = 0, nil, time.Now().Unix()
+			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
 		pqM.mux.RLock()
@@ -485,7 +493,7 @@ forever:
 			//cnt.Counter["Count_Delete"]++
 			heap.Pop(pq)
 			pqM.mux.Unlock()
-			*dq = append(*dq, item.Key)
+			dq = append(dq, item.Key)
 			dqcnt++
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
