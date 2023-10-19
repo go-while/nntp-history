@@ -54,18 +54,18 @@ var (
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
-	RootBucketFillPercent = 0.9
+	RootBucketFillPercent = 0.5
 
 	// adjust sub buckets page splitting behavior
 	// unsure if it does anything in sub buckets?
-	SubBucketFillPercent = 0.9
+	SubBucketFillPercent = 0.5
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
 	BUCKETSperDB = 256
 	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
 	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
-	KEYINDEX = 3
+	KEYINDEX = 1
 
 	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
 	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in BUCKETSperDB)
@@ -348,7 +348,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	<-his.boltInitChan
 
-	logf(DEBUG, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	logf(DEBUG1, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	if checked != tocheck || (created > 0 && created != tocheck) {
 		log.Printf("ERROR HDBZW INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
@@ -889,12 +889,15 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	var encodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
 		root := tx.Bucket([]byte(bucket))
-		subb := root.Bucket([]byte(key[0:his.keyIndex])) // subbucket co-exists in boltBucketPutBatch
-		if subb == nil {
-			// bucket not yet created
-			return nil
-		}
-		v := subb.Get([]byte(key[his.keyIndex:])) // subbucket co-exists in boltBucketPutBatch
+		v := root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatch
+		/*
+			subb := root.Bucket([]byte(key[0:his.keyIndex])) // subbucket co-exists in boltBucketPutBatch
+			if subb == nil {
+				// bucket not yet created
+				return nil
+			}
+			v := subb.Get([]byte(key[his.keyIndex:])) // subbucket co-exists in boltBucketPutBatch
+		*/
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
 			if newoffset == FlagSearch { // is a search

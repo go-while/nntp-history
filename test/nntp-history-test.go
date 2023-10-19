@@ -30,6 +30,7 @@ func main() {
 	numCPU := runtime.NumCPU()
 	debug.SetGCPercent(200)
 	var offset int64
+	var hexoff string
 	var todo int // todo x parallelTest
 	var parallelTest int
 	var useHashDB bool
@@ -57,6 +58,7 @@ func main() {
 	flag.IntVar(&debugs, "debugs", -1, "default:-1|stats:0|more:1|spam:2|batch:9")
 
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
+	flag.StringVar(&hexoff, "getHEX", "", "Hex 'f075322c83d4ea' Offset to seek in history")
 
 	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
@@ -82,12 +84,12 @@ func main() {
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 256, "16-65536 (default: 256)")
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 2500, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
 	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9") // key length used for sub buckets
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 1, "milliseconds (default: 10)")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
@@ -98,7 +100,7 @@ func main() {
 	flag.BoolVar(&NoGrowSync, "NoGrowSync", false, "bbolt.NoGrowSync: default false!")
 	// NoFreelistSync: When true, the database skips syncing the freelist to disk.
 	// This can improve write performance but may require a full database re-sync during recovery.
-	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", true, "bbolt.NoFreelistSync")
+	flag.BoolVar(&NoFreelistSync, "NoFreelistSync", false, "bbolt.NoFreelistSync")
 
 	flag.BoolVar(&history.ForcedReplay, "ForcedReplay", false, "default: false --- broken!")
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
@@ -268,6 +270,15 @@ func main() {
 		os.Exit(0)
 	} // end if BootHistoryClient
 
+	if hexoff != "" {
+		value, err := strconv.ParseInt(hexoff, 16, 64) // reads hex
+		if value <= 0 || err != nil {
+			log.Printf("main: ERROR hexoff ParseInt err='%v'", err)
+			os.Exit(1)
+		}
+		log.Printf("HEX='%s' => offset=%d", hexoff, offset)
+		offset = value
+	}
 	if offset >= 0 {
 		history.NoReplayHisDat = true
 	}
@@ -318,6 +329,9 @@ func main() {
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int, testhashes []string) {
+			if offset > 0 {
+				return
+			}
 			// delay start
 			//time.Sleep(time.Duration(time.Duration(p*p*p) * time.Second))
 			log.Printf("Launch p=%d", p)
