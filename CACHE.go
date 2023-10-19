@@ -16,9 +16,9 @@ const (
 
 var (
 	DBG_CGS               bool              // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 9         // search only
-	DefaultCacheExtend    int64 = 9         // extends cached items after writes
-	DefaultCachePurge     int64 = 3         // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
+	DefaultCacheExpires   int64 = 5         // search only
+	DefaultCacheExtend    int64 = 5         // extends cached items after writes
+	DefaultCachePurge     int64 = 1         // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity int   = 32 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
 )
 
