@@ -173,8 +173,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		QindexChans = 1
 	}
 
-	if DefaultEvictsCapacity < 64 {
-		DefaultEvictsCapacity = 64
+	if DefaultEvictsCapacity < 1024 {
+		DefaultEvictsCapacity = 1024
 	}
 
 	his.cEvCap = DefaultEvictsCapacity
