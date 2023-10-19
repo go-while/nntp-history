@@ -65,7 +65,7 @@ var (
 	BUCKETSperDB = 256
 	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
 	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
-	KEYINDEX = 2
+	KEYINDEX = 3
 
 	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
 	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in BUCKETSperDB)
@@ -369,7 +369,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		timeout--
 	}
 
-	lastsync := utils.UnixTimeSec()
+	lastsync := time.Now().Unix()
 	var added, processed, dupes, searches, retry, countsearches uint64
 	cutHashlen := 9 // 3:9 = 6 chars (1st is db, 2nd+3rd is bucket (bucketsPerDB=256), remaining is used as KeyLen
 	if his.keyalgo == HashShort {
@@ -628,12 +628,12 @@ forever:
 				break forever
 			}
 			if boltOpts.NoSync == true {
-				if added >= BoltSyncEveryN || (added > 0 && lastsync <= utils.UnixTimeSec()-BoltSyncEveryS) {
+				if added >= BoltSyncEveryN || (added > 0 && lastsync <= time.Now().Unix()-BoltSyncEveryS) {
 					err := his.BoltSync(db, char, reopen)
 					if err != nil {
 						break forever
 					}
-					added, lastsync = 0, utils.UnixTimeSec()
+					added, lastsync = 0, time.Now().Unix()
 				}
 			}
 		} // end select
