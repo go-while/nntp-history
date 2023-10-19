@@ -88,8 +88,8 @@ func main() {
 
 	// bbolt options
 	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-9") // key length used for sub buckets
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 1, "milliseconds (default: 10)")
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", -1, "0-65536 default: -1 = 1000")
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 4, "KB (default: 4)")
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1)")
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
