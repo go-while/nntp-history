@@ -98,7 +98,8 @@ func main() {
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 65536, "0-65536 default: -1 = 1000")
 
-	// lower RootBucketFillPercent produces more page splits
+	// lower RootBucketFillPercent produces page splits early
+	// higher values produce pagesplits at a later time? choose your warrior!
 	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
