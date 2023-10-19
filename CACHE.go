@@ -15,11 +15,11 @@ const (
 )
 
 var (
-	DBG_CGS               bool       // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 9  // search only
-	DefaultCacheExtend    int64 = 9  // extends cached items after writes
-	DefaultCachePurge     int64 = 3  // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
-	DefaultEvictsCapacity int   = 64 // his.cEvCap is normally fine as is
+	DBG_CGS               bool              // DEBUG_CACHE_GROW_SHRINK
+	DefaultCacheExpires   int64 = 9         // search only
+	DefaultCacheExtend    int64 = 9         // extends cached items after writes
+	DefaultCachePurge     int64 = 3         // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
+	DefaultEvictsCapacity int   = 32 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
 )
 
 // CharCacheCounter
@@ -117,39 +117,22 @@ func (his *HISTORY) PrintCacheStats() {
 
 // gets called in BBATCH.go:boltBucketPutBatch() after boltTX
 func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
-	// db
 	if char == "" {
 		// char derived from hash or for offset: offset=>hex[lastchar]
 		log.Printf("ERROR CacheEvict char empty.")
 		return
 	}
-	set := 0
-	if hash != "" { // l1
-		set++
+
+	if DEBUG {
+		lench := len(his.cacheEvicts[char])
+		limit := int(float64(his.cEvCap) * 0.95)
+		if lench > limit {
+			log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d warn>%d near-full", char, lench, his.cEvCap, limit)
+		} else {
+			//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
+		}
 	}
-	if offset > 0 { // l2
-		set++
-	}
-	if key != "" { // l3
-		set++
-	}
-	if set <= 0 { // need at least one value
-		log.Printf("ERROR DoCacheEvict no values???")
-		return
-	}
-	/*
-		 *
-			if DEBUG {
-				lench := len(his.cacheEvicts[char])
-				limit := int(float64(his.cEvCap) * 0.50)
-				if lench > limit {
-					log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d near-full", char, lench, his.cEvCap, limit)
-				} else {
-					//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
-				}
-			}
-		*
-	*/
+
 	// pass ClearCache object to evictChan in CacheEvictThread()
 	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
 } // end func DoCacheEvict
@@ -171,9 +154,8 @@ func (his *HISTORY) CacheEvictThread() {
 			l1MUX := his.L1Cache.Muxers[char]
 			l2MUX := his.L2Cache.Muxers[char]
 			l3MUX := his.L3Cache.Muxers[char]
-			l1ext := his.L1Cache.Extend[char]
-			l2ext := his.L2Cache.Extend[char]
-			l3ext := his.L3Cache.Extend[char]
+
+			// wait for caches to boot
 			l1MUX.mux.Lock()
 			l1MUX.mux.Unlock()
 			l2MUX.mux.Lock()
@@ -181,82 +163,83 @@ func (his *HISTORY) CacheEvictThread() {
 			l3MUX.mux.Lock()
 			l3MUX.mux.Unlock()
 
-			clearEveryN := 128 // TODO expose var
+			l1ext := his.L1Cache.Extend[char]
+			l2ext := his.L2Cache.Extend[char]
+			l3ext := his.L3Cache.Extend[char]
+
+			clearEveryN := his.cEvCap // DefaultEvictsCapacity
 			basetimer := DefaultCachePurge
-			tmpHash := make([]string, clearEveryN)
-			tmpOffset := make([]int64, clearEveryN)
-			tmpKey := make([]string, clearEveryN)
+			tmpHash := []string{}
+			tmpOffset := []int64{}
+			tmpKey := []string{}
 
 			timer := time.NewTimer(time.Duration(basetimer) * time.Second)
 			var del1, del2, del3 bool
+			var add1, add2, add3 int
 		forever:
 			for {
-			fetchdel:
-				for {
-					select {
-					case <-timer.C:
-						del1 = len(tmpHash) > 0
-						del2 = len(tmpOffset) > 0
-						del3 = len(tmpKey) > 0
-						Q := len(evictChan)
-						if Q > 0 {
-							logf(DEBUG2, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
-						}
-						break fetchdel
-					case item, ok := <-evictChan: // channel receives a ClearCache struct from DoCacheEvict()
-						if !ok {
-							log.Printf("evictChan [%s] closed", char)
-							break forever
-						}
-						if item.char != char {
-							log.Printf("ERROR evictChan [%s] item.char='%#v' != char", char, item.char)
-							break forever
-						}
+				select {
+				case <-timer.C:
+					del1 = len(tmpHash) > 0
+					del2 = len(tmpOffset) > 0
+					del3 = len(tmpKey) > 0
+					//Q := len(evictChan)
+					//if Q > 0 {
+					//	logf(DEBUG2, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
+					//}
+					//break fetchdel
+				case item, ok := <-evictChan: // channel receives a ClearCache struct from DoCacheEvict()
+					if !ok {
+						log.Printf("evictChan [%s] closed", char)
+						break forever
+					}
+					if item.char != char {
+						log.Printf("ERROR evictChan [%s] item.char='%#v' != char", char, item.char)
+						break forever
+					}
 
-						//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
-						if item.offset > 0 { // l2 offset
-							tmpOffset = append(tmpOffset, item.offset)
-						} else {
-							if item.hash != "" { // l1 hash
-								tmpHash = append(tmpHash, item.hash)
-							}
-							if item.key != "" { // l3 key
-								tmpKey = append(tmpKey, item.key)
-							}
+					//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
+					if item.offset > 0 { // l2 offset
+						tmpOffset = append(tmpOffset, item.offset)
+						add2++
+					} else {
+						if item.hash != "" { // l1 hash
+							tmpHash = append(tmpHash, item.hash)
+							add1++
 						}
-
-						if len(tmpHash) >= clearEveryN {
-							del1 = true
+						if item.key != "" { // l3 key
+							tmpKey = append(tmpKey, item.key)
+							add3++
 						}
-						if len(tmpOffset) >= clearEveryN {
-							del2 = true
-						}
-						if len(tmpKey) >= clearEveryN {
-							del3 = true
-						}
-						if del1 || del2 || del3 {
-							break fetchdel
-						}
-					} // end select
-				} // end for fetchdel
+					}
+					if add1 >= clearEveryN {
+						del1 = true
+					}
+					if add2 >= clearEveryN {
+						del2 = true
+					}
+					if add3 >= clearEveryN {
+						del3 = true
+					}
+				} // end select
 				if del1 {
 					l1ext.ch <- tmpHash
 					tmpHash = nil
-					del1 = false
+					del1, add1 = false, 0
 				}
 				if del2 {
 					l2ext.ch <- tmpOffset
 					tmpOffset = nil
-					del2 = false
+					del2, add2 = false, 0
 				}
 				if del3 {
 					l3ext.ch <- tmpKey
 					tmpKey = nil
-					del3 = false
+					del3, add3 = false, 0
 				}
 				timer.Reset(time.Duration(basetimer) * time.Second)
-				continue forever
-			} // end forever
+			} // end for fetchdel
+
 		}(char, his.cacheEvicts[char])
 	} // end for HEXCHARS
 } // end func CacheEvictThread

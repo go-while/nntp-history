@@ -157,8 +157,6 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 
 	go func() {
 		defer log.Printf("LEFT L1T gofunc1 extend [%s]", char)
-		timer := time.NewTimer(time.Duration(l1purge) * time.Second)
-		var extends []string
 		ptr := l1.Caches[char]
 		cnt := l1.Counter[char]
 		extC := l1.Extend[char]
@@ -168,22 +166,11 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		pqM := l1.pqMuxer[char]
 		//forever:
 		for {
-		forextends:
-			for {
-				select {
-				case <-timer.C:
-					break forextends
-				case slice := <-extC.ch: // receives stuff from CacheEvictThread()
-					// got hashes we will extend
-					extends = slice
-					//log.Printf("L1 extend hash='%s'", *hash)
-					break forextends
-				} // end select
-			} // end forextends
-			if len(extends) > 0 {
+			select {
+			case extends := <-extC.ch: // receives stuff from CacheEvictThread()
 				now := utils.UnixTimeSec()
 				mux.mux.Lock()
-				//logf(DEBUG, "L1 [%s] extends=%d", char, len(extends))
+				//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
 				for _, hash := range extends {
 					if _, exists := ptr.cache[hash]; exists {
 						pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
@@ -206,10 +193,10 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 					}
 				}
 				mux.mux.Unlock()
-				extends = nil
-				timer.Reset(time.Duration(l1purge) * time.Second)
-			}
-		} //end forever
+				//extends = nil
+
+			} // end select
+		} // end forever
 	}() // end gofunc1
 
 } //end func L1Cache_Thread
@@ -371,19 +358,18 @@ forever:
 			pqM.mux.RUnlock()
 		waiter:
 			for {
-				//log.Printf("pqExpire [%s] blocking wait dqcnt=%d", char, dqcnt)
+				//log.Printf("L1 pqExpire [%s] blocking wait dqcnt=%d", char, dqcnt)
 				select {
 				case <-pqC: // waits for notify to run
 					// pass
 				default:
-					//time.Sleep(time.Duration(L1Purge/2*1000) * time.Millisecond)
 					time.Sleep(time.Duration(L1Purge) * time.Second)
 					pqM.mux.RLock() // watch this! RLock gets opened here
 					if len(*pq) > 0 {
 						empty = false
 					}
 					if !empty {
-						//log.Printf("pqExpire [%s] released wait: !empty", char)
+						//log.Printf("L1 pqExpire [%s] released wait: !empty", char)
 						break waiter
 					}
 					// RUnlock here but the break !empty before keeps it open to get the item!
@@ -405,7 +391,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//log.Printf("pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
+			//log.Printf("L1 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
 			pqM.mux.Lock()
 			//delete(ptr.cache, item.Key)
 			//cnt.Counter["Count_Delete"]++
@@ -416,7 +402,7 @@ forever:
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//log.Printf("pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			//log.Printf("L1 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for
