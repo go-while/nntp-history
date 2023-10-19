@@ -400,10 +400,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		batchQcap = 1
 	}
 	closedBuckets := make(chan struct{}, his.bUCKETSperDB)
+	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d", char, len(ROOTBUCKETS))
+	var j int
 	for _, bucket := range ROOTBUCKETS {
 		if CharBucketBatchSize <= 0 {
 			continue
 		}
+		j++
 		//bucket := c1 + c2
 		// The batchQueue, like a ravenous dragon, gorges itself on memory, holding twofold the might of the actual CharBucketBatchSize.
 		// A daring gamble that ignites the fires of performance, but beware the voracious appetite!
@@ -411,13 +414,20 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		his.batchQueues.mux.Lock()
 		his.batchQueues.Maps[char][bucket] = batchQueue
 		his.batchQueues.mux.Unlock()
+
+		// delays the start of a worker by batchflushevery divided by len of all root buckets.
+		// should somehow result in slowly booting workers to get a better flushing behavior
+		// more even distribution on runtime. else all workers boot at the same time and flush at the same time.
+		delay := j * int(BatchFlushEvery) / len(ROOTBUCKETS)
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
 		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
-		go func(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, closedBuckets chan struct{}, timer int64) {
+		go func(db *bolt.DB, delay int, char string, bucket string, batchQueue chan *BatchOffset, closedBuckets chan struct{}, timer int64) {
 			if batchQueue == nil {
 				log.Printf("ERROR boltDB_Worker gofunc input batchQueue=nil")
 				return
 			}
+			log.Printf("batchQueue [%s|%s] bootdelay %d ms", char, bucket, delay)
+			time.Sleep(time.Duration(delay) * time.Millisecond)
 			// every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			wCBBS := CharBucketBatchSize // copy value allows each worker to play with it
 			if wCBBS < 0 {
@@ -527,7 +537,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			UNLOCKfunc(his.batchQueues.BootCh, "his.batchQueues.BootCh")
 			// ends this gofunc
 			closedBuckets <- struct{}{}
-		}(db, char, bucket, batchQueue, closedBuckets, timer)
+		}(db, delay, char, bucket, batchQueue, closedBuckets, timer)
 	} // end for ALLBCUKETS
 
 	if CharBucketBatchSize > 0 {
