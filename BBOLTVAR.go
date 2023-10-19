@@ -7,7 +7,6 @@ import (
 	// "google.golang.org/protobuf/encoding/protowire"
 	"bytes"
 	"fmt"
-	"github.com/go-while/go-utils"
 	//"golang.org/x/exp/mmap"
 	"github.com/edsrzf/mmap-go"
 	bolt "go.etcd.io/bbolt"
@@ -27,7 +26,6 @@ type AHASH struct {
 	buffer         []byte
 	missing_hashes []string
 	missingoffsets map[string]int64
-	//mmappedData    mmap.MMap
 }
 
 func reverseBytes(data []byte) {
@@ -97,7 +95,7 @@ func (his *HISTORY) ReplayHisDat() {
 	// and jump offsets in greater ranges and not read byte by byte
 	var baselen int64 = 38 // payload after {hash}
 	var skiplen int64 = 0  // with sha256 base line is 102 - (64 sha256) = 38 payload?
-	start := utils.UnixTimeSec()
+	start := time.Now().Unix()
 	offset := startindex
 replay: // backwards: from latest hash
 	//for offset := startindex; offset >= 0; offset-- { // scan hisDat backwards
@@ -219,7 +217,7 @@ replay: // backwards: from latest hash
 		// end HIT LF
 		clear(memhash.buffer)
 	} // end for replay
-	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d (took %d sec)", checked, ok, missed, utils.UnixTimeSec()-start)
+	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d (took %d sec)", checked, ok, missed, time.Now().Unix()-start)
 
 	if len(memhash.missing_hashes) > 0 || ForcedReplay {
 		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
