@@ -164,54 +164,6 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			}
 		} // end forever
 	}() // end gofunc1
-
-	/*
-		go func(ptr *L3CACHEMAP, mux *sync.RWMutex, cnt *CCC) {
-			defer log.Printf("LEFT L3T gofunc2 delete [%s]", char)
-			timer := time.NewTimer(time.Duration(l3purge) * time.Second)
-			start := utils.UnixTimeMilliSec()
-			now := int64(start / 1000)
-			//forever:
-			for {
-				select {
-				case <-timer.C:
-					start = utils.UnixTimeMilliSec()
-					now = int64(start / 1000)
-
-					//mux.RLock()
-					mux.Lock()
-					//getexpired:
-					for key, item := range ptr.cache {
-						if item.expires > 0 && item.expires < now {
-							//logf(DEBUG, "L3 expire [%s] key='%#v' item='%#v'", char, key, item)
-							//cleanup = append(cleanup, key)
-							cnt.Counter["Count_Delete"]++
-							delete(ptr.cache, key)
-						}
-					} // end for getexpired
-					mux.Unlock()
-					//mux.RUnlock()
-
-					//maplen := len(ptr.cache)
-					/,*
-						if len(cleanup) > 0 {
-							mux.Lock()
-							//maplen -= len(cleanup)
-							for _, key := range cleanup {
-								delete(ptr.cache, key)
-								cnt.Counter["Count_Delete"]++
-							}
-							mux.Unlock()
-							//logf(DEBUG, "L3Cache_Thread [%s] deleted=%d/%d", char, len(cleanup), maplen)
-							cleanup = nil
-						}
-						//logf(DEBUG, "L3Cache_Thread [%s] (took %d ms)", char, utils.UnixTimeMilliSec()-start)
-					*,/
-					timer.Reset(time.Duration(l3purge) * time.Second)
-				} // end select
-			} // end for
-		}(l3.Caches[char], &l3.Muxers[char].mux, l3.Counter[char]) // end gofunc2
-	*/
 } //end func L3Cache_Thread
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
@@ -244,10 +196,10 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		pqM := a
 	}*/
 
-	mux.mux.Lock()
-
 	expires := NoExpiresVal
 	var pqEX int64
+
+	mux.mux.Lock()
 	if flagexpires {
 		if len(offsets) > 0 {
 			cnt.Counter["Count_FlagEx"]++
