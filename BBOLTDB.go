@@ -331,7 +331,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
 		db.MaxBatchDelay = BoltDB_MaxBatchDelay
 	}
-	if BoltDB_AllocSize >= 0xFFFFF {
+	if BoltDB_AllocSize > 0xFFFFF {
 		db.AllocSize = BoltDB_AllocSize
 	}
 	//logf(DEBUG2, "HDBZW: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
@@ -341,6 +341,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	tocheck, checked, created := his.rootBUCKETS, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
+	log.Printf("HDBZW [%s] ROOTBUCKETS=%d * SUBBUCKETS=%d", char, len(ROOTBUCKETS), len(SUBBUCKETS))
 	for _, bucket := range ROOTBUCKETS {
 		retbool, err := his.boltCreateBucket(db, char, bucket)
 		if err != nil || !retbool {
@@ -358,7 +359,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	<-his.boltInitChan
 
-	logf(DEBUG, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	logf(DEBUG1, "HDBZW [%s] ROOTBUCKETS checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	if checked != tocheck || (created > 0 && created != tocheck) {
 		log.Printf("ERROR HDBZW INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
@@ -552,7 +553,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 
 	if CharBucketBatchSize > 0 {
 		// wait for batchqueues to boot
-		BQtimeout := 60 * 1000
+		BQtimeout := 399 * 1000
 		for {
 			time.Sleep(time.Millisecond)
 			if len(his.batchQueues.BootCh) == intBoltDBs*his.rootBUCKETS {
