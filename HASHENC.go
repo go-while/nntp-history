@@ -124,15 +124,14 @@ func RemoveNullPad(input string) string {
 	return strings.Replace(input, "\x00", "", -1)
 } // RemoveZeroPad
 
-func CRC(input string) (string, error) {
-	// Convert the string to bytes.
+func CRC(input string) string {
 	hash := crc32.NewIEEE()
 	_, err := hash.Write([]byte(input))
 	if err != nil {
-		return "", err
+		return ""
 	}
 	crc := hash.Sum32()
 	checksumStr := strconv.FormatInt(int64(crc), 16) // as hex
-	log.Printf("CRC input='%s' output='%s' crc=%d", input, checksumStr, crc)
-	return checksumStr, nil
+	//log.Printf("CRC input='%s' output='%s'", input, checksumStr)
+	return checksumStr
 } // end func CRC

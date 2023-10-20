@@ -28,6 +28,9 @@ func (his *HISTORY) startSocket(tcpListen string) {
 	if BootHisCli {
 		return
 	}
+	if his.useHashDB {
+		his.Wait4HashDB()
+	}
 	// socket listener
 	go func() {
 		os.Remove(SocketPath)
@@ -102,8 +105,8 @@ forever:
 			break forever
 		}
 		CMD := strings.ToUpper(parts[0])
-		ARGS := parts[1:]
-		//log.Printf("CONN '%#v' read CMD='%s'", conn, CMD)
+		//ARGS := parts[1:]
+		//log.Printf("CONN '%#v' read CMD='%s' line='%s' parts=%d", conn, CMD, line, len(parts))
 		// Process the received message here.
 		switch CMD {
 		case "CPU": // start/stop cpu profiling
@@ -131,10 +134,19 @@ forever:
 			tp.PrintfLine("205 CIAO")
 			break forever
 		case "ADD":
-			hobj, err := ConvertStringToHistoryObject(ARGS)
+			if len(parts) != 8 {
+				tp.PrintfLine("401 PART ERR")
+				continue forever
+			}
+			//receives add request from client
+			// ("ADD %s %s", CRC(hobjStr), hobjStr)
+			if parts[1] != CRC(strings.Join(parts[2:], " ")) {
+				tp.PrintfLine("402 CRC ERR")
+				continue forever
+			}
+			hobj, err := ConvertStringToHistoryObject(parts[2:])
 			if hobj == nil || err != nil {
-				tp.PrintfLine("400 HOBJ ADD ERR")
-				log.Printf("400 HOBJ ADD ERR")
+				tp.PrintfLine("403 HOBJ ERR")
 				continue forever
 			}
 			// ADD command receives a line containing the HistoryObject values as text
@@ -205,9 +217,11 @@ forever:
 } // end func handleConn
 
 func ConvertStringToHistoryObject(parts []string) (*HistoryObject, error) {
+	//log.Printf("ConvertStringToHistoryObject parts='%#v'=%d", parts, len(parts))
 	if len(parts) != 6 {
 		return nil, fmt.Errorf("Invalid input string format")
 	}
+
 	arrival, err := strconv.ParseInt(parts[3], 10, 64)
 	if err != nil {
 		return nil, err
