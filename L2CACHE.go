@@ -172,10 +172,10 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
 
-	mux.mux.Lock()
-
 	expires := NoExpiresVal
 	var pqEX int64
+
+	mux.mux.Lock()
 	if flagexpires {
 		cnt.Counter["Count_FlagEx"]++
 		expires = time.Now().Unix() + L2CacheExpires

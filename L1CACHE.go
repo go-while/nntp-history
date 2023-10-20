@@ -254,10 +254,10 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		pqM := a
 	}*/
 
-	mux.mux.Lock()
-
 	expires := NoExpiresVal
 	var pqEX int64
+
+	mux.mux.Lock()
 	if flagexpires {
 		cnt.Counter["Count_FlagEx"]++
 		expires = time.Now().Unix() + L1CacheExpires
@@ -441,8 +441,6 @@ forever:
 			// This item has expired, remove it from the cache and priority queue
 			//log.Printf("L1 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
 			pqM.mux.Lock()
-			//delete(ptr.cache, item.Key)
-			//cnt.Counter["Count_Delete"]++
 			heap.Pop(pq)
 			pqM.mux.Unlock()
 			dq = append(dq, item.Key)
