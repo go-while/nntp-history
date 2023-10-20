@@ -1,7 +1,7 @@
 package history
 
 import (
-	"arena"
+	//	"arena"
 	"bufio"
 	// "google.golang.org/protobuf/encoding/prototext"
 	// "google.golang.org/protobuf/encoding/protowire"
@@ -21,7 +21,7 @@ var (
 	ForcedReplay bool
 )
 
-type AHASH struct {
+type AHASH struct { // arena
 	hash           string
 	buffer         []byte
 	missing_hashes []string
@@ -34,11 +34,20 @@ func reverseBytes(data []byte) {
 	}
 }
 
+type Memhash struct {
+	hash           string
+	buffer         []byte
+	missing_hashes []string
+	missingoffsets map[string]int64
+}
+
 func (his *HISTORY) ReplayHisDat() {
 	var bufferSize int64 = 192
-	mem := arena.NewArena()
+	//mem := arena.NewArena()
 	//defer mem.Free()
-	memhash := arena.New[AHASH](mem)
+	//memhash := arena.New[AHASH](mem)
+
+	memhash := &Memhash{}
 	memhash.buffer = make([]byte, bufferSize)
 
 	if NoReplayHisDat {
@@ -59,7 +68,7 @@ func (his *HISTORY) ReplayHisDat() {
 		log.Printf("ERROR ReplayHisDat os.Open err='%v'", err)
 		os.Exit(1)
 	}
-	//defer file.Close()
+	defer file.Close()
 	stat, err := file.Stat()
 	if err != nil {
 		log.Printf("ERROR ReplayHisDat file.Stat err='%v'", err)
@@ -71,7 +80,7 @@ func (his *HISTORY) ReplayHisDat() {
 		log.Printf("ERROR ReplayHisDat mmap.Map err='%v'", err)
 		os.Exit(1)
 	}
-	//defer memhash.mmappedData.Unmap()
+	defer mmappedData.Unmap()
 	lineStart := int64(size - 1)
 	lineEnd := lineStart
 	log.Printf("ReplayHisDat file='%s' size=%d", his.hisDat, size)
@@ -224,9 +233,6 @@ replay: // backwards: from latest hash
 		// missing is ordered from latest backward
 		// reverse order to have oldestFirst
 		//reverseStrings(memhash.missing_hashes)
-		mmappedData.Unmap()
-		mem.Free()
-		file.Close()
 		time.Sleep(1 * time.Second)
 		runtime.GC()
 		//CPUBURN()
@@ -256,52 +262,6 @@ replay: // backwards: from latest hash
 			os.Exit(1)
 		}
 	}
-
-	/*
-			oldestFirst := true
-			if quickreplay {
-				oldestFirst = false
-				testmax = QuickReplayTestMax
-			}
-			lines, err := readLastNLinesFromFile(his.hisDat, testmax, oldestFirst)
-			lenlines := len(lines)
-			if lenlines == 0 {
-				return
-			}
-			log.Printf("ReplayHisDat quickreplay=%t testmax=%d lines=%d ", quickreplay, testmax, lenlines)
-			if err != nil {
-				log.Printf("ERROR ReplayHisDat err='%#v'", err)
-				os.Exit(1)
-			}
-			if lenlines <= 1 { // nothing or header only
-				return
-			}
-			ok := 0
-		replay:
-			for i, line := range lines {
-				hash := extractHash(line)
-				if hash == "" {
-					log.Printf("ERROR ReplayHisDat i=%d hash empty line='%s'", i, line)
-					os.Exit(1)
-				}
-				logf(DEBUG, "ReplayHisDat: replay hash='%s' i=%d", hash, i)
-				isDup, err := his.IndexQuery(&hash, indexRetChan, -1)
-				if err != nil {
-					log.Printf("ERROR ReplayHisDat IndexQuery hash='%s' err='%v'", hash, err)
-					os.Exit(1)
-				}
-				switch isDup {
-				case CaseDupes:
-					ok++
-					if !oldestFirst && ok == testmax {
-						break replay
-					}
-				default:
-					log.Printf("Error ReplayHisDat bad response from IndexQuery isDup=%x", isDup)
-					os.Exit(1)
-				}
-			}
-	*/
 	log.Printf("ReplayHisDat ok=%d", ok)
 } // end func ReplayHisDat
 
