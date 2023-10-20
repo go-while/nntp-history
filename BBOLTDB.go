@@ -67,32 +67,37 @@ var (
 	// 4096 generates high load as it launches this many and more go routines and queues!
 	RootBUCKETSperDB = 256
 
-	// KEYINDEX creates 16^N sub buckets in `his.rootBUCKETS` ! can not be 0 !
+	// KEYINDEX creates 16^N sub buckets in `his.rootBUCKETS
 	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
-	KEYINDEX = 1
+	// 0 disables sub/nested buckets and uses full Keylen as Key in RootBuckets only.
+	KEYINDEX = 0
 
-	// intBoltDBs * his.rootBUCKETS * KEYINDEX =
-	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in RootBUCKETSperDB)
-	//    16      *      16      * (16^)1   =        4096 = (/16 = 256 RootBUCKETSperDB)
-	//    16      *      16      * (16^)2   =       65536 ...
-	//    16      *      16      * (16^)3   =     1048576
-	//    16      *      16      * (16^)4   =    16777216
-	//    16      *      16      * (16^)5   =   268435456
-	//    16      *      16      * (16^)6   =  4294967296
-	//    16      *      16      * (16^)7   = 68719476736
+	// ! can't change intBoltDBs !
+	//             only rootBUCKETS & KEYINDEX
+	// intBoltDBs * his.rootBUCKETS * (16^)KEYINDEX = n Buckets over all 16 dbs
+	//    16      *        16       * (16^)0        =         256
+	//    16      *        16       * (16^)1        =        4096
+	//    16      *        16       * (16^)2        =       65536
+	//    16      *        16       * (16^)3        =     1048576
+	//    16      *        16       * (16^)4        =    16777216
+	//    16      *        16       * (16^)5        =   268435456
+	//    16      *        16       * (16^)6        =  4294967296
+	//    16      *        16       * (16^)7        = 68719476736
 	//
-	//    16      *     256      * (16^)1   =       65536  <----- default atm
-	//    16      *     256      * (16^)2   =     1048576
-	//    16      *     256      * (16^)3   =    16777216
-	//    16      *     256      * (16^)4   =   268435456
-	//    16      *     256      * (16^)5   =  4294967296
-	//    16      *     256      * (16^)6   = 68719476736
+	//    16      *       256       * (16^)0        =        4096
+	//    16      *       256       * (16^)1        =       65536
+	//    16      *       256       * (16^)2        =     1048576
+	//    16      *       256       * (16^)3        =    16777216
+	//    16      *       256       * (16^)4        =   268435456
+	//    16      *       256       * (16^)5        =  4294967296
+	//    16      *       256       * (16^)6        = 68719476736
 	//
-	//    16      *    4096      * (16^)1   =     1048576
-	//    16      *    4096      * (16^)2   =    16777216
-	//    16      *    4096      * (16^)3   =   268435456
-	//    16      *    4096      * (16^)4   =  4294967296
-	//    16      *    4096      * (16^)5   = 68719476736
+	//    16      *      4096       * (16^)0        =       65536
+	//    16      *      4096       * (16^)1        =     1048576
+	//    16      *      4096       * (16^)2        =    16777216
+	//    16      *      4096       * (16^)3        =   268435456
+	//    16      *      4096       * (16^)4        =  4294967296
+	//    16      *      4096       * (16^)5        = 68719476736
 )
 
 func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
@@ -388,25 +393,24 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		return
 	}
 
-	// make the batchQueues: if CharBucketBatchSize > 0
-	batchQcap := 1024
-	var timer int64 = 125 // milliseconds
-	batchQcap = CharBucketBatchSize * 2
-	switch his.rootBUCKETS {
-	case 16:
-		timer = 250
-	case 256:
-		timer = 500
-	case 4096:
-		timer = 1000
-	}
+	var timer int64 = 128 // milliseconds
+	batchQcap := CharBucketBatchSize * 2
+	/*
+		switch his.rootBUCKETS {
+		case 16:
+			timer = 64
+		case 256:
+			timer = 128
+		case 4096:
+			timer = 512
+		}
+	*/
 	if batchQcap < 1 {
 		batchQcap = 1
 	}
 	closedBuckets := make(chan struct{}, his.rootBUCKETS)
-	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d", char, len(ROOTBUCKETS))
-	delay := 0
-	var j int
+	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d booting batchQueues, please wait... %d ms", char, len(ROOTBUCKETS), BatchFlushEvery)
+	delay, j := 0, 0
 	for _, bucket := range ROOTBUCKETS {
 		if CharBucketBatchSize <= 0 {
 			continue
@@ -432,7 +436,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				return
 			}
 			time.Sleep(time.Duration(delay) * time.Millisecond)
-			log.Printf("batchQueue [%s|%s] bootdelayed %d ms", char, bucket, delay)
+			//logf(DEBUG2, "batchQueue [%s|%s] delayed boot %d ms", char, bucket, delay)
 			// every batchQueue adds an empty struct to count Booted. results in 16*16 queues.
 			wCBBS := CharBucketBatchSize // copy value allows each worker to play with it
 			if wCBBS < 0 {
@@ -910,16 +914,21 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	var encodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
 		root := tx.Bucket([]byte(bucket))
-		//v := root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatch
-		subbName := string(key[0:his.keyIndex])
-		subb := root.Bucket([]byte(subbName)) // subbucket co-exists in boltBucketPutBatch
-		if subb == nil {
-			// bucket not yet created
-			return nil
+		var v []byte
+		if his.keyIndex <= 0 {
+			v = root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatc
+		} else {
+			// use sub buckets
+			subbName := string(key[0:his.keyIndex])
+			subb := root.Bucket([]byte(subbName)) // subbucket co-exists in boltBucketPutBatch
+			if subb == nil {
+				//log.Printf("INFO boltBucketGetOffsets [%s|%s] key='%s' subb='%s' sub bucket not found", char, bucket, key, subbName)
+				// bucket not yet created
+				return nil
+			}
+			key := string(key[his.keyIndex:])
+			v = subb.Get([]byte(key)) // subbucket co-exists in boltBucketPutBatch
 		}
-		key := string(key[his.keyIndex:])
-		v := subb.Get([]byte(key)) // subbucket co-exists in boltBucketPutBatch
-
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
 			if newoffset == FlagSearch { // is a search
