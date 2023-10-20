@@ -1,7 +1,7 @@
 package history
 
 import (
-	"arena"
+	//"arena"
 	"container/heap"
 	"log"
 	"sync"
@@ -34,8 +34,8 @@ type L1CACHE struct {
 	Counter map[string]*CCC
 	prioQue map[string]*L1PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
-	pqMuxer map[string]*L1MUXER      // Priority queue Muxers
-	arenas  map[string]*L1Arena
+	pqMuxer map[string]*L1PQMUX      // Priority queue Muxers
+	//arenas  map[string]*L1Arena
 }
 
 type L1CACHEMAP struct {
@@ -43,11 +43,14 @@ type L1CACHEMAP struct {
 }
 
 type L1ITEM struct {
-	value   int
-	expires int64
+	value int
 }
 
 type L1MUXER struct {
+	mux sync.Mutex
+}
+
+type L1PQMUX struct {
 	mux sync.RWMutex
 }
 
@@ -56,7 +59,7 @@ mem := arena.NewArena()
 //defer mem.Free()
 memhash := arena.New[AHASH](mem)
 memhash.buffer = make([]byte, bufferSize)
-*/
+
 type L1Arena struct {
 	mux sync.RWMutex
 
@@ -66,6 +69,7 @@ type L1Arena struct {
 	dqmem   *arena.Arena
 	dqslice *DQSlice
 }
+*/
 
 // The L1CACHE_Boot method initializes the cache system.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
@@ -82,8 +86,8 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
 	l1.prioQue = make(map[string]*L1PQ, intBoltDBs)
 	l1.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	l1.pqMuxer = make(map[string]*L1MUXER, intBoltDBs)
-	l1.arenas = make(map[string]*L1Arena, intBoltDBs)
+	l1.pqMuxer = make(map[string]*L1PQMUX, intBoltDBs)
+	//l1.arenas = make(map[string]*L1Arena, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &StrECH{ch: make(chan []string, his.cEvCap)}
@@ -91,10 +95,10 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 		l1.prioQue[char] = &L1PQ{}
 		l1.pqChans[char] = make(chan struct{}, 1)
-		l1.pqMuxer[char] = &L1MUXER{}
-		l1.arenas[char] = &L1Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
-		l1.arenas[char].prioQue = arena.New[L1PQ](l1.arenas[char].pqmem)
-		l1.arenas[char].dqslice = arena.New[DQSlice](l1.arenas[char].dqmem)
+		l1.pqMuxer[char] = &L1PQMUX{}
+		//l1.arenas[char] = &L1Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
+		//l1.arenas[char].prioQue = arena.New[L1PQ](l1.arenas[char].pqmem)
+		//l1.arenas[char].dqslice = arena.New[DQSlice](l1.arenas[char].dqmem)
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -127,32 +131,20 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
 
-	mux.mux.RLock()
-	if _, exists := ptr.cache[hash]; exists {
-		retval := ptr.cache[hash].value
-		//if hash == TESTHASH {
-		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
-		//}
-		mux.mux.RUnlock()
-		return retval
-	}
-	mux.mux.RUnlock()
-
 	if L1LockDelay > 0 {
 		time.Sleep(time.Duration(L1LockDelay) * time.Millisecond)
 	}
 
-	//if hash == TESTHASH {
-	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d weLocked", char, hash, value)
-	//}
-
 	mux.mux.Lock()
 	if _, exists := ptr.cache[hash]; !exists {
+		//if hash == TESTHASH {
+		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
+		//}
 		cnt.Counter["Count_Locked"]++
 		if !useHashDB {
 			value = CaseDupes
 		}
-		ptr.cache[hash] = &L1ITEM{value: value, expires: time.Now().Unix() + L1CacheExpires}
+		ptr.cache[hash] = &L1ITEM{value: value}
 		mux.mux.Unlock()
 		return CasePass
 	} else {
@@ -160,18 +152,14 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		mux.mux.Unlock()
 		return retval
 	}
-	mux.mux.Unlock()
-
 	return CaseError
 } // end func LockL1Cache
 
 // The L1Cache_Thread function runs as a goroutine for each character.
-// It periodically cleans up expired cache entries, and if the cache size is too large, it shrinks the cache.
 func (l1 *L1CACHE) L1Cache_Thread(char string) {
 	l1.mux.Lock() // waits for L1CACHE_Boot to unlock
 	l1.mux.Unlock()
 	//logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
-	//cleanup := []string{}
 	l1purge := L1Purge
 	if l1purge < 1 {
 		l1purge = 1
@@ -186,6 +174,7 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		pq := l1.prioQue[char]
 		pqC := l1.pqChans[char]
 		pqM := l1.pqMuxer[char]
+		var extends []string
 		//if UseArenas {
 		//	a := l1.arenas[char]
 		//	pq = a.prioQue
@@ -195,34 +184,22 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		//forever:
 		for {
 			select {
-			case extends := <-extC.ch: // receives stuff from CacheEvictThread()
-				now := time.Now().Unix()
-				mux.mux.Lock()
-				//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
-				for _, hash := range extends {
-					if _, exists := ptr.cache[hash]; exists {
-						pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
-						ptr.cache[hash].expires = now + L1ExtendExpires
-						ptr.cache[hash].value = CaseDupes
-						cnt.Counter["Count_BatchD"]++
-
-						pqM.mux.Lock()
-						heap.Push(pq, &L1PQItem{
-							Key:     hash,
-							Expires: pqEX,
-						})
-						pqM.mux.Unlock()
-						select {
-						case pqC <- struct{}{}:
-							// pass
-						default:
-							// pass too: notify chan is full
+			case extends = <-extC.ch: // receives stuff from CacheEvictThread()
+				// got hashes we will extend
+				if len(extends) > 0 {
+					//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
+					pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
+					mux.mux.Lock()
+					for _, hash := range extends {
+						if _, exists := ptr.cache[hash]; exists {
+							ptr.cache[hash].value = CaseDupes
+							cnt.Counter["Count_BatchD"]++
+							l1.prioPush(char, pq, pqC, pqM, &L1PQItem{Key: hash, Expires: pqEX})
 						}
 					}
+					mux.mux.Unlock()
+					extends = nil
 				}
-				mux.mux.Unlock()
-				//extends = nil
-
 			} // end select
 		} // end forever
 	}() // end gofunc1
@@ -254,48 +231,25 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		pqM := a
 	}*/
 
-	expires := NoExpiresVal
-	var pqEX int64
-
 	mux.mux.Lock()
-	if flagexpires {
-		cnt.Counter["Count_FlagEx"]++
-		expires = time.Now().Unix() + L1CacheExpires
-		pqEX = time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
-	} else if !flagexpires && value == CaseWrite {
-		cnt.Counter["Count_Set"]++
-	}
-
-	if _, exists := ptr.cache[hash]; exists {
-		ptr.cache[hash].expires = expires
+	if _, exists := ptr.cache[hash]; !exists {
+		ptr.cache[hash] = &L1ITEM{value: value}
+	} else {
 		ptr.cache[hash].value = value
-		mux.mux.Unlock()
-		return
 	}
-	ptr.cache[hash] = &L1ITEM{value: value, expires: expires}
-
-	// Update the priority queue
-	if flagexpires {
-		mux.mux.Unlock()
-		//log.Printf("l1.set [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
-		pqM.mux.Lock()
-		heap.Push(pq, &L1PQItem{
-			Key:     hash,
-			Expires: pqEX,
-		})
-		pqM.mux.Unlock()
-
-		//log.Printf("l1.set [%s] heap.push unlocked", char)
-		select {
-		case pqC <- struct{}{}:
-			// pass
-		default:
-			// pass too: notify chan is full
+	switch flagexpires {
+	case true:
+		cnt.Counter["Count_FlagEx"]++
+	case false:
+		if value == CaseWrite {
+			cnt.Counter["Count_Set"]++
 		}
-		//log.Printf("l1.set [%s] heap.push passed pqC", char)
-		return
 	}
 	mux.mux.Unlock()
+	if flagexpires {
+		pqEX := time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
+		l1.prioPush(char, pq, pqC, pqM, &L1PQItem{Key: hash, Expires: pqEX})
+	}
 } // end func Set
 
 func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]uint64) {
@@ -453,3 +407,19 @@ forever:
 		}
 	} // end for
 } // end func pqExpire
+
+func (l1 *L1CACHE) prioPush(char string, pq *L1PQ, pqC chan struct{}, pqM *L1PQMUX, item *L1PQItem) {
+	//log.Printf("l1.prioPush [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
+	pqM.mux.Lock()
+	heap.Push(pq, item)
+	pqM.mux.Unlock()
+
+	//log.Printf("l1.prioPush [%s] heap.push unlocked", char)
+	select {
+	case pqC <- struct{}{}:
+		// pass notify to pqExpire()
+	default:
+		// pass too: notify chan is full
+	}
+	//log.Printf("l1.prioPush [%s] heap.push passed pqC", char)
+} // end func prioPush

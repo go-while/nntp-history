@@ -33,7 +33,7 @@ type L2CACHE struct {
 	Counter map[string]*CCC
 	prioQue map[string]*L2PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
-	pqMuxer map[string]*L2MUXER      // Priority queue Muxers
+	pqMuxer map[string]*L2PQMUX      // Priority queue Muxers
 }
 
 type L2CACHEMAP struct {
@@ -41,11 +41,14 @@ type L2CACHEMAP struct {
 }
 
 type L2ITEM struct {
-	hash    string
-	expires int64
+	hash string
 }
 
 type L2MUXER struct {
+	mux sync.RWMutex
+}
+
+type L2PQMUX struct {
 	mux sync.RWMutex
 }
 
@@ -64,7 +67,7 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 	l2.Counter = make(map[string]*CCC)
 	l2.prioQue = make(map[string]*L2PQ, intBoltDBs)
 	l2.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	l2.pqMuxer = make(map[string]*L2MUXER, intBoltDBs)
+	l2.pqMuxer = make(map[string]*L2PQMUX, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &IntECH{ch: make(chan []int64, his.cEvCap)}
@@ -72,7 +75,7 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 		l2.prioQue[char] = &L2PQ{}
 		l2.pqChans[char] = make(chan struct{}, 1)
-		l2.pqMuxer[char] = &L2MUXER{}
+		l2.pqMuxer[char] = &L2PQMUX{}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -84,12 +87,10 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 } // end func L2CACHE_Boot
 
 // The L2Cache_Thread function runs as a goroutine for each character.
-// It periodically cleans up expired cache entries and dynamically shrinks the cache size if needed.
 func (l2 *L2CACHE) L2Cache_Thread(char string) {
 	l2.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l2.mux.Unlock()
 	//logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
-	//cleanup := []int64{}
 	l2purge := L2Purge
 	if l2purge < 1 {
 		l2purge = 1
@@ -97,8 +98,6 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 
 	go func() {
 		defer log.Printf("LEFT L2T gofunc1 extend [%s]", char)
-		timer := time.NewTimer(time.Duration(l2purge) * time.Second)
-		var extends []int64
 		ptr := l2.Caches[char]
 		cnt := l2.Counter[char]
 		extC := l2.Extend[char]
@@ -106,47 +105,28 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 		pq := l2.prioQue[char]
 		pqC := l2.pqChans[char]
 		pqM := l2.pqMuxer[char]
+		var extends []int64
+
 		//forever:
 		for {
-		forextends:
-			for {
-				select {
-				case <-timer.C:
-					break forextends
-				case slice := <-extC.ch: // receives stuff from CacheEvictThread()
-					// got offset we will extend in next timer.C run
-					extends = slice
-					break forextends
-				} // end select
-			} // end forextends
-			if len(extends) > 0 {
-				now := time.Now().Unix()
-				//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
-				mux.mux.Lock()
-				for _, offset := range extends {
-					if _, exists := ptr.cache[offset]; exists {
-						pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
-						ptr.cache[offset].expires = now + L2ExtendExpires
-						cnt.Counter["Count_BatchD"]++
-
-						pqM.mux.Lock()
-						heap.Push(pq, &L2PQItem{
-							Key:     offset,
-							Expires: pqEX,
-						})
-						pqM.mux.Unlock()
-						select {
-						case pqC <- struct{}{}:
-							// pass
-						default:
-							// pass too: notify chan is full
+			select {
+			case extends = <-extC.ch: // receives stuff from CacheEvictThread()
+				// got offset we will extend
+				if len(extends) > 0 {
+					//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
+					pqEX := time.Now().UnixNano() + L2ExtendExpires*int64(time.Second)
+					mux.mux.Lock()
+					for _, offset := range extends {
+						if _, exists := ptr.cache[offset]; exists {
+							cnt.Counter["Count_BatchD"]++
+							l2.prioPush(char, pq, pqC, pqM, &L2PQItem{Key: offset, Expires: pqEX})
 						}
 					}
+					mux.mux.Unlock()
+					extends = nil
 				}
-				mux.mux.Unlock()
-				extends = nil
-				timer.Reset(time.Duration(l2purge) * time.Second)
-			}
+			} // end select
+
 		} // end forever
 	}() // end gofunc1
 } //end func L2Cache_Thread
@@ -172,50 +152,24 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
 
-	expires := NoExpiresVal
-	var pqEX int64
-
 	mux.mux.Lock()
-	if flagexpires {
+	if _, exists := ptr.cache[offset]; !exists {
+		ptr.cache[offset] = &L2ITEM{hash: hash}
+	}
+	switch flagexpires {
+	case true:
 		cnt.Counter["Count_FlagEx"]++
-		expires = time.Now().Unix() + L2CacheExpires
-		pqEX = time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
-	} else {
+	case false:
 		cnt.Counter["Count_Set"]++
 	}
-	if _, exists := ptr.cache[offset]; exists {
-		//if ptr.cache[offset].hash != hash {
-		//	log.Printf("ERROR L2Cache [%s] SetOffsetHash extend cached hash=%s@offset=%d != hash=%s", char, l2.Caches[char].cache[offset].hash, offset, hash)
-		//	return
-		//}
-		ptr.cache[offset].expires = expires
-		mux.mux.Unlock()
-		return
-	}
-	ptr.cache[offset] = &L2ITEM{hash: hash, expires: expires}
-
-	// Update the priority queue
-	if flagexpires {
-		//log.Printf("l1.set [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
-		pqM.mux.Lock()
-		heap.Push(pq, &L2PQItem{
-			Key:     offset,
-			Expires: pqEX,
-		})
-		pqM.mux.Unlock()
-		mux.mux.Unlock()
-		//log.Printf("l1.set [%s] heap.push unlocked", char)
-		select {
-		case pqC <- struct{}{}:
-			// pass
-		default:
-			// pass too: notify chan is full
-		}
-		//log.Printf("l1.set [%s] heap.push passed pqC", char)
-		return
-	}
 	mux.mux.Unlock()
+
+	if flagexpires {
+		pqEX := time.Now().UnixNano() + (L2CacheExpires * int64(time.Second))
+		l2.prioPush(char, pq, pqC, pqM, &L2PQItem{Key: offset, Expires: pqEX})
+	}
 } // end func SetOffsetHash
+
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
 func (l2 *L2CACHE) GetHashFromOffset(offset int64, rethash *string) {
 	if offset <= 0 || rethash == nil {
@@ -397,3 +351,19 @@ forever:
 		}
 	} // end for
 } // end func pqExpire
+
+func (l2 *L2CACHE) prioPush(char string, pq *L2PQ, pqC chan struct{}, pqM *L2PQMUX, item *L2PQItem) {
+	//log.Printf("l2.prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
+	pqM.mux.Lock()
+	heap.Push(pq, item)
+	pqM.mux.Unlock()
+
+	//log.Printf("l2.prioPush [%s] heap.push unlocked", char)
+	select {
+	case pqC <- struct{}{}:
+		// pass notify to pqExpire()
+	default:
+		// pass too: notify chan is full
+	}
+	//log.Printf("l2.prioPush [%s] heap.push passed pqC", char)
+} // end func prioPush
