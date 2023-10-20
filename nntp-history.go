@@ -85,7 +85,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if useHashDB {
 		his.useHashDB = true
 	}
-	go his.startSocket(DefaultListenTCPAddr)
+	go his.startServer(DefaultServerTCPAddr, DefaultSocketPath)
 
 	if NumQueueWriteChan <= 0 {
 		NumQueueWriteChan = 1
@@ -192,10 +192,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("ERROR History_Boot keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
-	if KEYINDEX <= 0 {
-		KEYINDEX = 1
+	if KeyIndex <= 0 {
+		KeyIndex = 1
 	}
-	his.keyIndex = KEYINDEX
+	his.keyIndex = KeyIndex
 	his.rootBUCKETS = RootBUCKETSperDB
 	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.rootBUCKETS}
 	// opens history.dat
