@@ -69,7 +69,7 @@ var (
 
 	// KEYINDEX creates 16^N sub buckets in `his.rootBUCKETS` ! can not be 0 !
 	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
-	KEYINDEX = 3
+	KEYINDEX = 1
 
 	// intBoltDBs * his.rootBUCKETS * KEYINDEX =
 	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in RootBUCKETSperDB)
@@ -81,8 +81,8 @@ var (
 	//    16      *      16      * (16^)6   =  4294967296
 	//    16      *      16      * (16^)7   = 68719476736
 	//
-	//    16      *     256      * (16^)1   =       65536
-	//    16      *     256      * (16^)2   =     1048576  <----- default atm
+	//    16      *     256      * (16^)1   =       65536  <----- default atm
+	//    16      *     256      * (16^)2   =     1048576
 	//    16      *     256      * (16^)3   =    16777216
 	//    16      *     256      * (16^)4   =   268435456
 	//    16      *     256      * (16^)5   =  4294967296

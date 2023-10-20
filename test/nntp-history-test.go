@@ -69,7 +69,7 @@ func main() {
 	// change needs a RebuildHashDB and updating history.dat settings header. but latter func does not exist yet!
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
-	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 2, "1-5") // key length used for sub buckets. cuts KeyLen by this.
+	flag.IntVar(&history.KEYINDEX, "KEYINDEX", 1, "1-...") // key length used for sub buckets. cuts KeyLen by this.
 
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
