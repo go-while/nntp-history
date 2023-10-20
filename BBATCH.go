@@ -14,7 +14,7 @@ var (
 	DBG_ABS1             bool                           // debugs adaptive batchsize in boltBucketPutBatch
 	DBG_ABS2             bool                           // debugs adaptive batchsize forbatchqueue in boltDB_Worker
 	AdaptBatch           bool                           // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
-	BatchFlushEvery      int64  = 5000                  // flushes boltDB in batch every N milliseconds (500-15000)
+	BatchFlushEvery      int64  = 7168                  // flushes boltDB in batch every N milliseconds (1-...)
 	BoltDB_MaxBatchDelay        = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
 	BoltDB_MaxBatchSize  int    = 1000                  // default value from boltdb:db.go = 1000
 	CharBucketBatchSize  int    = 512                   // default batchsize per char:bucket batchqueues
