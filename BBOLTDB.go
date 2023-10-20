@@ -54,11 +54,11 @@ var (
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
-	RootBucketFillPercent = 0.5
+	RootBucketFillPercent = 1.0
 
 	// adjust sub buckets page splitting behavior
 	// unsure if it does anything in sub buckets?
-	SubBucketFillPercent = 0.5
+	SubBucketFillPercent = 0.25
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
@@ -67,14 +67,14 @@ var (
 	// 4096 generates high load as it launches this many and more go routines and queues!
 	RootBUCKETSperDB = 256
 
-	// KEYINDEX creates 16^N sub buckets in `his.rootBUCKETS
-	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
+	// KeyIndex creates 16^N sub buckets in `his.rootBUCKETS
+	// KeyIndex cuts (shortens) the KeyLen by this to use as subb.buckets
 	// 0 disables sub/nested buckets and uses full Keylen as Key in RootBuckets only.
-	KEYINDEX = 0
+	KeyIndex = 0
 
 	// ! can't change intBoltDBs !
-	//             only rootBUCKETS & KEYINDEX
-	// intBoltDBs * his.rootBUCKETS * (16^)KEYINDEX = n Buckets over all 16 dbs
+	//             only rootBUCKETS & KeyIndex
+	// intBoltDBs * his.rootBUCKETS * (16^)KeyIndex = n Buckets over all 16 dbs
 	//    16      *        16       * (16^)0        =         256
 	//    16      *        16       * (16^)1        =        4096
 	//    16      *        16       * (16^)2        =       65536
