@@ -63,6 +63,7 @@ type HISTORY struct {
 
 /* builds the history.dat header */
 type HistorySettings struct {
+	// constant values once DBs are initalized
 	Ka int // keyalgo
 	Kl int // keylen
 	Ki int // keyindex
