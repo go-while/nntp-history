@@ -133,7 +133,7 @@ fetchbatch:
 						break batch1insert
 					}
 				} else {
-					// use sub buckets
+					// use sub buckets based on provided KeyIndex
 					subbName := string(bo.key[0:his.keyIndex])
 					subb, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets
 					if err != nil {
@@ -146,9 +146,8 @@ fetchbatch:
 						err = puterr
 						break batch1insert
 					}
-
-					inserted++
 				}
+				inserted++
 			}
 			return err
 		}); err != nil {
