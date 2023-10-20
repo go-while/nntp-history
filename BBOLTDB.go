@@ -917,7 +917,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 			// bucket not yet created
 			return nil
 		}
-		key := key[his.keyIndex:]
+		key := string(key[his.keyIndex:])
 		v := subb.Get([]byte(key)) // subbucket co-exists in boltBucketPutBatch
 
 		if v == nil {

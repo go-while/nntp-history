@@ -139,7 +139,7 @@ fetchbatch:
 				if err != nil {
 					return err
 				}
-				key := bo.key[his.keyIndex:]
+				key := string(bo.key[his.keyIndex:])
 				subb.FillPercent = SubBucketFillPercent
 				puterr := subb.Put([]byte(key), bo.encodedOffsets) // subbucket co-exists in boltBucketGetOffsets
 				if puterr != nil {
