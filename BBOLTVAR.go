@@ -370,31 +370,74 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 	if bucket == "" {
 		return false, fmt.Errorf("ERROR boltCreateBucket char=%s bucket=nil", char)
 	}
-	if err := db.Update(func(tx *bolt.Tx) error {
-		root, err := tx.CreateBucket([]byte(bucket)) // _ == bb == *bbolt.Bucket
-		//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
-		if err != nil {
-			return err
-		}
+	if len(SUBBUCKETS) > 0xFF {
+		logf(ALWAYS, "boltCreateBucket [%s|%s] batchCreate %d sub buckets", char, bucket, len(SUBBUCKETS))
+		batchCreate := []string{}
+		// cant create too many in one TX or we get a panic: inode overflow
+		did := 0
+		for _, subb := range SUBBUCKETS {
+			batchCreate = append(batchCreate, subb)
+			if len(batchCreate) > 0xFF {
+				logf(DEBUG2, "boltCreateBucket [%s|%s] batchCreate %d sub buckets %d/%d", char, bucket, len(batchCreate), did, len(SUBBUCKETS))
+				if err := db.Update(func(tx *bolt.Tx) error {
+					root, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
+					//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
+					if err != nil {
+						return err
+					}
 
-		if his.keyIndex > 0 {
+					for _, subbName := range batchCreate {
+						//subb, err := root.CreateBucket([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
+						_, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
+						if err != nil {
+							return err
+						}
+					}
+
+					//logf(DEBUG2, "OK boltCreateBucket [%s|%s]", *char, *bucket)
+					//retbool = true
+					return nil
+				}); err != nil {
+					if err != bolt.ErrBucketExists {
+						log.Printf("ERROR boltCreateBucket [%s|%s] err='%v'", char, bucket, err)
+					}
+					return false, err
+				}
+				did += len(batchCreate)
+				batchCreate = nil
+			}
+		} // end for range subbuckets
+		if len(batchCreate) > 0 {
+			log.Printf("ERROR boltCreateBucket [%s|%s] len(batchCreate)=%d > 0", char, bucket, len(batchCreate))
+			os.Exit(1)
+		}
+		retbool = true
+	} else {
+		log.Printf("boltCreateBucket [%s|%s] create %d sub buckets", char, bucket, len(SUBBUCKETS))
+		if err := db.Update(func(tx *bolt.Tx) error {
+			root, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
+			//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
+			if err != nil {
+				return err
+			}
+
 			for _, subbName := range SUBBUCKETS {
 				//subb, err := root.CreateBucket([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
-				_, err := root.CreateBucket([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
+				_, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
 				if err != nil {
 					return err
 				}
 			}
-		}
 
-		//logf(DEBUG2, "OK boltCreateBucket char=%s bucket='%s'", *char, *bucket)
-		retbool = true
-		return nil
-	}); err != nil {
-		if err != bolt.ErrBucketExists {
-			log.Printf("ERROR boltCreateBucket char=%s bucket='%s' err='%v'", char, bucket, err)
+			//logf(DEBUG2, "OK boltCreateBucket char=%s bucket='%s'", *char, *bucket)
+			retbool = true
+			return nil
+		}); err != nil {
+			if err != bolt.ErrBucketExists {
+				log.Printf("ERROR boltCreateBucket char=%s bucket='%s' err='%v'", char, bucket, err)
+			}
+			return false, err
 		}
-		return false, err
 	}
 	return
 } // end func boltCreateBucket

@@ -194,7 +194,9 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		os.Exit(1)
 	}
 	if KeyIndex <= 0 {
-		KeyIndex = 1
+		KeyIndex = 0
+	} else if KeyIndex > 5 {
+		KeyIndex = 5
 	}
 	his.keyIndex = KeyIndex
 	his.rootBUCKETS = RootBUCKETSperDB
