@@ -195,10 +195,15 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	if KeyIndex <= 0 {
 		KeyIndex = 0
-	} else if KeyIndex > 5 {
-		KeyIndex = 5
+	} else if KeyIndex > 6 {
+		KeyIndex = 6
 	}
 	his.keyIndex = KeyIndex
+
+	if his.keyIndex >= his.keylen-4 {
+		log.Printf("ERROR keyindex out of range. try keylen=%d or reduce keyindex value", his.keylen+4)
+		os.Exit(1)
+	}
 	his.rootBUCKETS = RootBUCKETSperDB
 	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.rootBUCKETS}
 	// opens history.dat
