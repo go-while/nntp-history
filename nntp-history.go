@@ -91,8 +91,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		NumQueueWriteChan = 1
 	}
 
-	if BatchFlushEvery <= 7500 { // milliseconds
-		BatchFlushEvery = 7500
+	if BatchFlushEvery <= 0 { // milliseconds
+		BatchFlushEvery = 1
 	}
 
 	if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
