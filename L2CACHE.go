@@ -152,6 +152,11 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
 
+	if flagexpires {
+		pqEX := time.Now().UnixNano() + (L2CacheExpires * int64(time.Second))
+		l2.prioPush(char, pq, pqC, pqM, &L2PQItem{Key: offset, Expires: pqEX})
+	}
+
 	mux.mux.Lock()
 	if _, exists := ptr.cache[offset]; !exists {
 		ptr.cache[offset] = &L2ITEM{hash: hash}
@@ -164,10 +169,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	}
 	mux.mux.Unlock()
 
-	if flagexpires {
-		pqEX := time.Now().UnixNano() + (L2CacheExpires * int64(time.Second))
-		l2.prioPush(char, pq, pqC, pqM, &L2PQItem{Key: offset, Expires: pqEX})
-	}
 } // end func SetOffsetHash
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.

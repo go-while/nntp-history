@@ -149,14 +149,19 @@ func (his *HISTORY) CacheEvictThread() {
 		return
 	}
 	his.cacheEvicts = make(map[string]chan *ClearCache)
+	delay, j := 0, 0
+	log.Printf("Booting CacheEvictThread")
 	for _, char := range HEXCHARS {
 		if his.cacheEvicts[char] != nil {
 			log.Printf("ERROR CacheEvictThread [%s] already created!", char)
 			continue
 		}
+		delay = j * int(BatchFlushEvery) / len(HEXCHARS)
 		his.cacheEvicts[char] = make(chan *ClearCache, his.cEvCap)
 		// launch a go func for every char with own evictChan
-		go func(char string, evictChan chan *ClearCache) {
+		go func(char string, delay int, evictChan chan *ClearCache) {
+			time.Sleep(time.Duration(delay) * time.Millisecond)
+
 			l1MUX := his.L1Cache.Muxers[char]
 			l2MUX := his.L2Cache.Muxers[char]
 			l3MUX := his.L3Cache.Muxers[char]
@@ -248,6 +253,6 @@ func (his *HISTORY) CacheEvictThread() {
 				timer.Reset(time.Duration(basetimer) * time.Second)
 			} // end for fetchdel
 
-		}(char, his.cacheEvicts[char])
+		}(char, delay, his.cacheEvicts[char])
 	} // end for HEXCHARS
 } // end func CacheEvictThread

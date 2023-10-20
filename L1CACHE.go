@@ -231,6 +231,10 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		pqM := a
 	}*/
 
+	if flagexpires {
+		pqEX := time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
+		l1.prioPush(char, pq, pqC, pqM, &L1PQItem{Key: hash, Expires: pqEX})
+	}
 	mux.mux.Lock()
 	if _, exists := ptr.cache[hash]; !exists {
 		ptr.cache[hash] = &L1ITEM{value: value}
@@ -246,10 +250,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		}
 	}
 	mux.mux.Unlock()
-	if flagexpires {
-		pqEX := time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
-		l1.prioPush(char, pq, pqC, pqM, &L1PQItem{Key: hash, Expires: pqEX})
-	}
+
 } // end func Set
 
 func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]uint64) {
