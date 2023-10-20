@@ -286,7 +286,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			}
 		}
 	default:
-		log.Printf("ERROR History_Boot his.rootBUCKETS invalid=%x", his.rootBUCKETS)
+		log.Printf("ERROR History_Boot his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
 	his.L1Cache.L1CACHE_Boot(his)
