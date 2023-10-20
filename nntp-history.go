@@ -42,6 +42,7 @@ var (
 	TESTDB      = "f"
 	TESTOFFSET  = 123456
 	ROOTBUCKETS []string
+	SUBBUCKETS  []string
 	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History     HISTORY
 	DEBUG       bool = true
@@ -266,28 +267,34 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	// his.rootBUCKETS defines startindex cutFirst for cutHashlen!
 	case 16:
 		his.cutFirst = 2
-		for _, c1 := range HEXCHARS {
-			ROOTBUCKETS = append(ROOTBUCKETS, c1)
-		}
+		ROOTBUCKETS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
+		//for _, c1 := range HEXCHARS {
+		//	ROOTBUCKETS = append(ROOTBUCKETS, c1)
+		//}
 	case 256:
 		his.cutFirst = 3
-		for _, c1 := range HEXCHARS {
-			for _, c2 := range HEXCHARS {
-				ROOTBUCKETS = append(ROOTBUCKETS, c1+c2)
-			}
-		}
+		ROOTBUCKETS = generateCombinations(HEXCHARS, 2, []string{}, []string{})
+		//for _, c1 := range HEXCHARS {
+		//	for _, c2 := range HEXCHARS {
+		//		ROOTBUCKETS = append(ROOTBUCKETS, c1+c2)
+		//	}
+		//}
 	case 4096:
+		ROOTBUCKETS = generateCombinations(HEXCHARS, 3, []string{}, []string{})
 		his.cutFirst = 4
-		for _, c1 := range HEXCHARS {
-			for _, c2 := range HEXCHARS {
-				for _, c3 := range HEXCHARS {
-					ROOTBUCKETS = append(ROOTBUCKETS, c1+c2+c3)
-				}
-			}
-		}
+		//for _, c1 := range HEXCHARS {
+		//	for _, c2 := range HEXCHARS {
+		//		for _, c3 := range HEXCHARS {
+		//			ROOTBUCKETS = append(ROOTBUCKETS, c1+c2+c3)
+		//		}
+		//	}
+		//}
 	default:
 		log.Printf("ERROR History_Boot his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
+	}
+	if his.keyIndex > 0 {
+		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
 	}
 	his.L1Cache.L1CACHE_Boot(his)
 
@@ -780,3 +787,19 @@ func IsPow2(n int) bool {
 	}
 	return true
 } // end func isPow2
+
+func generateCombinations(hexChars []string, length int, currentCombination []string, combinations []string) []string {
+	if len(currentCombination) == length {
+		// Print or use the current combination here
+		combination := strings.Join(currentCombination, "")
+		combinations = append(combinations, combination)
+		//fmt.Println(combination)
+		return combinations
+	}
+
+	for _, char := range hexChars {
+		newCombination := append(currentCombination, char)
+		combinations = generateCombinations(hexChars, length, newCombination, combinations)
+	}
+	return combinations
+}

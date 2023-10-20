@@ -359,7 +359,7 @@ func (his *HISTORY) RebuildHashDB() error {
 	return err
 } // end func RebuildHashDB
 
-func boltCreateBucket(db *bolt.DB, char string, bucket string) (retbool bool, err error) {
+func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (retbool bool, err error) {
 	// creates root buckets
 	if db == nil {
 		return false, fmt.Errorf("ERROR boltCreateBucket char=%s db=nil", char)
@@ -371,11 +371,22 @@ func boltCreateBucket(db *bolt.DB, char string, bucket string) (retbool bool, er
 		return false, fmt.Errorf("ERROR boltCreateBucket char=%s bucket=nil", char)
 	}
 	if err := db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(bucket)) // _ == bb == *bbolt.Bucket
+		root, err := tx.CreateBucket([]byte(bucket)) // _ == bb == *bbolt.Bucket
 		//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
 		if err != nil {
 			return err
 		}
+
+		if his.keyIndex > 0 {
+			for _, subbName := range SUBBUCKETS {
+				//subb, err := root.CreateBucket([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
+				_, err := root.CreateBucket([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets & boltBucketPutBatch
+				if err != nil {
+					return err
+				}
+			}
+		}
+
 		//logf(DEBUG2, "OK boltCreateBucket char=%s bucket='%s'", *char, *bucket)
 		retbool = true
 		return nil

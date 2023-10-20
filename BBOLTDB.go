@@ -341,7 +341,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
 	for _, bucket := range ROOTBUCKETS {
-		retbool, err := boltCreateBucket(db, char, bucket)
+		retbool, err := his.boltCreateBucket(db, char, bucket)
 		if err != nil || !retbool {
 			if err == bolt.ErrBucketExists {
 				checked++

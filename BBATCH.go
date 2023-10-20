@@ -135,9 +135,9 @@ fetchbatch:
 				} else {
 					// use sub buckets based on provided KeyIndex
 					subbName := string(bo.key[0:his.keyIndex])
-					subb, err := root.CreateBucketIfNotExists([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets
-					if err != nil {
-						return err
+					subb := root.Bucket([]byte(subbName)) // subbucket co-exists in boltBucketGetOffsets
+					if subb == nil {
+						return fmt.Errorf("ERROR boltBucketPutBatch [%s|%s] root.Bucket subbName=%s subbucket=nil", char, bucket, subbName)
 					}
 					key := string(bo.key[his.keyIndex:])
 					subb.FillPercent = SubBucketFillPercent
