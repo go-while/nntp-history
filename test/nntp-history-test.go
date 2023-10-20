@@ -83,11 +83,11 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", true, "true | false (debug batchlogs)") // debug batchlogs
-	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")  // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "16-65536 (default: 256)")
+	flag.BoolVar(&history.AdaptBatch, "AdaptBatch", true, "true | false  (experimental)")   // adaptive batchsize
+	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "1-... (default: 1024)")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "500-15000") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "7500-.... ms") // detailed insert performance: DBG_ABS1 / DBG_ABS2
 
 	// bbolt options
 
@@ -103,7 +103,7 @@ func main() {
 	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 64, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 256, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
@@ -159,7 +159,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		//history.BoltDB_MaxBatchSize = 256                    // = history.his.bUCKETSperDB // 0 disables boltdb internal batching. default: 1000
+		//history.BoltDB_MaxBatchSize = 256                    // = history.his.rootBUCKETS // 0 disables boltdb internal batching. default: 1000
 		history.BoltDB_MaxBatchDelay = time.Duration(BoltDB_MaxBatchDelay) * time.Millisecond // default: 10 * time.Millisecond
 
 		// AllocSize is the amount of space allocated when the database

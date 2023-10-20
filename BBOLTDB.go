@@ -24,7 +24,7 @@ const (
 	WCBBS_LL                      = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
 	// KeyLen is used with HashShort
 	//  1st char of hash selects boltDB
-	//  2nd + 3rd char (+4th char: if 4K his.bUCKETSperDB) of hash selects bucket in boltDB
+	//  2nd + 3rd char (+4th char: if 4K his.rootBUCKETS) of hash selects bucket in boltDB
 	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
 	// the key is further divided into 1st+2nd+3rd+... char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
@@ -62,14 +62,18 @@ var (
 
 	// can be 16 | (default: 256) | 4096 !4K is insane!
 	// creates this many batchQueues and more goroutines
-	BUCKETSperDB = 256
-	// KEYINDEX creates 16^N sub buckets in `his.bUCKETSperDB` ! can not be 0 !
-	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
-	KEYINDEX = 1
+	// 16 generates a lot of pagesplits in bbolt
+	// 256 is the sweet spot
+	// 4096 generates high load as it launches this many and more go routines and queues!
+	RootBUCKETSperDB = 256
 
-	// intBoltDBs * his.bUCKETSperDB * KEYINDEX =
-	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in BUCKETSperDB)
-	//    16      *      16      * (16^)1   =        4096 = (/16 = 256 BUCKETSperDB)
+	// KEYINDEX creates 16^N sub buckets in `his.rootBUCKETS` ! can not be 0 !
+	// KEYINDEX cuts (shortens) the KeyLen by this to use as subb.buckets
+	KEYINDEX = 3
+
+	// intBoltDBs * his.rootBUCKETS * KEYINDEX =
+	// (     ROOT-BUCKETS      ) * SUB BKTS = n Buckets over all 16 dbs (divided by 16 results in RootBUCKETSperDB)
+	//    16      *      16      * (16^)1   =        4096 = (/16 = 256 RootBUCKETSperDB)
 	//    16      *      16      * (16^)2   =       65536 ...
 	//    16      *      16      * (16^)3   =     1048576
 	//    16      *      16      * (16^)4   =    16777216
@@ -139,7 +143,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.L3Cache.L3CACHE_Boot(his)
 
 	his.batchQueues = &BQ{}
-	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.bUCKETSperDB)        // char [0-9a-f] * bucket [0-9a-f]
+	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.rootBUCKETS)         // char [0-9a-f] * bucket [0-9a-f]
 	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, intBoltDBs) // maps char : bucket => chan
 	//his.BoltDBsMap = make(map[string]*BOLTDB_PTR)                        // maps char => boltDB pointer
 	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
@@ -328,7 +332,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	his.BoltDBsMap.dbptr[char].mux.Lock()
 	his.BoltDBsMap.dbptr[char].BoltDB = db
 	his.BoltDBsMap.dbptr[char].mux.Unlock()
-	tocheck, checked, created := his.bUCKETSperDB, 0, 0
+	tocheck, checked, created := his.rootBUCKETS, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
 	for _, bucket := range ROOTBUCKETS {
@@ -388,7 +392,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	batchQcap := 1024
 	var timer int64 = 125 // milliseconds
 	batchQcap = CharBucketBatchSize * 2
-	switch his.bUCKETSperDB {
+	switch his.rootBUCKETS {
 	case 16:
 		timer = 250
 	case 256:
@@ -399,7 +403,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	if batchQcap < 1 {
 		batchQcap = 1
 	}
-	closedBuckets := make(chan struct{}, his.bUCKETSperDB)
+	closedBuckets := make(chan struct{}, his.rootBUCKETS)
 	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d", char, len(ROOTBUCKETS))
 	delay := 0
 	var j int
@@ -419,9 +423,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		// delays the start of a worker by batchflushevery divided by len of all root buckets.
 		// should somehow result in slowly booting workers to get a better flushing behavior
 		// more even distribution on runtime. else all workers boot at the same time and flush at the same time.
-		if !DEBUG {
-			delay = j * int(BatchFlushEvery) / len(ROOTBUCKETS)
-		}
+		delay = j * int(BatchFlushEvery) / len(ROOTBUCKETS)
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
 		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 		go func(db *bolt.DB, delay int, char string, bucket string, batchQueue chan *BatchOffset, closedBuckets chan struct{}, timer int64) {
@@ -548,7 +550,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		BQtimeout := 60 * 1000
 		for {
 			time.Sleep(time.Millisecond)
-			if len(his.batchQueues.BootCh) == intBoltDBs*his.bUCKETSperDB {
+			if len(his.batchQueues.BootCh) == intBoltDBs*his.rootBUCKETS {
 				break
 			}
 			BQtimeout--
@@ -671,7 +673,7 @@ forever:
 	//his.Sync_upcounterN("searches", searches)
 waiter:
 	for {
-		if len(closedBuckets) == his.bUCKETSperDB {
+		if len(closedBuckets) == his.rootBUCKETS {
 			break waiter
 		}
 		time.Sleep(time.Millisecond) // a wait to reopen can take up to 125ms
