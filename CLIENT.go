@@ -92,7 +92,8 @@ forever:
 				break forever
 			}
 			// send add command to HistoryServer
-			err := tp.PrintfLine("ADD %s", ConvertHistoryObjectToString(hobj))
+			hobjStr := ConvertHistoryObjectToString(hobj)
+			err := tp.PrintfLine("ADD %s %s", CRC(hobjStr), hobjStr)
 			if err != nil {
 				break forever
 			}
