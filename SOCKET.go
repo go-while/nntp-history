@@ -12,19 +12,20 @@ import (
 )
 
 const (
-	CR                   = "\r"
-	LF                   = "\n"
-	CRLF                 = CR + LF
-	DefaultListenTCPAddr = "[::]:49119" // default launches a tcp port with a telnet interface @ port 49119
+	CR                = "\r"
+	LF                = "\n"
+	CRLF              = CR + LF
+	DefaultSocketPath = "./history.socket"
+	// default launches a tcp port with a telnet interface @ localhost:49119
+	DefaultServerTCPAddr = "[::]:49119"
 )
 
 var (
 	ACL        AccessControlList
-	SocketPath = "./socket.sock"
 	DefaultACL map[string]bool // can be set before booting
 )
 
-func (his *HISTORY) startSocket(tcpListen string) {
+func (his *HISTORY) startServer(tcpListen string, socketPath string) {
 	if BootHisCli {
 		return
 	}
@@ -33,13 +34,16 @@ func (his *HISTORY) startSocket(tcpListen string) {
 	}
 	// socket listener
 	go func() {
-		os.Remove(SocketPath)
-		listener, err := net.Listen("unix", SocketPath)
+		if socketPath == "" {
+			return
+		}
+		os.Remove(socketPath)
+		listener, err := net.Listen("unix", socketPath)
 		if err != nil {
 			log.Printf("ERROR HistoryServer  creating socket err='%v'", err)
 			os.Exit(1)
 		}
-		log.Printf("HistoryServer UnixSocket: %s", SocketPath)
+		log.Printf("HistoryServer UnixSocket: %s", socketPath)
 		defer listener.Close()
 		for {
 			conn, err := listener.Accept()
@@ -53,6 +57,9 @@ func (his *HISTORY) startSocket(tcpListen string) {
 
 	// tcp listener
 	go func() {
+		if tcpListen == "" {
+			return
+		}
 		ACL.SetupACL()
 		listener, err := net.Listen("tcp", tcpListen)
 		if err != nil {
@@ -77,7 +84,7 @@ func (his *HISTORY) startSocket(tcpListen string) {
 			go his.handleSocketConn(conn, raddr, false)
 		}
 	}()
-} // end func startSocket
+} // end func startServer
 
 func (his *HISTORY) handleSocketConn(conn net.Conn, raddr string, socket bool) {
 	defer conn.Close()

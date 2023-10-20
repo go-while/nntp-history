@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"net/textproto"
+	"strings"
 	"time"
 )
 
@@ -13,7 +14,8 @@ const (
 )
 
 var (
-	BootHisCli bool
+	BootHisCli           bool
+	DefaultHistoryServer = "[::1]:49119" // localhost:49119
 	// set only once before boot
 	TCPchanQ           = 128
 	DefaultDialTimeout = 5   // seconds
@@ -30,12 +32,16 @@ type RemoteConn struct {
 func (his *HISTORY) BootHistoryClient(historyServer string) {
 	// one can launch as many clients to historyServer as needed
 	his.mux.Lock()
-	if his.TCPchan == nil {
-		his.TCPchan = make(chan *HistoryObject, TCPchanQ)
+	if his.TCPchan != nil {
+		return
 	}
+	his.TCPchan = make(chan *HistoryObject, TCPchanQ)
 	his.mux.Unlock()
+
 	if historyServer == "" {
-		historyServer = "[::1]:49119"
+		// can be 'historyServer:port' or path to 'unix.socket'
+		//historyServer = DefaultHistoryServer
+		historyServer = DefaultSocketPath
 	}
 	log.Printf("...connecting to historyServer='%s'", historyServer)
 	dead := make(chan struct{}, 1)
@@ -48,24 +54,27 @@ forever:
 	for {
 		rconn := his.NewRConn(historyServer)
 		if rconn == nil {
-			time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
 			if DefaultDialRetries > 0 {
 				if failed >= DefaultDialRetries {
 					break forever
 				}
 				failed++
 			}
+			time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
 			continue forever
 		}
 		failed = 0
 		go his.handleRConn(dead, rconn.conn, rconn.tp)
-		<-dead // locking wait for handleRemote to quit
-		time.Sleep(time.Duration(DefaultRetryWaiter) * time.Millisecond)
-	}
+		<-dead // blocking wait for handleRConn to quit
+	} // end forever
 } // end func BootHistoryClient
 
 func (his *HISTORY) NewRConn(historyServer string) *RemoteConn {
-	conn, err := net.DialTimeout("tcp", historyServer, time.Duration(DefaultDialTimeout)*time.Second)
+	mode := "tcp"
+	if strings.HasSuffix(historyServer, ".socket") {
+		mode = "unix"
+	}
+	conn, err := net.DialTimeout(mode, historyServer, time.Duration(DefaultDialTimeout)*time.Second)
 	if err != nil {
 		log.Printf("Error NewConn Dial err='%v'", err)
 		return nil
