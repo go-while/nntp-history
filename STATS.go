@@ -55,7 +55,7 @@ func (his *HISTORY) WatchBolt() {
 		if insertednow > inserted {
 			diff := insertednow - inserted
 			pps := diff / uWatchBoltTimer
-			log.Printf("WatchBolt: (inserted %d/s) (+%d inserted in 10s)", pps, diff)
+			log.Printf("WatchBolt: (inserted %d/s) (+%d inserted in %ds)", pps, diff, WatchBoltTimer)
 			inserted = insertednow
 		}
 		if batchinsnow > batchins {
@@ -63,17 +63,16 @@ func (his *HISTORY) WatchBolt() {
 				diff := batchinsnow - batchins
 				pps := diff / uWatchBoltTimer
 				medbatchsize := uint64(insertednow / batchinsnow)
-				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in 10s) medBS=~%d", pps, diff, medbatchsize)
+				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in %ds) medBS=~%d", pps, diff, medbatchsize, WatchBoltTimer)
 			}
 			batchins = batchinsnow
 		}
 		if searchesnow > searches {
 			diff := searchesnow - searches
 			pps := diff / uWatchBoltTimer
-			log.Printf("WatchBolt: (searches %d/s) (+%d searches in 10s)", pps, diff)
+			log.Printf("WatchBolt: (searches %d/s) (+%d searches in %ds)", pps, diff, WatchBoltTimer)
 			searches = searchesnow
 		}
-
 	}
 	log.Printf("ERROR WatchBolt returned!")
 } // end func WatchBolt
