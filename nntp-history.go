@@ -40,6 +40,7 @@ var (
 	TESTKEY     = "784ae1"
 	TESTBUK     = "0d"
 	TESTDB      = "f"
+	TESTOFFSET  = TESTOFFSET
 	ROOTBUCKETS []string
 	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History     HISTORY
@@ -442,22 +443,7 @@ forever:
 					default:
 						log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x", err, isDup, isDup)
 						break forever
-					}
-
-					/*
-						if isDup > 0 {
-							if isDup == 2 { // got EOF retry from dupecheck. flush history file so next check may hit
-								if err := dw.Flush(); err != nil {
-									log.Printf("ERROR history_Writer dw.Flush err='%v'", err)
-									break forever
-								}
-								//log.Printf("EOF forced flush OK")
-							}
-							// DUPLICATE entry
-							//logf(DEBUG0, "history_Writer Index DUPLICATE hash='%s'", *hobj.MessageIDHash)
-							continue forever
-						}
-					*/
+					} // end switch isDup
 				} // end select
 			} // end if History.IndexChan != nil
 			if err := his.writeHistoryLine(dw, hobj, flush, &wbt, &buffered); err != nil {
@@ -576,17 +562,13 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		}
 		defer file.Close()
 	}
-	//var hash string
-	//logf(offset == 1019995695, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
+	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
 	his.L2Cache.GetHashFromOffset(offset, rethash)
 	if *rethash != "" {
 		return nil
 	}
-	//if hash := his.L2Cache.GetHashFromOffset(offset, &hash); hash != "" {
-	//	//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
-	//	return hash, nil
-	//}
-	//logf(offset == 1019995695, "FSEEK [%s|%s] notfound L2 offset=%d", char, bucket, offset)
+	//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
+	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] TEST L2 offset=%d", char, bucket, offset)
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
@@ -594,10 +576,10 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
 		return seekErr
 	}
-	//logf(offset == 1019995695, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
+	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
 
 	reader := bufio.NewReaderSize(file, 67) // {sha256}\t
-	//logf(offset == 1019995695, "FSEEK [%s|%s] reading offset=%d", char, bucket, offset)
+	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] reading offset=%d", char, bucket, offset)
 
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
@@ -612,7 +594,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 	}
 	go his.Sync_upcounter("FSEEK")
 	result = strings.TrimSuffix(result, "\t")
-	//logf(offset == 1019995695, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
+	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
 
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
@@ -738,12 +720,9 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !batchQueued && !batchLocked {
 			break
 		}
-		// if batchQ < 256: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
-		// if v5 == 256: all batchQueues are still running
-		//if batchQ > 256 && v5 == 256 {
-		//if batchLOCKS > 0 {
+		// if batchQ < intBoltDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
+		// if v5 >= intBoltDBs*RootBuckets: all batchQueues are still running
 		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
-		//}
 		time.Sleep(time.Second)
 	}
 	his.WriterChan = nil
