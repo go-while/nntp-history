@@ -70,8 +70,8 @@ func main() {
 	// these 4 make up the HistorySettings too and are constants once DBs are initialized!
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
-	flag.IntVar(&KeyLen, "keylen", 8+3, "min:8 | default:8")
-	flag.IntVar(&history.KeyIndex, "keyindex", 3, "1-...") // use n chars of key for sub buckets. cuts KeyLen by this.
+	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
+	flag.IntVar(&history.KeyIndex, "keyindex", 0, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
 	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 16, "16, 256, 4096")
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
@@ -103,21 +103,21 @@ func main() {
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 25, "milliseconds (default: 10)")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 32, "milliseconds (default: 10)")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 16384, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 4096, "0-65536 default: -1 = 1000")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
-	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.30, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.30, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 1024, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 640, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
-	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1024)")
+	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
 
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
@@ -136,12 +136,25 @@ func main() {
 
 	flag.Parse()
 
-	BoltDB_MaxBatchDelay = int(history.BatchFlushEvery / int64(history.RootBUCKETSperDB) / 4) // tuneable
-	if BoltDB_MaxBatchDelay <= 5 {
-		BoltDB_MaxBatchDelay = 5
+	if BoltDB_MaxBatchDelay == -1 {
+		var divider float64 = 1
+		switch history.RootBUCKETSperDB {
+		case 16:
+			divider = 4
+		case 256:
+			divider = 2
+		case 4096:
+			divider = 1
+		}
+		autoBoltDB_MaxBatchDelay := int(float64(history.BatchFlushEvery) / float64(history.RootBUCKETSperDB) / divider) // tuneable
+		if autoBoltDB_MaxBatchDelay <= 32 {
+			BoltDB_MaxBatchDelay = 32
+		} else {
+			BoltDB_MaxBatchDelay = autoBoltDB_MaxBatchDelay
+		}
+		log.Printf("DEBUG AUTO SETTING: BoltDB_MaxBatchDelay: %d ms (auto=%d)", BoltDB_MaxBatchDelay, autoBoltDB_MaxBatchDelay)
+		time.Sleep(3 * time.Second)
 	}
-	log.Printf("DEBUG AUTO SETTING: BoltDB_MaxBatchDelay: %d ms", BoltDB_MaxBatchDelay)
-	time.Sleep(3 * time.Second)
 
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
