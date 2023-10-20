@@ -110,11 +110,11 @@ func main() {
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 1.0, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
 	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 512, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 2048, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1024)")
