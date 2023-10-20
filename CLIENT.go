@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+const (
+	MinRetryWaiter = 100
+)
+
 var (
 	BootHisCli bool
 	// set only once before boot
@@ -36,8 +40,8 @@ func (his *HISTORY) BootHistoryClient(historyServer string) {
 	log.Printf("...connecting to historyServer='%s'", historyServer)
 	dead := make(chan struct{}, 1)
 	failed := 0
-	if DefaultRetryWaiter <= 100 {
-		DefaultRetryWaiter = 100
+	if DefaultRetryWaiter <= MinRetryWaiter {
+		DefaultRetryWaiter = MinRetryWaiter
 	}
 
 forever:
