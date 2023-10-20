@@ -40,7 +40,7 @@ var (
 	TESTKEY     = "784ae1"
 	TESTBUK     = "0d"
 	TESTDB      = "f"
-	TESTOFFSET  = TESTOFFSET
+	TESTOFFSET  = 123456
 	ROOTBUCKETS []string
 	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History     HISTORY
