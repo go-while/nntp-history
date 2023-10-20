@@ -232,7 +232,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		}
 		logf(DEBUG0, "History_Boot history.dat headerBytes='%v'", header)
 
-		if err := gobDecodeHeader(&header, history_settings); err != nil {
+		if err := gobDecodeHeader(header, history_settings); err != nil {
 			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}

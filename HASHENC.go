@@ -15,7 +15,11 @@ import (
 )
 
 var (
-	ADDCRC bool = false
+	// set HEX true: converts offset into hex strings to store in bbolt
+	// dont change later once db is initialized!
+	HEX bool = true
+
+	//ADDCRC bool = false
 )
 
 type Offsets struct {
@@ -29,7 +33,13 @@ func concatInt64(input []int64, output *[]byte) (int, error) {
 	}
 	strSlice := make([]string, len(input))
 	for i, value := range input {
-		strSlice[i] = strconv.FormatInt(value, 16) // stores int64 as hex string
+		if HEX {
+			// stores int64 as hex string
+			strSlice[i] = strconv.FormatInt(value, 16)
+		} else {
+			// stores int64 as digit string
+			strSlice[i] = strconv.FormatInt(value, 10)
+		}
 		//if ADDCRC {
 		//	_, _ = CRC(strSlice[i])
 		//}
@@ -57,13 +67,25 @@ transform:
 			//log.Printf("parseByteToSlice ignored i=%d part='%s'", i, part)
 			continue transform
 		}
-		value, err := strconv.ParseInt(string(part), 16, 64) // reads hex
-		if err != nil {
-			log.Printf("ERROR parseByteToSlice err='%v'", err)
-			return 0, err
+		if HEX {
+			// reads hex
+			if value, err := strconv.ParseInt(string(part), 16, 64); err != nil {
+				log.Printf("ERROR parseByteToSlice HEX err='%v'", err)
+				return 0, err
+			} else {
+				*result = append(*result, value)
+			}
+		} else {
+			// reads digits
+			if value, err := strconv.ParseInt(string(part), 10, 64); err != nil {
+				log.Printf("ERROR parseByteToSlice DIG err='%v'", err)
+				return 0, err
+			} else {
+				*result = append(*result, value)
+			}
 		}
 		//log.Printf("parseByteToSlice i=%d part='%s'=>value=%d result='%#v'", i, string(part), value, result)
-		*result = append(*result, value)
+
 	}
 	//log.Printf("parseByteToSlice input=%s result='%#v'", string(input), parts, result)
 	return len(*result), nil
@@ -89,19 +111,17 @@ func gobEncodeHeader(iobuf *[]byte, settings *HistorySettings) (int, error) {
 	return leniobuf, nil
 } // end func gobEncodeHeader
 
-func gobDecodeHeader(encodedData *[]byte, retSettings *HistorySettings) error {
+func gobDecodeHeader(encodedData []byte, retSettings *HistorySettings) error {
 	if encodedData == nil || retSettings == nil {
 		return fmt.Errorf("ERROR gobDecodeHeader io=nil")
 	}
-	b64decodedString, err := base64.StdEncoding.DecodeString(RemoveNullPad(string(*encodedData)))
-	if err != nil {
+	if b64decodedString, err := base64.StdEncoding.DecodeString(RemoveNullPad(string(encodedData))); err == nil {
+		//decode header into supplied retSettings pointer
+		if err := gob.NewDecoder(bytes.NewBuffer([]byte(b64decodedString))).Decode(&retSettings); err != nil {
+			return fmt.Errorf("ERROR gobDecodeHeader Decode err='%v'", err)
+		}
+	} else {
 		return fmt.Errorf("ERROR gobDecodeHeader base64decode err='%v'", err)
-	}
-	//decoder := gob.NewDecoder(bytes.NewBuffer([]byte(b64decodedString)))
-	//err = decoder.Decode(&retSettings)
-	err = gob.NewDecoder(bytes.NewBuffer([]byte(b64decodedString))).Decode(&retSettings)
-	if err != nil {
-		return fmt.Errorf("ERROR gobDecodeHeader Decode err='%v'", err)
 	}
 	return nil
 } // end func gobDecodeHeader
