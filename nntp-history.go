@@ -88,14 +88,10 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 
 	if NumQueueWriteChan <= 0 {
 		NumQueueWriteChan = 1
-	} else if NumQueueWriteChan > 1000000 {
-		NumQueueWriteChan = 1000000
 	}
 
-	if BatchFlushEvery <= 500 { // milliseconds
-		BatchFlushEvery = 500
-	} else if BatchFlushEvery > 60000 { // a minute needs hell of ram!
-		BatchFlushEvery = 60000
+	if BatchFlushEvery <= 7500 { // milliseconds
+		BatchFlushEvery = 7500
 	}
 
 	if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
@@ -114,16 +110,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	// boltDB_Index receives a HistoryIndex struct and passes it down to boltDB_Worker['0-9a-f']
 	if IndexParallel <= 0 {
 		IndexParallel = 1
-	} else if IndexParallel > 16 {
-		IndexParallel = 16 // hardcoded limit to 16
+	} else if IndexParallel > intBoltDBs {
+		IndexParallel = intBoltDBs
 	}
 	his.indexPar = IndexParallel
 
-	if CharBucketBatchSize < 16 {
-		CharBucketBatchSize = 16
-	} else if CharBucketBatchSize > 65536 {
-		// we don't need more before year 2050, he said in 2023.
-		CharBucketBatchSize = 65536
+	if CharBucketBatchSize < 1 {
+		CharBucketBatchSize = 1
 	}
 	his.wCBBS = CharBucketBatchSize
 	log.Printf("CharBucketBatchSize=%d his.wCBBS=%d", CharBucketBatchSize, his.wCBBS)
@@ -202,8 +195,8 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		KEYINDEX = 1
 	}
 	his.keyIndex = KEYINDEX
-	his.bUCKETSperDB = BUCKETSperDB
-	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.bUCKETSperDB}
+	his.rootBUCKETS = RootBUCKETSperDB
+	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.rootBUCKETS}
 	// opens history.dat
 	var fh *os.File
 	new := false
@@ -264,12 +257,12 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		his.keyalgo = history_settings.Ka
 		his.keylen = history_settings.Kl
 		his.keyIndex = history_settings.Ki
-		his.bUCKETSperDB = history_settings.Bp
+		his.rootBUCKETS = history_settings.Bp
 		//logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
 
-	switch his.bUCKETSperDB {
-	// his.bUCKETSperDB defines startindex cutFirst for cutHashlen!
+	switch his.rootBUCKETS {
+	// his.rootBUCKETS defines startindex cutFirst for cutHashlen!
 	case 16:
 		his.cutFirst = 2
 		for _, c1 := range HEXCHARS {
@@ -292,7 +285,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			}
 		}
 	default:
-		log.Printf("ERROR History_Boot his.bUCKETSperDB invalid=%x", his.bUCKETSperDB)
+		log.Printf("ERROR History_Boot his.rootBUCKETS invalid=%x", his.rootBUCKETS)
 		os.Exit(1)
 	}
 	his.L1Cache.L1CACHE_Boot(his)
