@@ -87,16 +87,24 @@ func main() {
 	flag.IntVar(&history.CharBucketBatchSize, "BatchSize", 1024, "1-... (default: 1024)")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 15000, "7500-.... ms") // detailed insert performance: DBG_ABS1 / DBG_ABS2
+	// detailed insert performance: DBG_ABS1 / DBG_ABS2
+	// 32768 ms / 256 RootBucketsPerDB = every 128ms will one of the buckets put its batch to bbolt
+	// depends on your load. if you have low volume you can batchflush more frequently.
+	// but hiload (100k tx/sec) benefit from higher batchflush values 16k-64k ms.
+	// watch out for bboltDB option MaxBatchDelay. affects this somehow. how? do your tests with your load xD
+	// start of the app will be delayed by this timeframe to start workers within this timeframe
+	// to get a better flushing distribution over the timeframe.
+	// choose a pow2 number because buckets are pow2 too
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 32768, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 100, "milliseconds (default: 10)")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 10, "milliseconds (default: 10)")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 16384, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 1000, "0-65536 default: -1 = 1000")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
@@ -202,12 +210,15 @@ func main() {
 	start := time.Now().Unix()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
 
+	history.DefaultACL = make(map[string]bool)
+	if history.DEBUG {
+		// default: all is blocked from talking to tcp port
+		// allows localhost while debugging
+		history.DefaultACL["::1"] = true
+		history.DefaultACL["127.0.0.1"] = true
+	}
+
 	if RunTCPonly {
-		history.DefaultACL = make(map[string]bool)
-		if history.DEBUG {
-			history.DefaultACL["::1"] = true
-			history.DefaultACL["127.0.0.1"] = true
-		}
 		history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
