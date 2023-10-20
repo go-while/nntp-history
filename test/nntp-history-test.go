@@ -137,6 +137,9 @@ func main() {
 	flag.Parse()
 
 	BoltDB_MaxBatchDelay = int(history.BatchFlushEvery / int64(history.RootBUCKETSperDB) / 4) // tuneable
+	if BoltDB_MaxBatchDelay <= 5 {
+		BoltDB_MaxBatchDelay = 5
+	}
 	log.Printf("DEBUG AUTO SETTING: MaxBatchDelay: %d ms", BoltDB_MaxBatchDelay)
 	time.Sleep(3 * time.Second)
 
