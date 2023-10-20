@@ -140,7 +140,7 @@ func main() {
 	if BoltDB_MaxBatchDelay <= 5 {
 		BoltDB_MaxBatchDelay = 5
 	}
-	log.Printf("DEBUG AUTO SETTING: MaxBatchDelay: %d ms", BoltDB_MaxBatchDelay)
+	log.Printf("DEBUG AUTO SETTING: BoltDB_MaxBatchDelay: %d ms", BoltDB_MaxBatchDelay)
 	time.Sleep(3 * time.Second)
 
 	if numCPU > 0 {
