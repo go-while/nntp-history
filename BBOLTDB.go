@@ -208,6 +208,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	for i, char := range HEXCHARS { // dont move this up into the first for loop or it drops race conditions for nothing...
 		go his.boltDB_Worker(char, i, his.indexChans[i], boltOpts)
 	}
+	time.Sleep(time.Second * 2)
 	go his.boltDB_Index()
 	his.ReplayHisDat()
 	if ForcedReplay {
@@ -357,7 +358,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	<-his.boltInitChan
 
-	logf(DEBUG1, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+	logf(DEBUG, "HDBZW [%s] root.buckets checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	if checked != tocheck || (created > 0 && created != tocheck) {
 		log.Printf("ERROR HDBZW INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 		return
