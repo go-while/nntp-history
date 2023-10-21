@@ -265,16 +265,10 @@ func (pq L2PQ) Len() int { return len(pq) }
 
 func (pq L2PQ) Less(i, j int) bool {
 	//log.Printf("L2PQ Less()")
-	//if len(pq) == 0 {
-	//	return false
-	//}
 	return pq[i].Expires < pq[j].Expires
 }
 
 func (pq L2PQ) Swap(i, j int) {
-	//if len(pq) == 0 {
-	//	return
-	//}
 	//log.Printf("L2PQ Swap()")
 	pq[i], pq[j] = pq[j], pq[i]
 }
@@ -307,25 +301,13 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	pq := l2.prioQue[char]
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
-	dqcnt, dqmax := 0, 512
-	lastdel := time.Now().Unix()
+	lpq := 0
 	var item *L2PQItem
-	dq := []int64{}
 forever:
 	for {
-		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L2Purge && dqcnt > 0) {
-			//logf(DEBUGL2, "L2 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
-			mux.mux.Lock()
-			for _, delkey := range dq {
-				delete(ptr.cache, delkey)
-				cnt.Counter["Count_Delete"]++
-			}
-			mux.mux.Unlock()
-			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
-		}
-
 		pqM.mux.Lock()
-		if len(*pq) == 0 {
+		lpq = len(*pq)
+		if lpq == 0 {
 			pqM.mux.Unlock()
 			//logf(DEBUGL2, "L2 pqExpire [%s] wait on <-pqC", char)
 			select {
@@ -347,12 +329,16 @@ forever:
 			pqM.mux.Lock()
 			heap.Pop(pq)
 			pqM.mux.Unlock()
-			dq = append(dq, item.Key)
-			dqcnt++
+			//dq = append(dq, item.Key)
+			//dqcnt++
+			mux.mux.Lock()
+			delete(ptr.cache, item.Key)
+			cnt.Counter["Count_Delete"]++
+			mux.mux.Unlock()
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//logf(DEBUGL2, "L2 pqExpire [%s] offset='%d' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			logf(DEBUGL2 || ALWAYS, "L2 pqExpire [%s] offset='%d' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for

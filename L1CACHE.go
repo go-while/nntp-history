@@ -10,7 +10,7 @@ import (
 
 var (
 	DEBUGL1         bool  = false
-	L1              bool = true // better not disable L1 cache...
+	L1              bool  = true // better not disable L1 cache...
 	L1CacheExpires  int64 = DefaultCacheExpires
 	L1ExtendExpires int64 = DefaultCacheExtend
 	L1Purge         int64 = DefaultCachePurge
@@ -91,7 +91,6 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.prioQue = make(map[string]*L1PQ, intBoltDBs)
 	l1.pqChans = make(map[string]chan struct{}, intBoltDBs)
 	l1.pqMuxer = make(map[string]*L1PQMUX, intBoltDBs)
-	//l1.arenas = make(map[string]*L1Arena, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &StrECH{ch: make(chan []string, his.cEvCap)}
@@ -100,9 +99,6 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		l1.prioQue[char] = &L1PQ{}
 		l1.pqChans[char] = make(chan struct{}, 1)
 		l1.pqMuxer[char] = &L1PQMUX{}
-		//l1.arenas[char] = &L1Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
-		//l1.arenas[char].prioQue = arena.New[L1PQ](l1.arenas[char].pqmem)
-		//l1.arenas[char].dqslice = arena.New[DQSlice](l1.arenas[char].dqmem)
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -122,7 +118,7 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 //	CasePass == not a duplicate == locked article for processing
 func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bool) int {
 	if !L1 {
-		return casePass
+		return CasePass
 	}
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d tryLock", char, hash, value)
@@ -346,25 +342,13 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	pq := l1.prioQue[char]
 	pqC := l1.pqChans[char]
 	pqM := l1.pqMuxer[char]
-	dq := []string{}
-	dqcnt, dqmax := 0, 512
-	lastdel := time.Now().Unix()
+	lpq := 0
 	var item *L1PQItem
 forever:
 	for {
-		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L1Purge && dqcnt > 0) {
-			//logf(DEBUGL1, "L1 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
-			mux.mux.Lock()
-			for _, delkey := range dq {
-				delete(ptr.cache, delkey)
-				cnt.Counter["Count_Delete"]++
-			}
-			mux.mux.Unlock()
-			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
-		}
-
 		pqM.mux.Lock()
-		if len(*pq) == 0 {
+		lpq = len(*pq)
+		if lpq == 0 {
 			pqM.mux.Unlock()
 			//logf(DEBUGL1, "L1 pqExpire [%s] wait on <-pqC", char)
 			select {
@@ -386,12 +370,16 @@ forever:
 			pqM.mux.Lock()
 			heap.Pop(pq)
 			pqM.mux.Unlock()
-			dq = append(dq, item.Key)
-			dqcnt++
+			//dq = append(dq, item.Key)
+			//dqcnt++
+			mux.mux.Lock()
+			delete(ptr.cache, item.Key)
+			cnt.Counter["Count_Delete"]++
+			mux.mux.Unlock()
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//log.Printf("L1 pqExpire [%s] hash='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			logf(DEBUGL1 || ALWAYS, "L1 pqExpire [%s] hash='%s' diff=%d sleepTime=%d lpq=%d", char, item.Key, currentTime-item.Expires, sleepTime, lpq)
 			time.Sleep(sleepTime)
 		}
 	} // end for
