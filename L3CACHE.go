@@ -425,7 +425,7 @@ forever:
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//log.Printf("L3 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			log.Printf("L3 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for
