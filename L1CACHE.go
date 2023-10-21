@@ -10,6 +10,7 @@ import (
 
 var (
 	DEBUGL1         bool  = false
+	L1              bool = true // better not disable L1 cache...
 	L1CacheExpires  int64 = DefaultCacheExpires
 	L1ExtendExpires int64 = DefaultCacheExtend
 	L1Purge         int64 = DefaultCachePurge
@@ -74,6 +75,9 @@ type L1Arena struct {
 // The L1CACHE_Boot method initializes the cache system.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
 func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
+	if !L1 {
+		return
+	}
 	l1.mux.Lock()
 	defer l1.mux.Unlock()
 	if l1.Caches != nil {
@@ -117,6 +121,9 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 //	CaseDupes == is a duplicate
 //	CasePass == not a duplicate == locked article for processing
 func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bool) int {
+	if !L1 {
+		return casePass
+	}
 	//if hash == TESTHASH {
 	//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d tryLock", char, hash, value)
 	//}
@@ -156,6 +163,9 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 
 // The L1Cache_Thread function runs as a goroutine for each character.
 func (l1 *L1CACHE) L1Cache_Thread(char string) {
+	if !L1 {
+		return
+	}
 	l1.mux.Lock() // waits for L1CACHE_Boot to unlock
 	l1.mux.Unlock()
 	//logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
@@ -208,6 +218,9 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 // The Set method is used to set a value in the cache.
 // If the cache size is close to its maximum, it grows the cache.
 func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
+	if !L1 {
+		return
+	}
 	if len(hash) < 32 { // at least md5
 		log.Printf("ERROR L1CACHESet hash=nil")
 		return
@@ -253,6 +266,9 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 } // end func Set
 
 func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]uint64) {
+	if !L1 {
+		return
+	}
 	if statskey == "" {
 		retmap = make(map[string]uint64)
 	}
@@ -316,6 +332,9 @@ func (pq *L1PQ) Push(x interface{}) {
 
 // Remove expired items from the cache
 func (l1 *L1CACHE) pqExpire(char string) {
+	if !L1 {
+		return
+	}
 	l1.mux.Lock() // waits for boot to finish
 	l1.mux.Unlock()
 
@@ -372,13 +391,16 @@ forever:
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			log.Printf("L1 pqExpire [%s] hash='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			//log.Printf("L1 pqExpire [%s] hash='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for
 } // end func pqExpire
 
 func (l1 *L1CACHE) prioPush(char string, pq *L1PQ, pqC chan struct{}, pqM *L1PQMUX, item *L1PQItem) {
+	if !L1 {
+		return
+	}
 	//log.Printf("L1 prioPush [%s] heap.push key='%s' expireS=%d", char, hash, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pqM.mux.Lock()
 	heap.Push(pq, item)
