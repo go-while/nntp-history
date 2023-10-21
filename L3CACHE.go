@@ -37,7 +37,6 @@ type L3CACHE struct {
 	prioQue map[string]*L3PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
 	pqMuxer map[string]*L3PQMUX      // Priority queue Muxers
-	//arenas  map[string]*L3Arena
 }
 
 type L3CACHEMAP struct {
@@ -55,18 +54,6 @@ type L3MUXER struct {
 type L3PQMUX struct {
 	mux sync.Mutex
 }
-
-/*
-type L3Arena struct {
-	mux sync.RWMutex
-
-	pqmem   *arena.Arena
-	prioQue *L3PQ
-
-	dqmem   *arena.Arena
-	dqslice *DQSlice
-}
-*/
 
 // The L3CACHE_Boot method initializes the L3 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.

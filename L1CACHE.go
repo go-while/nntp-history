@@ -36,7 +36,6 @@ type L1CACHE struct {
 	prioQue map[string]*L1PQ         // Priority queue for item expiration
 	pqChans map[string]chan struct{} // Priority queue notify channels
 	pqMuxer map[string]*L1PQMUX      // Priority queue Muxers
-	//arenas  map[string]*L1Arena
 }
 
 type L1CACHEMAP struct {
@@ -54,23 +53,6 @@ type L1MUXER struct {
 type L1PQMUX struct {
 	mux sync.Mutex
 }
-
-/*
-mem := arena.NewArena()
-//defer mem.Free()
-memhash := arena.New[AHASH](mem)
-memhash.buffer = make([]byte, bufferSize)
-
-type L1Arena struct {
-	mux sync.RWMutex
-
-	pqmem   *arena.Arena
-	prioQue *L1PQ
-
-	dqmem   *arena.Arena
-	dqslice *DQSlice
-}
-*/
 
 // The L1CACHE_Boot method initializes the cache system.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
