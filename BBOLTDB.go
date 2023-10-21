@@ -568,7 +568,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					// queue has elements: randomly flush early to get some random distribution?
 					arand, err := generateRandomInt(1, 100)
 					if err == nil && arand == 77 {
-						log.Printf("forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
+						logf(DEBUG2, "forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
 						forced = true
 						continue forbatchqueue
 					}
