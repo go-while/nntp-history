@@ -37,20 +37,22 @@ func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
 	return nil
 } // end func getNewDB
 
-func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, Qcap int, forced bool, src string, lastflush int64, workerCharBucketBatchSize int) (int, uint64, error, bool) {
+func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, Qcap int, forced bool, src string, lastflush int64, workerCharBucketBatchSize int, batchLockChan chan struct{}) (int, uint64, error, bool) {
 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	Q := len(batchQueue)
 	//Qcap := cap(batchQueue)
-	if Q >= int(Qcap/100*75) {
+	//if Q >= int(Qcap/100*75) {
+	if Q >= workerCharBucketBatchSize || forced {
 		//log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
 		//pass
-	} else if Q < workerCharBucketBatchSize && !forced {
+		//} else if Q < workerCharBucketBatchSize && !forced {
+	} else {
 		return Q, 0, nil, false
 	}
 
-	his.BatchLocks[char].bl[bucket].ch <- struct{}{}
-	defer his.returnBatchLock(char, bucket)
+	batchLockChan <- struct{}{}
+	defer his.returnBatchLock(char, bucket, batchLockChan)
 
 	var err error
 	var closed bool
@@ -66,39 +68,44 @@ fetchbatch:
 				//logf(DEBUG2, "boltBucketPutBatch received nil pointer [%s|%s]", char, bucket)
 				break fetchbatch
 			}
-			if bo.char != char {
-				log.Printf("ERROR boltBucketPutBatch bo.char nil or empty or mismatch!")
-				continue fetchbatch
-			}
-			if bo.bucket == "" {
-				log.Printf("ERROR boltBucketPutBatch bo.bucket nil or empty")
-				continue fetchbatch
-			}
-			if bo.bucket != bucket {
-				err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
-				return 0, 0, err, closed
-			}
-			if bo.encodedOffsets == nil || len(bo.encodedOffsets) == 0 {
-				log.Printf("ERROR boltBucketPutBatch bo.encodedOffsets nil or empty!")
-				continue fetchbatch
-			}
-			if bo.hash == "" {
-				log.Printf("ERROR boltBucketPutBatch bo.hash nil or empty!")
-				continue fetchbatch
-			}
-			if bo.key == "" {
-				log.Printf("ERROR boltBucketPutBatch bo.key nil or empty!")
-				continue fetchbatch
-			}
+			/*
+				if bo.char != char {
+					log.Printf("ERROR boltBucketPutBatch bo.char nil or empty or mismatch!")
+					continue fetchbatch
+				}
+				if bo.bucket == "" {
+					log.Printf("ERROR boltBucketPutBatch bo.bucket nil or empty")
+					continue fetchbatch
+				}
+				if bo.bucket != bucket {
+					err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
+					return 0, 0, err, closed
+				}
+				if bo.encodedOffsets == nil || len(bo.encodedOffsets) == 0 {
+					log.Printf("ERROR boltBucketPutBatch bo.encodedOffsets nil or empty!")
+					continue fetchbatch
+				}
+				if bo.hash == "" {
+					log.Printf("ERROR boltBucketPutBatch bo.hash nil or empty!")
+					continue fetchbatch
+				}
+				if bo.key == "" {
+					log.Printf("ERROR boltBucketPutBatch bo.key nil or empty!")
+					continue fetchbatch
+				}
+			*/
 			// appends to tmp batch
 			batch1 = append(batch1, bo)
-			if !forced && len(batch1) >= workerCharBucketBatchSize {
+			if (!forced && len(batch1) >= workerCharBucketBatchSize) || (forced && len(batch1) >= Qcap) {
 				break fetchbatch
 			}
 		default:
+			// channel is empty
 			break fetchbatch
 		}
 	} // end fetchbatch
+
+	//logf(DEBUG, "boltBucketPutBatch [%s|%s] batch=%d to bboltDB", char, bucket, len(batch1))
 
 	//var freelist int
 	var inserted uint64
@@ -176,20 +183,22 @@ fetchbatch:
 			his.batchLog(&BatchLOG{c: char, b: bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
 		}
 		// debugs adaptive batchsize
-		logf(DBG_ABS1, "INFO bboltPutBatch [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
+		//logf(DBG_ABS1, "INFO bboltPutBatch: [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 	}
 	if inserted > 0 {
 		go his.Sync_upcounterN("inserted", inserted) // +N
 		go his.Sync_upcounter("batchins")            // ++
 	}
-	//if freelist > 0 {
-	//	log.Printf("INFO boltBucketPutBatch freelist=%d", freelist)
-	//}
 	return len(batchQueue), inserted, err, closed
 } // end func boltBucketPutBatch
 
-func (his *HISTORY) returnBatchLock(char string, bucket string) {
-	<-his.BatchLocks[char].bl[bucket].ch
+func (his *HISTORY) returnBatchLock(char string, bucket string, batchLockChan chan struct{}) {
+	if batchLockChan != nil {
+		<-batchLockChan
+		return
+	} else if char != "" && bucket != "" {
+		<-his.BatchLocks[char].bl[bucket].ch
+	}
 	/*
 		select {
 		case _ = <-his.BatchLocks[char].bl[bucket].ch:

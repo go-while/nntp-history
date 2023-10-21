@@ -311,7 +311,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("boltDB init done")
 	}
 
-	his.CacheEvictThread()
+	his.CacheEvictThread(his.cutFirst)
 
 	logf(BootVerbose, "\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)

@@ -583,10 +583,10 @@ func CPUBURN() {
 	}
 }
 
-func GetMedian(char string, slice *[]int64, new int64, lim int, print bool) (med int64) {
+func GetMedian(char string, bucket string, slice *[]int64, new int64, lim int, minian int64, , maxian int64, print bool) (med int64) {
 	var sum int64
 	*slice = append(*slice, new)
-	if len(*slice) > lim && new < BatchFlushEvery/2 {
+	if len(*slice) > lim {
 		// pop one and shift slice
 		shift := *slice
 		shift = shift[1:]
@@ -595,15 +595,15 @@ func GetMedian(char string, slice *[]int64, new int64, lim int, print bool) (med
 			sum += val
 		}
 		if sum > 0 {
-			med = int64(sum/int64(len(*slice))) / 2
+			// heartbeat: median / 4 will push us ~25% over the wCBBS. Q is x2.
+			med = int64(sum/int64(len(*slice))) / 4
+			//logf(print, "GetMedian: [%s|%s] med=%d +new=%d", char, bucket, med, new)
 		}
-		//logf(print, "getMedian med=%d new=%d slice='%#v'", med, new, *slice)
-		logf(print, "GetMedian [%s] med=%d new=%d", char, med, new)
 	}
-	if med < 125 {
-		med = 125
-	} else if med > BatchFlushEvery {
-		med = int64(BatchFlushEvery / 100 * 75)
+	if med < minian {
+		med = minian
+	} else if med > maxian {
+		med = maxian
 	}
 	return
 } // end func median
