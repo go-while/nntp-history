@@ -304,10 +304,16 @@ func (pq L3PQ) Len() int { return len(pq) }
 
 func (pq L3PQ) Less(i, j int) bool {
 	//log.Printf("L3PQ Less()")
+	//if len(pq) == 0 {
+	//	return false
+	//}
 	return pq[i].Expires < pq[j].Expires
 }
 
 func (pq L3PQ) Swap(i, j int) {
+	//if len(pq) == 0 {
+	//	return
+	//}
 	//log.Printf("L3PQ Swap()")
 	pq[i], pq[j] = pq[j], pq[i]
 }

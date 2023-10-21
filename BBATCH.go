@@ -1,11 +1,13 @@
 package history
 
 import (
+	"container/heap"
 	"fmt"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"math"
+	"sync"
 	"time"
 )
 
@@ -35,13 +37,13 @@ func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
 	return nil
 } // end func getNewDB
 
-func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, forced bool, src string, lastflush int64, workerCharBucketBatchSize int) (int, uint64, error, bool) {
+func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, batchQueue chan *BatchOffset, Qcap int, forced bool, src string, lastflush int64, workerCharBucketBatchSize int) (int, uint64, error, bool) {
 
 	//if len(batchQueue) < CharBucketBatchSize && !forced && lastflush < BatchFlushEvery {
 	Q := len(batchQueue)
-	Qcap := cap(batchQueue)
-	if Q >= int(Qcap/100*95) {
-		log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
+	//Qcap := cap(batchQueue)
+	if Q >= int(Qcap/100*75) {
+		//log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
 		//pass
 	} else if Q < workerCharBucketBatchSize && !forced {
 		return Q, 0, nil, false
@@ -351,3 +353,152 @@ func bool2int(abool bool) int {
 	}
 	return 0
 } // end func bool2int
+
+//  batch priority queue
+
+func runAT(batchFlushEvery int64) int64 {
+	return time.Now().UnixNano() + batchFlushEvery*int64(time.Millisecond)
+}
+
+func pushChan(achan chan struct{}) bool {
+	select {
+	case achan <- struct{}{}:
+		return true
+	default:
+		// pass
+	}
+	return false
+} // end func pushChan
+
+func pullChan(achan chan struct{}) bool {
+	select {
+	case <-achan:
+		return true
+	default:
+		// pass
+	}
+	return false
+} // end func runChan
+
+type BBPQ []*BBPQItem
+
+type BBPQItem struct {
+	WID int           // workers id
+	Run int64         // timestamp when worker should run
+	Now int64         // timestamp of priopush
+	NCH chan struct{} // notify channel to worker
+}
+
+type BBPQMUX struct {
+	mux sync.RWMutex
+}
+
+func (pq BBPQ) Len() int { return len(pq) }
+
+func (pq BBPQ) Less(i, j int) bool {
+	//log.Printf("BBPQ Less()")
+	return pq[i].Run < pq[j].Run
+}
+
+func (pq BBPQ) Swap(i, j int) {
+	//log.Printf("BBPQ Swap()")
+	pq[i], pq[j] = pq[j], pq[i]
+}
+
+func (pq *BBPQ) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	*pq = old[0 : n-1]
+	old = nil
+	//log.Printf("BBPQ POP() item='%#v", item)
+	return item
+}
+
+func (pq *BBPQ) Push(x interface{}) {
+	item := x.(*BBPQItem)
+	*pq = append(*pq, item)
+}
+
+func (his *HISTORY) pqOrchestra(char string) {
+	log.Printf("pqOrc [%s] Boot LOCK", char)
+	his.mux.Lock() // waits for boot to finish
+	his.mux.Unlock()
+	log.Printf("pqOrc [%s] Boot UNLOCK", char)
+
+	pq := his.prioQue[char]
+	pqC := his.pqChans[char]
+	pqM := his.pqMuxer[char]
+
+	//var empty bool
+	//lpq := 0
+	var item *BBPQItem
+	locked := false
+forever:
+	for {
+		//log.Printf("pqOrc [%s] forever", char)
+		if !locked {
+			pqM.mux.Lock()
+			locked = true
+		}
+		if len(*pq) == 0 {
+			if locked {
+				pqM.mux.Unlock()
+				locked = false
+			}
+			// enter waiter
+			log.Printf("pqOrc [%s] wait on <-pqC", char)
+			select {
+			case <-pqC: // blocking wait for his.prioPush()
+				log.Printf("pqOrc [%s] recv on <-pqC", char)
+				continue forever
+			}
+		} else {
+			// Get the item with the nearest expiration time
+			item = (*pq)[0]
+		}
+		if locked {
+			pqM.mux.Unlock()
+			locked = false
+		}
+
+		currentTime := time.Now().UnixNano()
+
+		if item.Run <= currentTime {
+			//time.Sleep(time.Second)
+			// This item has expired, remove it from the cache and priority queue
+			//log.Printf("pqOrc [%s] wid=%d expired diff=(%d ns) age=(%d ms)", char, item.WID, item.Run-currentTime, utils.UnixTimeMilliSec()-item.Now)
+			pqM.mux.Lock()
+			heap.Pop(pq)
+			pqM.mux.Unlock()
+			if pushChan(item.NCH) {
+				//log.Printf("pqOrc [%s] sent notify to wid=%d", char, item.WID)
+			} else {
+				log.Printf("pqOrc [%s] failed notify to wid=%d chan full", char, item.WID)
+			}
+		} else {
+			// The nearest item hasn't expired yet, sleep until it does
+			sleepTime := time.Duration(item.Run - currentTime)
+			log.Printf("pqOrc [%s] sleeping wid=%d runAT=%d infuture=(%d ms) sleep=(%d ms)", char, item.WID, item.Run, ((item.Run - currentTime) / int64(time.Millisecond)), (sleepTime / time.Millisecond))
+			time.Sleep(sleepTime)
+		}
+	} // end for
+} // end func pqOrc
+
+func (his *HISTORY) prioPush(char string, pq *BBPQ, pqC chan struct{}, pqM *BBPQMUX, item *BBPQItem) {
+	//log.Printf("his.prioPush [%s] heap.push wid=%d runs=%d", char, item.WID, (item.Run-time.Now().UnixNano())/int64(time.Millisecond))
+	pqM.mux.Lock()
+	heap.Push(pq, item)
+	pqM.mux.Unlock()
+
+	//log.Printf("his.prioPush [%s] heap.push unlocked", char)
+	select {
+	case pqC <- struct{}{}:
+		//log.Printf("his.prioPush [%s] heap.push [pqC <- struct]", char)
+		// pass notify to pqExpire()
+	default:
+		//log.Printf("his.prioPush [%s] heap.push [pqC FULL]", char)
+		// pass too: notify chan is full
+	}
+	//log.Printf("his.prioPush [%s] heap.push passed pqC", char)
+} // end func prioPush

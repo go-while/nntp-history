@@ -414,7 +414,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 				}
 				did += len(batchCreate)
 				batchCreate = nil
-				time.Sleep(time.Millisecond/10) // cpu burner and disk killer
+				time.Sleep(time.Millisecond / 10) // cpu burner and disk killer
 			}
 		} // end for range subbuckets
 		if len(batchCreate) > 0 {
@@ -424,7 +424,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 		retbool = true
 
 	} else if his.keyIndex <= 0 {
-		log.Printf("boltCreateBucket [%s|%s] pre-create root buckets =%d", char, bucket, len(ROOTBUCKETS))
+		logf(DEBUG1, "boltCreateBucket [%s|%s] pre-create root buckets =%d", char, bucket, len(ROOTBUCKETS))
 		if err := db.Update(func(tx *bolt.Tx) error {
 			_, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
 			//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
@@ -582,3 +582,39 @@ func CPUBURN() {
 		runtime.Gosched()
 	}
 }
+
+func GetMedian(char string, slice *[]int64, new int64, lim int, print bool) (med int64) {
+	var sum int64
+	*slice = append(*slice, new)
+	if len(*slice) > lim && new < BatchFlushEvery/2 {
+		// pop one and shift slice
+		shift := *slice
+		shift = shift[1:]
+		*slice = shift
+		for _, val := range *slice {
+			sum += val
+		}
+		if sum > 0 {
+			med = int64(sum/int64(len(*slice))) / 2
+		}
+		//logf(print, "getMedian med=%d new=%d slice='%#v'", med, new, *slice)
+		logf(print, "GetMedian [%s] med=%d new=%d", char, med, new)
+	}
+	if med < 125 {
+		med = 125
+	} else if med > BatchFlushEvery {
+		med = int64(BatchFlushEvery / 100 * 75)
+	}
+	return
+} // end func median
+
+func wantPrint(want bool, lastprint *int64, now int64, printEvery int64) bool {
+	if !want {
+		return false
+	}
+	if *lastprint < now-printEvery {
+		*lastprint = now
+		return true
+	}
+	return false
+} // end func wantPrint

@@ -304,9 +304,11 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
 	}
 	his.L1Cache.L1CACHE_Boot(his)
-
+	log.Printf("L1Cache Booted")
 	if his.useHashDB {
+		log.Printf("Booting boltDB")
 		his.boltDB_Init(boltOpts)
+		log.Printf("boltDB init done")
 	}
 
 	his.CacheEvictThread()

@@ -246,10 +246,16 @@ func (pq L2PQ) Len() int { return len(pq) }
 
 func (pq L2PQ) Less(i, j int) bool {
 	//log.Printf("L2PQ Less()")
+	//if len(pq) == 0 {
+	//	return false
+	//}
 	return pq[i].Expires < pq[j].Expires
 }
 
 func (pq L2PQ) Swap(i, j int) {
+	//if len(pq) == 0 {
+	//	return
+	//}
 	//log.Printf("L2PQ Swap()")
 	pq[i], pq[j] = pq[j], pq[i]
 }
