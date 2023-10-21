@@ -97,13 +97,13 @@ func main() {
 	// start of the app will be delayed by this timeframe to start workers within this timeframe
 	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 16384, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 65536*2, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 256, "milliseconds (default: 10)")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 64, "milliseconds (default: 10)")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
@@ -227,6 +227,7 @@ func main() {
 			//PreLoadFreelist: ?,
 			// If you want to read the entire database fast, you can set MmapFlag to
 			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
+			// useless with zfs on ssds/nvme and enough ram?
 			//MmapFlags: syscall.MAP_POPULATE,
 		}
 		boltOpts = &bO

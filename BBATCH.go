@@ -16,10 +16,10 @@ var (
 	DBG_ABS1             bool                           // debugs adaptive batchsize in boltBucketPutBatch
 	DBG_ABS2             bool                           // debugs adaptive batchsize forbatchqueue in boltDB_Worker
 	AdaptBatch           bool                           // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
-	BatchFlushEvery      int64  = 7168                  // flushes boltDB in batch every N milliseconds (1-...)
+	BatchFlushEvery      int64  = 5120                  // flushes boltDB in batch every N milliseconds (1-...)
 	BoltDB_MaxBatchDelay        = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
 	BoltDB_MaxBatchSize  int    = 1000                  // default value from boltdb:db.go = 1000
-	CharBucketBatchSize  int    = 512                   // default batchsize per char:bucket batchqueues
+	CharBucketBatchSize  int    = 1024                  // default batchsize per char:bucket batchqueues
 	EmptyStr             string                         // used as pointer
 )
 
@@ -44,9 +44,8 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	//Qcap := cap(batchQueue)
 	//if Q >= int(Qcap/100*75) {
 	if Q >= workerCharBucketBatchSize || forced {
-		//log.Printf("WARN boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forcing flush!", char, bucket, Q, Qcap, workerCharBucketBatchSize)
+		//log.Printf("INFO boltBucketPutBatch [%s|%s] Q=%d/Qcap=%d wCBBS=%d forced=%t flush!", char, bucket, Q, Qcap, forced, workerCharBucketBatchSize)
 		//pass
-		//} else if Q < workerCharBucketBatchSize && !forced {
 	} else {
 		return Q, 0, nil, false
 	}
