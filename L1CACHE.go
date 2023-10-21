@@ -51,7 +51,7 @@ type L1MUXER struct {
 }
 
 type L1PQMUX struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 }
 
 /*

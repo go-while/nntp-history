@@ -50,7 +50,7 @@ type L2MUXER struct {
 }
 
 type L2PQMUX struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 }
 
 // The L2CACHE_Boot method initializes the L2 cache.

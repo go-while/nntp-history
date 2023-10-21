@@ -53,7 +53,7 @@ type L3MUXER struct {
 }
 
 type L3PQMUX struct {
-	mux sync.RWMutex
+	mux sync.Mutex
 }
 
 /*
