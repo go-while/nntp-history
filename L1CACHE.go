@@ -327,15 +327,7 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	pq := l1.prioQue[char]
 	pqC := l1.pqChans[char]
 	pqM := l1.pqMuxer[char]
-	dq := []string{} // with arenas needs to change dq to *dq below
-	/*if UseArenas {
-		a := l1.arenas[char]
-		pq := a.prioQue
-		dq := a.dqslice // delete queue slice in memory arena
-		pqM := a
-	}*/
-	//var item *L1PQItem
-	var locked bool
+	dq := []string{}
 	dqcnt, dqmax := 0, 512
 	lastdel := time.Now().Unix()
 	var item *L1PQItem
@@ -352,29 +344,20 @@ forever:
 			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
-		if !locked {
-			pqM.mux.Lock()
-			locked = true
-		}
+		pqM.mux.Lock()
 		if len(*pq) == 0 {
-			if locked {
-				pqM.mux.Unlock()
-				locked = false
-			}
+			pqM.mux.Unlock()
 			//logf(DEBUGL1, "L1 pqExpire [%s] wait on <-pqC", char)
 			select {
 			case <-pqC: // blocking wait for his.prioPush()
-				//logf(DEBUGL1, "L1 pqExpire [%s] recv on <-pqC", char)
+				//logf(DEBUGL3, "L1 pqExpire [%s] recv on <-pqC", char)
 				continue forever
 			}
 		} else {
 			// Get the item with the nearest expiration time
 			item = (*pq)[0]
 		}
-		if locked {
-			pqM.mux.Unlock()
-			locked = false
-		}
+		pqM.mux.Unlock()
 
 		currentTime := time.Now().UnixNano()
 

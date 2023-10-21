@@ -307,8 +307,6 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	pq := l2.prioQue[char]
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
-	//var item *L2PQItem
-	var locked bool
 	dqcnt, dqmax := 0, 512
 	lastdel := time.Now().Unix()
 	var item *L2PQItem
@@ -326,15 +324,9 @@ forever:
 			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
-		if !locked {
-			pqM.mux.Lock()
-			locked = true
-		}
+		pqM.mux.Lock()
 		if len(*pq) == 0 {
-			if locked {
-				pqM.mux.Unlock()
-				locked = false
-			}
+			pqM.mux.Unlock()
 			//logf(DEBUGL2, "L2 pqExpire [%s] wait on <-pqC", char)
 			select {
 			case <-pqC: // blocking wait for his.prioPush()
@@ -345,10 +337,7 @@ forever:
 			// Get the item with the nearest expiration time
 			item = (*pq)[0]
 		}
-		if locked {
-			pqM.mux.Unlock()
-			locked = false
-		}
+		pqM.mux.Unlock()
 
 		currentTime := time.Now().UnixNano()
 
