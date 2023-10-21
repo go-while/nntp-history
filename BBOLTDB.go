@@ -152,15 +152,9 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, intBoltDBs) // maps char : bucket => chan
 	//his.BoltDBsMap = make(map[string]*BOLTDB_PTR)                        // maps char => boltDB pointer
 	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
-	his.prioQue = make(map[string]*BBPQ, intBoltDBs)
-	his.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	his.pqMuxer = make(map[string]*BBPQMUX, intBoltDBs)
 	for _, char := range HEXCHARS {
 		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset, intBoltDBs) // maps bucket => chan
 		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}                       // pointer to boltDB
-		his.prioQue[char] = &BBPQ{}
-		his.pqChans[char] = make(chan struct{}, 1)
-		his.pqMuxer[char] = &BBPQMUX{}
 	}
 	his.IndexChan = make(chan *HistoryIndex, QIndexChan) // main index chan to query the index
 	his.charsMap = make(map[string]int, intBoltDBs)      // maps char from HEXCHARS to i
@@ -365,7 +359,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		//log.Printf("HDBZW char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tcheck)
 	}
 	<-his.boltInitChan
-	go his.pqOrchestra(char)
 
 	logf(DEBUG1, "HDBZW [%s] ROOTBUCKETS checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
 	if checked != tocheck || (created > 0 && created != tocheck) {
@@ -403,7 +396,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		return
 	}
 
-	var timer int64 = 128 // milliseconds
 	batchQcap := CharBucketBatchSize * 2
 	/*
 		switch his.rootBUCKETS {
@@ -420,7 +412,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	closedBuckets := make(chan struct{}, his.rootBUCKETS)
 	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d booting batchQueues", char, len(ROOTBUCKETS))
-	delay, wid := int64(0), 0
+	wid := 0
 	for _, bucket := range ROOTBUCKETS {
 		wid++
 		//bucket := c1 + c2
@@ -438,14 +430,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
 		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 
-		pq := his.prioQue[char]
-		pqC := his.pqChans[char]
-		pqM := his.pqMuxer[char]
-		notifyChan := make(chan struct{}, 1)
-
-		go func(db *bolt.DB, wid int, delay int64, char string, bucket string,
-			batchQueue chan *BatchOffset, closedBuckets chan struct{},
-			timer int64, pq *BBPQ, pqC chan struct{}, pqM *BBPQMUX, notifyChan chan struct{}) {
+		go func(db *bolt.DB, wid int, char string, bucket string,
+			batchQueue chan *BatchOffset, closedBuckets chan struct{}) {
 
 			if batchQueue == nil {
 				log.Printf("ERROR boltDB_Worker gofunc input batchQueue=nil")
@@ -457,56 +443,18 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			if wCBBS < 0 {
 				wCBBS = 1
 			}
+			Q := 0
 			batchFlushEvery := BatchFlushEvery
 			var lft int64 = -1 // time passed since lastflush in milliseconds
 			lastflush := utils.UnixTimeMilliSec()
 			var forced, closed bool
 			var inserted uint64
 			var err error
-
-			//var decr, incr int = 1, 1 // adaptive batchsize
-			//var idle int64
-			Q, mode := 0, 0
-			//wt := 1000
-
-			//his.prioPush(char, pq, pqC, pqM, &BBPQItem{WID: wid, Run: runAT((batchFlushEvery - delay)), NCH: notifyChan, Now: utils.UnixTimeMilliSec()})
-			//logf(DEBUG2, "batchQueue [%s] wid=%d boot wait notifyChan", char, wid)
-			//pullChan(notifyChan)
-			//pushChan(notifyChan)
-			//notifyChan <- struct{}{}
-
-			//time.Sleep(time.Duration(delay) * time.Millisecond)
-
 			if !LOCKfunc(his.batchQueues.BootCh, "his.batchQueues.BootCh c="+char) {
 				his.CLOSE_HISTORY()
 				log.Printf("FATAL ERROR LOCKFUNC batchQueues!!!")
 				return
 			}
-			/*
-					waitCH := his.batchQueues.BootCh
-				wait: // for other workers
-					for {
-						if len(waitCH) == len(ROOTBUCKETS)*intBoltDBs {
-							break wait
-						}
-						time.Sleep(time.Millisecond * 250)
-					}
-			*/
-			/*
-				wait:
-					for {
-						if LOCKfunc(his.batchQueues.BootCh, "his.batchQueues.BootCh c="+char) {
-							break wait
-						}
-						if wt <= 0 {
-							log.Printf("FATAL ERROR LOCKFUNC batchQueues!!!")
-							return // deadfail
-						}
-						wt--
-					}
-			*/
-
-			//defaultTimer := timer
 			var sleept, sleepn int64
 			var minian int64 = 128  // ms min sleeper
 			var maxian int64 = 8192 // ms max sleeper
@@ -538,7 +486,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				Q, inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, Qcap, forced, "gofunc", lft, wCBBS, batchLockChan)
 				now = utils.UnixTimeMilliSec()
 				if forced { // DEBUG
-					logf(wantPrint(DBG_ABS2, &lastprintABS2A, utils.UnixTimeMilliSec(), BatchFlushEvery/4), "DBG_ABS2A forbatchqueue F0 [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t timer=%d median=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, timer, median, lft, now-lastflush, err)
+					logf(wantPrint(DBG_ABS2, &lastprintABS2A, utils.UnixTimeMilliSec(), BatchFlushEvery/4), "DBG_ABS2A forbatchqueue F0 [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t median=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, median, lft, now-lastflush, err)
 				}
 				if closed { // received nil pointer
 					logf(his.reopenDBeveryN > 0, "Closed gofunc forbatchqueue [%s|%s]", char, bucket)
@@ -561,7 +509,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				//his.prioPush(char, pq, pqC, pqM, &BBPQItem{WID: wid, Run: runAT(median / 2), NCH: notifyChan, Now: now})
 
 				if Q > 0 && lastflush < utils.UnixTimeMilliSec()-batchFlushEvery {
-					logf(wantPrint(DBG_ABS2, &lastprintABS2B, utils.UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] mode=%d timer=%d Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, mode, timer, Q, forced, lft, wCBBS)
+					logf(wantPrint(DBG_ABS2, &lastprintABS2B, utils.UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
 				} else {
@@ -579,7 +527,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			UNLOCKfunc(his.batchQueues.BootCh, "his.batchQueues.BootCh")
 			// ends this gofunc
 			closedBuckets <- struct{}{}
-		}(db, wid, delay, char, bucket, batchQueue, closedBuckets, timer, pq, pqC, pqM, notifyChan)
+		}(db, wid, char, bucket, batchQueue, closedBuckets)
 	} // end for ALLBCUKETS
 
 	if CharBucketBatchSize > 0 {

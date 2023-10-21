@@ -59,10 +59,6 @@ type HISTORY struct {
 	MEMfile        *os.File // ptr to file for mem profiling
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
 	TCPchan chan *HistoryObject
-	// batch orchestra
-	prioQue map[string]*BBPQ         // batch Priority queue for
-	pqChans map[string]chan struct{} // batch Priority queue notify channels
-	pqMuxer map[string]*BBPQMUX      // batch Priority queue Muxers
 }
 
 /* builds the history.dat header */
