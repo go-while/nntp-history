@@ -308,10 +308,11 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
 	//var item *L2PQItem
-	var empty bool
-	lpq, dqcnt, dqmax := 0, 0, 512
-	dq := []int64{}
+	var locked bool
+	dqcnt, dqmax := 0, 512
 	lastdel := time.Now().Unix()
+	var item *L2PQItem
+	dq := []int64{}
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L2Purge && dqcnt > 0) {
@@ -325,42 +326,29 @@ forever:
 			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
-		pqM.mux.RLock()
-		lpq = len(*pq)
-		if lpq == 0 {
-			empty = true
-			pqM.mux.RUnlock()
-		waiter:
-			for {
-				//log.Printf("L2 pqExpire [%s] blocking wait dqcnt=%d lpq=%d", char, dqcnt, lpq)
-				select {
-				case <-pqC: // waits for notify to run
-					//log.Printf("L2 pqExpire [%s] got notify <-pqC dqcnt=%d lpq=%d", char, dqcnt, lpq)
-				default:
-					time.Sleep(time.Duration(L2Purge) * time.Second)
-					pqM.mux.RLock() // watch this! RLock gets opened here
-					lpq = len(*pq)
-					if lpq > 0 {
-						empty = false
-					}
-					if !empty {
-						//log.Printf("L2 pqExpire [%s] released wait: !empty dqcnt=%d lpq=%d", char, dqcnt, lpq)
-						break waiter
-					}
-					// RUnlock here but the break !empty before keeps it open to get the item!
-					pqM.mux.RUnlock()
-				} // end select
-				if empty {
-					if dqcnt > 0 {
-						continue forever
-					}
-				}
-			} // end for waiter
-		} // end if len(*pq) == 0 {
-
-		// Get the item with the nearest expiration time
-		item := (*pq)[0]
-		pqM.mux.RUnlock()
+		if !locked {
+			pqM.mux.Lock()
+			locked = true
+		}
+		if len(*pq) == 0 {
+			if locked {
+				pqM.mux.Unlock()
+				locked = false
+			}
+			//log.Printf("L2 pqExpire [%s] wait on <-pqC", char)
+			select {
+			case <-pqC: // blocking wait for his.prioPush()
+				//log.Printf("L2 pqExpire [%s] recv on <-pqC", char)
+				continue forever
+			}
+		} else {
+			// Get the item with the nearest expiration time
+			item = (*pq)[0]
+		}
+		if locked {
+			pqM.mux.Unlock()
+			locked = false
+		}
 
 		currentTime := time.Now().UnixNano()
 

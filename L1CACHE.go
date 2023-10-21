@@ -292,16 +292,10 @@ func (pq L1PQ) Len() int { return len(pq) }
 
 func (pq L1PQ) Less(i, j int) bool {
 	//log.Printf("L1PQ Less()")
-	//if len(pq) == 0 {
-	//	return false
-	//}
 	return pq[i].Expires < pq[j].Expires
 }
 
 func (pq L1PQ) Swap(i, j int) {
-	//if len(pq) == 0 {
-	//	return
-	//}
 	//log.Printf("L1PQ Swap()")
 	pq[i], pq[j] = pq[j], pq[i]
 }
@@ -342,10 +336,10 @@ func (l1 *L1CACHE) pqExpire(char string) {
 		pqM := a
 	}*/
 	//var item *L1PQItem
-	var empty bool
-	lpq, dqcnt, dqmax := 0, 0, 512
-
+	var locked bool
+	dqcnt, dqmax := 0, 512
 	lastdel := time.Now().Unix()
+	var item *L1PQItem
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L1Purge && dqcnt > 0) {
@@ -359,42 +353,29 @@ forever:
 			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
 		}
 
-		pqM.mux.RLock()
-		lpq = len(*pq)
-		if lpq == 0 {
-			empty = true
-			pqM.mux.RUnlock()
-		waiter:
-			for {
-				//log.Printf("L1 pqExpire [%s] blocking wait dqcnt=%d lpq=%d", char, dqcnt, lpq)
-				select {
-				case <-pqC: // waits for notify to run
-					//log.Printf("L1 pqExpire [%s] got notify <-pqC dqcnt=%d lpq=%d", char, dqcnt, lpq)
-				default:
-					time.Sleep(time.Duration(L1Purge) * time.Second)
-					pqM.mux.RLock() // watch this! RLock gets opened here
-					lpq = len(*pq)
-					if lpq > 0 {
-						empty = false
-					}
-					if !empty {
-						//log.Printf("L1 pqExpire [%s] released wait: !empty dqcnt=%d lpq=%d", char, dqcnt, lpq)
-						break waiter
-					}
-					// RUnlock here but the break !empty before keeps it open to get the item!
-					pqM.mux.RUnlock()
-				} // end select
-				if empty {
-					if dqcnt > 0 {
-						continue forever
-					}
-				}
-			} // end for waiter
-		} // end if len(*pq) == 0 {
-
-		// Get the item with the nearest expiration time
-		item := (*pq)[0]
-		pqM.mux.RUnlock()
+		if !locked {
+			pqM.mux.Lock()
+			locked = true
+		}
+		if len(*pq) == 0 {
+			if locked {
+				pqM.mux.Unlock()
+				locked = false
+			}
+			//log.Printf("L1 pqExpire [%s] wait on <-pqC", char)
+			select {
+			case <-pqC: // blocking wait for his.prioPush()
+				//log.Printf("L1 pqExpire [%s] recv on <-pqC", char)
+				continue forever
+			}
+		} else {
+			// Get the item with the nearest expiration time
+			item = (*pq)[0]
+		}
+		if locked {
+			pqM.mux.Unlock()
+			locked = false
+		}
 
 		currentTime := time.Now().UnixNano()
 
@@ -409,7 +390,7 @@ forever:
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//log.Printf("L1 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			log.Printf("L1 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for
