@@ -19,6 +19,7 @@ less requests to hisDat
 */
 var (
 	DEBUGL2         bool  = false
+	L2              bool  = false
 	L2CacheExpires  int64 = DefaultCacheExpires
 	L2ExtendExpires int64 = DefaultCacheExtend
 	L2Purge         int64 = DefaultCachePurge
@@ -55,6 +56,9 @@ type L2PQMUX struct {
 // The L2CACHE_Boot method initializes the L2 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
 func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
+	if !L2 {
+		return
+	}
 	l2.mux.Lock()
 	defer l2.mux.Unlock()
 	if l2.Caches != nil {
@@ -88,6 +92,9 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 
 // The L2Cache_Thread function runs as a goroutine for each character.
 func (l2 *L2CACHE) L2Cache_Thread(char string) {
+	if !L2 {
+		return
+	}
 	l2.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l2.mux.Unlock()
 	//logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
@@ -134,6 +141,9 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
 // It also dynamically grows the cache when necessary.
 func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
+	if !L2 {
+		return
+	}
 	//if hash == TESTHASH {
 	//	log.Printf("L2CAC Set hash='%s' @offset=%d expires=%t", hash, offset, flagexpires)
 	//}
@@ -173,6 +183,9 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 
 // The GetHashFromOffset method retrieves a hash from the L2 cache using an offset as the key.
 func (l2 *L2CACHE) GetHashFromOffset(offset int64, rethash *string) {
+	if !L2 {
+		return
+	}
 	if offset <= 0 || rethash == nil {
 		log.Printf("ERROR L2CACHEGetHashToOffset io nil")
 		return
@@ -197,6 +210,9 @@ func (l2 *L2CACHE) GetHashFromOffset(offset int64, rethash *string) {
 } // end func GetHashFromOffset
 
 func (l2 *L2CACHE) OffsetToChar(offset int64) (retval string) {
+	if !L2 {
+		return
+	}
 	if offset <= 0 {
 		log.Printf("ERROR L2CACHE.OffsetToChar offset=%d <=0", offset)
 		return ""
@@ -208,6 +224,9 @@ func (l2 *L2CACHE) OffsetToChar(offset int64) (retval string) {
 } // end func OffsetToChar
 
 func (l2 *L2CACHE) L2Stats(statskey string) (retval uint64, retmap map[string]uint64) {
+	if !L2 {
+		return
+	}
 	if statskey == "" {
 		retmap = make(map[string]uint64)
 	}
@@ -277,6 +296,9 @@ func (pq *L2PQ) Push(x interface{}) {
 
 // Remove expired items from the cache
 func (l2 *L2CACHE) pqExpire(char string) {
+	if !L2 {
+		return
+	}
 	l2.mux.Lock() // waits for boot to finish
 	l2.mux.Unlock()
 	cnt := l2.Counter[char]
@@ -360,6 +382,9 @@ forever:
 } // end func pqExpire
 
 func (l2 *L2CACHE) prioPush(char string, pq *L2PQ, pqC chan struct{}, pqM *L2PQMUX, item *L2PQItem) {
+	if !L2 {
+		return
+	}
 	//log.Printf("l2.prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pqM.mux.Lock()
 	heap.Push(pq, item)

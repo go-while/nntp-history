@@ -17,7 +17,7 @@ const (
 var (
 	UseArenas             bool
 	DBG_CGS               bool               // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 5          // search only
+	DefaultCacheExpires   int64 = 5          // gets BatchFlushEvery x2
 	DefaultCacheExtend    int64 = 5          // extends cached items after writes
 	DefaultCachePurge     int64 = 1          // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity int   = 128 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
@@ -122,7 +122,7 @@ func (his *HISTORY) PrintCacheStats() {
 func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
 	if char == "" {
 		// char derived from hash or for offset: offset=>hex[lastchar]
-		log.Printf("ERROR CacheEvict char empty.")
+		//log.Printf("ERROR CacheEvict char empty.")
 		return
 	}
 
@@ -170,10 +170,14 @@ func (his *HISTORY) CacheEvictThread(num int) {
 				// wait for caches to boot
 				l1MUX.mux.Lock()
 				l1MUX.mux.Unlock()
-				l2MUX.mux.Lock()
-				l2MUX.mux.Unlock()
-				l3MUX.mux.Lock()
-				l3MUX.mux.Unlock()
+				if L2 {
+					l2MUX.mux.Lock()
+					l2MUX.mux.Unlock()
+				}
+				if L3 {
+					l3MUX.mux.Lock()
+					l3MUX.mux.Unlock()
+				}
 
 				l1ext := his.L1Cache.Extend[char]
 				l2ext := his.L2Cache.Extend[char]
@@ -210,7 +214,7 @@ func (his *HISTORY) CacheEvictThread(num int) {
 						}
 
 						//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
-						if item.offset > 0 { // l2 offset
+						if item.offset > 0 && L2 { // l2 offset
 							tmpOffset = append(tmpOffset, item.offset)
 							add2++ // L2
 						} else {
@@ -218,7 +222,7 @@ func (his *HISTORY) CacheEvictThread(num int) {
 								tmpHash = append(tmpHash, item.hash)
 								add1++ // L1
 							}
-							if item.key != "" { // l3 key
+							if item.key != "" && L3 { // l3 key
 								tmpKey = append(tmpKey, item.key)
 								add3++ // L3
 							}

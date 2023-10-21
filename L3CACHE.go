@@ -12,9 +12,16 @@ import (
 /*
 L3Cache: key => offsets
 less requests to boltDB
+
+disabling L3 is not a good idea!!
+queues hold offsets which DB does not know about!
+cache keeps track of duplicate writes
+duplicate keys will get an empty_offsets
+* and the latest will overwrite the past write maybe still in queue
 */
 var (
 	DEBUGL3         bool  = false
+	L3              bool  = true
 	L3CacheExpires  int64 = DefaultCacheExpires
 	L3ExtendExpires int64 = DefaultCacheExtend
 	L3Purge         int64 = DefaultCachePurge
@@ -64,6 +71,9 @@ type L3Arena struct {
 // The L3CACHE_Boot method initializes the L3 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
 func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
+	if !L3 {
+		return
+	}
 	l3.mux.Lock()
 	defer l3.mux.Unlock()
 	if l3.Caches != nil {
@@ -101,6 +111,9 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 
 // The L3Cache_Thread function runs as a goroutine for each character.
 func (l3 *L3CACHE) L3Cache_Thread(char string) {
+	if !L3 {
+		return
+	}
 	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
 	//logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
@@ -152,6 +165,9 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
 func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpires bool, src string) {
+	if !L3 {
+		return
+	}
 	//if key == TESTCACKEY {
 	//	log.Printf("L3CAC [%s|  ] SetOffsets key='%s' offsets='%#v' flagexpires=%t src='%s'", char, key, offsets, flagexpires, src)
 	//}
@@ -233,6 +249,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
 func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64) int {
+	if !L3 {
+		return 0
+	}
 	if key == "" || offsets == nil || len(*offsets) > 0 {
 		log.Printf("ERROR L3CACHEGet key or io nil or var `offsets` not empty")
 		return 0
@@ -335,6 +354,9 @@ func (pq *L3PQ) Push(x interface{}) {
 
 // Remove expired items from the cache
 func (l3 *L3CACHE) pqExpire(char string) {
+	if !L3 {
+		return
+	}
 	l3.mux.Lock() // waits for boot to finish
 	l3.mux.Unlock()
 	//start := utils.UnixTimeMilliSec()
@@ -429,6 +451,9 @@ forever:
 } // end func pqExpire
 
 func (l3 *L3CACHE) prioPush(char string, pq *L3PQ, pqC chan struct{}, pqM *L3PQMUX, item *L3PQItem) {
+	if !L3 {
+		return
+	}
 	//log.Printf("l3.prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pqM.mux.Lock()
 	heap.Push(pq, item)
