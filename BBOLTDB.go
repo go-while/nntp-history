@@ -508,7 +508,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 
 			//defaultTimer := timer
 			var sleept, sleepn int64
-			var minian int64 = 256 // ms min sleeper
+			var minian int64 = 128  // ms min sleeper
 			var maxian int64 = 8192 // ms max sleeper
 			var median int64 = batchFlushEvery / 10
 			var slicelim int = 5 // calculates median lastflush time over N items
@@ -553,7 +553,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					logf(wantPrint(DBG_ABS2, &lastprintMED, utils.UnixTimeMilliSec(), 32768),
 						"DBG_ABS2 batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
 						char, bucket, inserted, lft, forced, median, len(lft_slice), Q, Qcap, now-bef, sleept, sleepn)
-					median = GetMedian(char, bucket, &lft_slice, lft, slicelim, minian, false)
+					median = GetMedian(char, bucket, &lft_slice, lft, slicelim, minian, maxian, false)
 					sleept, sleepn = 0, 0
 				} else {
 					//log.Printf("batchQueue [%s|%s] !inserted lft=%d forced=%t median=%d timer=%d len(lft_slice)=%d Q=%d (took %d ms)", char, bucket, now-lastflush, forced, median, timer, len(lft_slice), Q, now-bef)
@@ -568,8 +568,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				} else {
 					// queue has elements: randomly flush early to get some random distribution?
 					time.Sleep(time.Millisecond * 10)
-					arand, err := generateRandomInt(0, 1000)
-					if err == nil && arand <= 1 {
+					arand, err := generateRandomInt(0, 10000)
+					if err == nil && arand == 5000 {
 						log.Printf("forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) sleept=%d sleepn=%d", char, bucket, arand, Q, median, sleept, sleepn)
 						forced = true
 						continue forbatchqueue
