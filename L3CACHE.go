@@ -322,7 +322,7 @@ type L3PQItem struct {
 func (pq L3PQ) Len() int { return len(pq) }
 
 func (pq L3PQ) Less(i, j int) bool {
-	//log.Printf("L3PQ Less()")
+	//logf(DEBUGL3, "L3PQ Less()")
 	//if len(pq) == 0 {
 	//	return false
 	//}
@@ -333,7 +333,7 @@ func (pq L3PQ) Swap(i, j int) {
 	//if len(pq) == 0 {
 	//	return
 	//}
-	//log.Printf("L3PQ Swap()")
+	//logf(DEBUGL3, "L3PQ Swap()")
 	pq[i], pq[j] = pq[j], pq[i]
 }
 
@@ -343,7 +343,7 @@ func (pq *L3PQ) Pop() interface{} {
 	item := old[n-1]
 	*pq = old[0 : n-1]
 	old = nil
-	//log.Printf("L3PQ POP() item='%#v", item)
+	//logf(DEBUGL3, "L3PQ POP() item='%#v", item)
 	return item
 }
 
@@ -376,7 +376,7 @@ func (l3 *L3CACHE) pqExpire(char string) {
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L3Purge && dqcnt > 0) {
-			//log.Printf("L3 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
+			//logf(DEBUGL3, "L3 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
 			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
@@ -395,10 +395,10 @@ forever:
 				pqM.mux.Unlock()
 				locked = false
 			}
-			//log.Printf("L3 pqExpire [%s] wait on <-pqC", char)
+			//logf(DEBUGL3, "L3 pqExpire [%s] wait on <-pqC", char)
 			select {
 			case <-pqC: // blocking wait for his.prioPush()
-				//log.Printf("L3 pqExpire [%s] recv on <-pqC", char)
+				//logf(DEBUGL3, "L3 pqExpire [%s] recv on <-pqC", char)
 				continue forever
 			}
 		} else {
@@ -414,7 +414,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//log.Printf("L3 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
+			//logf(DEBUGL3, "L3 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
 			pqM.mux.Lock()
 			//delete(ptr.cache, item.Key)
 			//cnt.Counter["Count_Delete"]++
@@ -425,7 +425,7 @@ forever:
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			log.Printf("L3 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			//logf(DEBUGL3, "L3 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for

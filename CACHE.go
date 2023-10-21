@@ -17,7 +17,7 @@ const (
 var (
 	UseArenas             bool
 	DBG_CGS               bool               // DEBUG_CACHE_GROW_SHRINK
-	DefaultCacheExpires   int64 = 5          // gets BatchFlushEvery x2
+	DefaultCacheExpires   int64 = 5          // gets x2 BatchFlushEvery x2
 	DefaultCacheExtend    int64 = 5          // extends cached items after writes
 	DefaultCachePurge     int64 = 1          // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity int   = 128 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
@@ -238,19 +238,19 @@ func (his *HISTORY) CacheEvictThread(num int) {
 						}
 					} // end select
 					if del1 { // L1
-						//log.Printf("L13 flush tmpHash=%d", len(tmpHash))
+						//logf(DEBUGL1, L1 flush tmpHash=%d", len(tmpHash))
 						l1ext.ch <- tmpHash
 						tmpHash = nil
 						del1, add1 = false, 0
 					}
 					if del2 { // L2
-						//log.Printf("L2 flush tmpOffset=%d", len(tmpOffset))
+						//logf(DEBUGL2, L2 flush tmpOffset=%d", len(tmpOffset))
 						l2ext.ch <- tmpOffset
 						tmpOffset = nil
 						del2, add2 = false, 0
 					}
 					if del3 { // L3
-						//log.Printf("L3 flush tmpKey=%d", len(tmpKey))
+						//logf(DEBUGL3, "L3 flush tmpKey=%d", len(tmpKey))
 						l3ext.ch <- tmpKey
 						tmpKey = nil
 						del3, add3 = false, 0

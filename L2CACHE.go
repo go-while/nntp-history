@@ -316,7 +316,7 @@ func (l2 *L2CACHE) pqExpire(char string) {
 forever:
 	for {
 		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L2Purge && dqcnt > 0) {
-			//log.Printf("L2 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
+			//logf(DEBUGL2, "L2 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
 			mux.mux.Lock()
 			for _, delkey := range dq {
 				delete(ptr.cache, delkey)
@@ -335,10 +335,10 @@ forever:
 				pqM.mux.Unlock()
 				locked = false
 			}
-			//log.Printf("L2 pqExpire [%s] wait on <-pqC", char)
+			//logf(DEBUGL2, "L2 pqExpire [%s] wait on <-pqC", char)
 			select {
 			case <-pqC: // blocking wait for his.prioPush()
-				//log.Printf("L2 pqExpire [%s] recv on <-pqC", char)
+				//logf(DEBUGL2, "L2 pqExpire [%s] recv on <-pqC", char)
 				continue forever
 			}
 		} else {
@@ -354,7 +354,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//log.Printf("L2 pqExpire [%s] key='%d' diff=%d", char, item.Key, item.Expires-currentTime)
+			//logf(DEBUGL2, "L2 pqExpire [%s] key='%d' diff=%d", char, item.Key, item.Expires-currentTime)
 			pqM.mux.Lock()
 			heap.Pop(pq)
 			pqM.mux.Unlock()
@@ -363,7 +363,7 @@ forever:
 		} else {
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			log.Printf("L2 pqExpire [%s] offset='%d' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
+			//logf(DEBUGL2, "L2 pqExpire [%s] offset='%d' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
 			time.Sleep(sleepTime)
 		}
 	} // end for
