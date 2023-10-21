@@ -110,11 +110,11 @@ func main() {
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.30, "0.1-0.9 default: 0.5")
-	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.30, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 640, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 1024, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
@@ -140,15 +140,15 @@ func main() {
 		var divider float64 = 1
 		switch history.RootBUCKETSperDB {
 		case 16:
-			divider = 4
+			divider = 8
 		case 256:
-			divider = 2
+			divider = 4
 		case 4096:
 			divider = 1
 		}
 		autoBoltDB_MaxBatchDelay := int(float64(history.BatchFlushEvery) / float64(history.RootBUCKETSperDB) / divider) // tuneable
-		if autoBoltDB_MaxBatchDelay <= 32 {
-			BoltDB_MaxBatchDelay = 32
+		if autoBoltDB_MaxBatchDelay < 16 {
+			BoltDB_MaxBatchDelay = 16
 		} else {
 			BoltDB_MaxBatchDelay = autoBoltDB_MaxBatchDelay
 		}

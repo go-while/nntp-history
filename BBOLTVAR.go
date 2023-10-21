@@ -392,7 +392,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 				//logf(DEBUG2, "boltCreateBucket [%s|%s] batchCreate %d sub buckets %d/%d", char, bucket, len(batchCreate), did, len(SUBBUCKETS))
 				if err := db.Update(func(tx *bolt.Tx) error {
 					root, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
-					//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
+					root.FillPercent = 1.0
 					if err != nil {
 						return err
 					}
@@ -405,8 +405,6 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 						}
 					}
 
-					//logf(DEBUG2, "OK boltCreateBucket [%s|%s]", *char, *bucket)
-					//retbool = true
 					return nil
 				}); err != nil {
 					if err != bolt.ErrBucketExists {
