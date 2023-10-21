@@ -591,14 +591,14 @@ func GetMedian(char string, bucket string, slice *[]int64, new int64, lim int, m
 		shift := *slice
 		shift = shift[1:]
 		*slice = shift
-		for _, val := range *slice {
-			sum += val
-		}
-		if sum > 0 {
-			// heartbeat: median / 4 will push us ~25% over the wCBBS. Q is x2.
-			med = int64(sum/int64(len(*slice))) / 4
-			//logf(print, "GetMedian: [%s|%s] med=%d +new=%d", char, bucket, med, new)
-		}
+	}
+	for _, val := range *slice {
+		sum += val
+	}
+	if sum > 0 {
+		// heartbeat: median / 4 will push us ~25% over the wCBBS. Q is x2.
+		med = int64(sum/int64(len(*slice))) / 4
+		//logf(print, "GetMedian: [%s|%s] med=%d +new=%d", char, bucket, med, new)
 	}
 	if med < minian {
 		med = minian
