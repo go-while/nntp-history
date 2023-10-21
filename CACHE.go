@@ -153,10 +153,9 @@ func (his *HISTORY) CacheEvictThread(num int) {
 	log.Printf("Booting CacheEvictThread")
 
 	for _, char := range HEXCHARS {
-		if his.cacheEvicts[char] != nil {
+		if his.cacheEvicts[char] == nil {
 			his.cacheEvicts[char] = make(chan *ClearCache, his.cEvCap)
 			log.Printf("CacheEvictThread [%s] created", char)
-			continue
 		}
 		//delay = j * int(BatchFlushEvery) / len(HEXCHARS)
 		for i := 1; i <= num; i++ {
