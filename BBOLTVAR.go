@@ -583,7 +583,7 @@ func CPUBURN() {
 	}
 }
 
-func GetMedian(char string, bucket string, slice *[]int64, new int64, lim int, minian int64, , maxian int64, print bool) (med int64) {
+func GetMedian(char string, bucket string, slice *[]int64, new int64, lim int, minian int64, maxian int64, print bool) (med int64) {
 	var sum int64
 	*slice = append(*slice, new)
 	if len(*slice) > lim {
