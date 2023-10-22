@@ -166,11 +166,11 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 			select {
 			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
 				// got hashes we will extend
-				if len(*dat.extends) > 0 {
+				if len(dat.extends) > 0 {
 					//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
 					pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
-					for _, hash := range *dat.extends {
+					for _, hash := range dat.extends {
 						if _, exists := ptr.cache[hash]; exists {
 							ptr.cache[hash].value = CaseDupes
 							cnt.Counter["Count_BatchD"]++
@@ -309,7 +309,7 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	pq := l1.prioQue[char]
 	pqC := l1.pqChans[char]
 	pqM := l1.pqMuxer[char]
-	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
+	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
 	var item *L1PQItem
 	var dq []string
 forever:
@@ -334,7 +334,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//logf(DEBUGL1 "L1 pqExpire [%s] DELETE hash='%s' over=%d", char, item.Key, currentTime-item.Expires)
+			//logf(DEBUGL1 || ALWAYS, "L1 pqExpire [%s] DELETE hash='%s' over=%d", char, item.Key, currentTime-item.Expires)
 			heap.Pop(pq)
 			pqM.mux.Unlock()
 

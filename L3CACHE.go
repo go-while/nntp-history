@@ -119,11 +119,11 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 			select {
 			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
 				// got keys we will extend
-				if len(*dat.extends) > 0 {
+				if len(dat.extends) > 0 {
 					//logf(DEBUG, "L3 [%s] extends=%d", char, len(extends))
 					pqEX := time.Now().UnixNano() + L3ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
-					for _, key := range *dat.extends {
+					for _, key := range dat.extends {
 						if _, exists := ptr.cache[key]; exists {
 							cnt.Counter["Count_BatchD"]++
 							l3.prioPush(char, pq, pqC, pqM, &L3PQItem{Key: key, Expires: pqEX})
@@ -330,7 +330,7 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	pq := l3.prioQue[char]
 	pqC := l3.pqChans[char]
 	pqM := l3.pqMuxer[char]
-	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
+	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
 	var item *L3PQItem
 	var dq []string
 forever:
@@ -354,7 +354,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//logf(DEBUGL3, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
+			//logf(DEBUGL3 || ALWAYS, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
 			heap.Pop(pq)
 			pqM.mux.Unlock()
 

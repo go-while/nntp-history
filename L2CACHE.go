@@ -117,11 +117,11 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 			select {
 			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
 				// got offset we will extend
-				if len(*dat.extends) > 0 {
+				if len(dat.extends) > 0 {
 					//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
 					pqEX := time.Now().UnixNano() + L2ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
-					for _, offset := range *dat.extends {
+					for _, offset := range dat.extends {
 						if _, exists := ptr.cache[offset]; exists {
 							cnt.Counter["Count_BatchD"]++
 							l2.prioPush(char, pq, pqC, pqM, &L2PQItem{Key: offset, Expires: pqEX})
@@ -298,7 +298,7 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	pq := l2.prioQue[char]
 	pqC := l2.pqChans[char]
 	pqM := l2.pqMuxer[char]
-	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
+	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
 	var item *L2PQItem
 	var dq []int64
 forever:
