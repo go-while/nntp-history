@@ -358,14 +358,12 @@ forever:
 			// Get the item with the nearest expiration time
 			item = (*pq)[0]
 		}
-		//pqM.mux.Unlock()
 
 		currentTime := time.Now().UnixNano()
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
 			//logf(DEBUGL3, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
-			//pqM.mux.Lock()
 			heap.Pop(pq)
 			pqM.mux.Unlock()
 			dq = append(dq, item.Key)
