@@ -1,7 +1,7 @@
 package history
 
 import (
-	"container/heap"
+	//"container/heap"
 	"log"
 	"sync"
 	"time"
@@ -76,25 +76,19 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 	l1.Extend = make(map[string]*StrECH, intBoltDBs)
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
-	//l1.prioQue = make(map[string]*L1PQ, intBoltDBs)
 	l1.prioQue = make(map[string]*L1PrioQue, intBoltDBs)
-	//l1.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	//l1.pqMuxer = make(map[string]*L1PQMUX, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		//l1.prioQue[char] = &L1PQ{}
 		l1.prioQue[char] = &L1PrioQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
-		//l1.pqChans[char] = make(chan struct{}, 1)
-		//l1.pqMuxer[char] = &L1PQMUX{}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
 		// stupid race condition on boot when placed in loop before
 		go l1.pqExpire(char)
-		go l1.L1Cache_Thread(char)
+		go l1.pqExtend(char)
 	}
 } // end func L1CACHE_Boot
 
@@ -147,14 +141,14 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 	return CaseError
 } // end func LockL1Cache
 
-// The L1Cache_Thread function runs as a goroutine for each character.
-func (l1 *L1CACHE) L1Cache_Thread(char string) {
+// The L1pqExtend function runs as a goroutine for each character.
+func (l1 *L1CACHE) pqExtend(char string) {
 	if !L1 {
 		return
 	}
 	l1.mux.Lock() // waits for L1CACHE_Boot to unlock
 	l1.mux.Unlock()
-	//logf(DEBUGL1, "Boot L1Cache_Thread [%s]", char)
+	//logf(DEBUGL1, "Boot L1pqExtend [%s]", char)
 	l1purge := L1Purge
 	if l1purge < 1 {
 		l1purge = 1
@@ -195,7 +189,7 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 			} // end select
 		} // end forever
 	}() // end gofunc1
-} //end func L1Cache_Thread
+} //end func pqExtend
 
 // The Set method is used to set a value in the cache.
 // If the cache size is close to its maximum, it grows the cache.
@@ -210,10 +204,8 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	if char == "" {
 		char = string(hash[0])
 	}
-	//start := utils.UnixTimeMilliSec()
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
-	//extC := l1.Extend[char]
 	mux := l1.Muxers[char]
 	pq := l1.prioQue[char]
 
@@ -302,7 +294,8 @@ func (l1 *L1CACHE) prioPush(char string, pq *L1PrioQue, item *L1PQItem) {
 	}
 	//log.Printf("L1 prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pq.mux.Lock()
-	heap.Push(pq.que, item)
+	//heap.Push(pq.que, item)
+	pq.que.Push(item)
 	pq.mux.Unlock()
 
 	//log.Printf("L1 prioPush [%s] heap.push unlocked", char)
@@ -329,7 +322,8 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
 	pq := l1.prioQue[char]
-	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
+	// hardcoded dqmax
+	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
 	var item *L1PQItem
 	var dq []string
 forever:
@@ -355,7 +349,8 @@ forever:
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
 			//logf(DEBUGL1, "L1 pqExpire [%s] DELETE hash='%s' over=%d", char, item.Key, currentTime-item.Expires)
-			heap.Pop(pq.que)
+			//heap.Pop(pq.que)
+			pq.que.Pop()
 			pq.mux.Unlock()
 
 			dq = append(dq, item.Key)

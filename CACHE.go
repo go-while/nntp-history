@@ -187,7 +187,7 @@ func (his *HISTORY) CacheEvictThread(num int) {
 				l2ext := his.L2Cache.Extend[char]
 				l3ext := his.L3Cache.Extend[char]
 
-				clearEveryN := 64 // DefaultEvictsCapacity
+				clearEveryN := 1024 // hardcoded: should match dqmax
 				basetimer := DefaultCachePurge
 
 				tmpHash := []string{}

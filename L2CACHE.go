@@ -6,7 +6,7 @@ package history
  */
 import (
 	//"fmt"
-	"container/heap"
+	//"container/heap"
 	"log"
 	"strconv"
 	"sync"
@@ -76,37 +76,31 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 	l2.Extend = make(map[string]*IntECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
 	l2.Counter = make(map[string]*CCC)
-	//l2.prioQue = make(map[string]*L2PQ, intBoltDBs)
 	l2.prioQue = make(map[string]*L2PrioQue, intBoltDBs)
-	//l2.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	//l2.pqMuxer = make(map[string]*L2PQMUX, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &IntECH{ch: make(chan *IntItems, his.cEvCap)}
 		l2.Muxers[char] = &L2MUXER{}
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		//l2.prioQue[char] = &L2PQ{}
 		l2.prioQue[char] = &L2PrioQue{que: &L2PQ{}, pqC: make(chan struct{}, 1)}
-		//l2.pqChans[char] = make(chan struct{}, 1)
-		//l2.pqMuxer[char] = &L2PQMUX{}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
 		// stupid race condition on boot when placed in loop before
 		go l2.pqExpire(char)
-		go l2.L2Cache_Thread(char)
+		go l2.pqExtend(char)
 	}
 
 } // end func L2CACHE_Boot
 
-// The L2Cache_Thread function runs as a goroutine for each character.
-func (l2 *L2CACHE) L2Cache_Thread(char string) {
+// The pqExtend function runs as a goroutine for each character.
+func (l2 *L2CACHE) pqExtend(char string) {
 	if !L2 {
 		return
 	}
 	l2.mux.Lock() // waits for L2CACHE_Boot to unlock
 	l2.mux.Unlock()
-	//logf(DEBUGL2, "Boot L2Cache_Thread [%s]", char)
+	//logf(DEBUGL2, "Boot L2pqExtend [%s]", char)
 	l2purge := L2Purge
 	if l2purge < 1 {
 		l2purge = 1
@@ -140,7 +134,7 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 
 		} // end forever
 	}() // end gofunc1
-} //end func L2Cache_Thread
+} //end func pqExtend
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
 // It also dynamically grows the cache when necessary.
@@ -156,8 +150,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 		return
 	}
 	char := l2.OffsetToChar(offset)
-
-	//start := utils.UnixTimeMilliSec()
 
 	ptr := l2.Caches[char]
 	cnt := l2.Counter[char]
@@ -286,19 +278,19 @@ func (l2 *L2CACHE) prioPush(char string, pq *L2PrioQue, item *L2PQItem) {
 	if !L2 {
 		return
 	}
-	//log.Printf("L2 prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
+	//log.Printf("L2 prioPush [%s] item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pq.mux.Lock()
-	heap.Push(pq.que, item)
+	pq.que.Push(item)
 	pq.mux.Unlock()
 
-	//log.Printf("L2 prioPush [%s] heap.push unlocked", char)
+	//log.Printf("L2 prioPush [%s] unlocked", char)
 	select {
 	case pq.pqC <- struct{}{}:
 		// pass notify to pqExpire()
 	default:
 		// pass too: notify chan is full
 	}
-	//log.Printf("L2 prioPush [%s] heap.push passed pqC", char)
+	//log.Printf("L2 prioPush [%s] passed pqC", char)
 } // end func prioPush
 
 // Remove expired items from the cache
@@ -315,7 +307,8 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	ptr := l2.Caches[char]
 	mux := l2.Muxers[char]
 	pq := l2.prioQue[char]
-	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
+	// hardcoded dqmax
+	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
 	var item *L2PQItem
 	var dq []int64
 forever:
@@ -340,7 +333,7 @@ forever:
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
 			//logf(DEBUGL2, "L2 pqExpire [%s] DELETE offset='%d' over=%d", char, item.Key, currentTime-item.Expires)
-			heap.Pop(pq.que)
+			pq.que.Pop()
 			pq.mux.Unlock()
 
 			dq = append(dq, item.Key)

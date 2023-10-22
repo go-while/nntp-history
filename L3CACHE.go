@@ -2,7 +2,7 @@ package history
 
 import (
 	// "arena"
-	"container/heap"
+	//"container/heap"
 	"fmt"
 	"log"
 	"sync"
@@ -79,37 +79,31 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Extend = make(map[string]*StrECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
-	//l3.prioQue = make(map[string]*L3PQ, intBoltDBs)
 	l3.prioQue = make(map[string]*L3PrioQue, intBoltDBs)
-	//l3.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	//l3.pqMuxer = make(map[string]*L3PQMUX, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		//l3.prioQue[char] = &L3PQ{}
 		l3.prioQue[char] = &L3PrioQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
-		//l3.pqChans[char] = make(chan struct{}, 1)
-		//l3.pqMuxer[char] = &L3PQMUX{}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
 		// stupid race condition on boot when placed in loop before
 		go l3.pqExpire(char)
-		go l3.L3Cache_Thread(char)
+		go l3.pqExtend(char)
 	}
 
 } // end func L3CACHE_Boot
 
-// The L3Cache_Thread function runs as a goroutine for each character.
-func (l3 *L3CACHE) L3Cache_Thread(char string) {
+// The pqExtend function runs as a goroutine for each character.
+func (l3 *L3CACHE) pqExtend(char string) {
 	if !L3 {
 		return
 	}
 	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
-	//logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
+	//logf(DEBUGL3, "Boot L3pqExtend [%s]", char)
 	l3purge := L3Purge
 	if l3purge < 1 {
 		l3purge = 1
@@ -143,7 +137,7 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 
 		} // end forever
 	}() // end gofunc1
-} //end func L3Cache_Thread
+} //end func pqExtend
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
@@ -316,19 +310,19 @@ func (l3 *L3CACHE) prioPush(char string, pq *L3PrioQue, item *L3PQItem) {
 	if !L3 {
 		return
 	}
-	//log.Printf("L3 prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
+	//log.Printf("L3 prioPush [%s] item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pq.mux.Lock()
-	heap.Push(pq.que, item)
+	pq.que.Push(item)
 	pq.mux.Unlock()
 
-	//log.Printf("L3 prioPush [%s] heap.push unlocked", char)
+	//log.Printf("L3 prioPush [%s] unlocked", char)
 	select {
 	case pq.pqC <- struct{}{}:
 		// pass notify to pqExpire()
 	default:
 		// pass too: notify chan is full
 	}
-	//log.Printf("L3 prioPush [%s] heap.push passed pqC", char)
+	//log.Printf("L3 prioPush [%s] passed pqC", char)
 } // end func prioPush
 
 // Remove expired items from the cache
@@ -345,7 +339,8 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	cnt := l3.Counter[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
+	// hardcoded dqmax
+	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
 	var item *L3PQItem
 	var dq []string
 forever:
@@ -370,7 +365,7 @@ forever:
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
 			//logf(DEBUGL3, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
-			heap.Pop(pq.que)
+			pq.que.Pop()
 			pq.mux.Unlock()
 
 			dq = append(dq, item.Key)
