@@ -34,12 +34,18 @@ type ClearCacheChan struct {
 
 // StrExtendChan
 type StrECH struct {
-	ch chan []string
+	ch chan *StrItems
+}
+type StrItems struct {
+	extends *[]string
 }
 
 // IntExtendChan
 type IntECH struct {
-	ch chan []int64
+	ch chan *IntItems
+}
+type IntItems struct {
+	extends *[]int64
 }
 
 type DQSlice []string // delete queue slice
@@ -183,8 +189,9 @@ func (his *HISTORY) CacheEvictThread(num int) {
 				l2ext := his.L2Cache.Extend[char]
 				l3ext := his.L3Cache.Extend[char]
 
-				clearEveryN := his.cEvCap // DefaultEvictsCapacity
+				clearEveryN := 1024 // DefaultEvictsCapacity
 				basetimer := DefaultCachePurge
+
 				tmpHash := []string{}
 				tmpOffset := []int64{}
 				tmpKey := []string{}
@@ -239,19 +246,19 @@ func (his *HISTORY) CacheEvictThread(num int) {
 					} // end select
 					if del1 { // L1
 						//logf(DEBUGL1, L1 flush tmpHash=%d", len(tmpHash))
-						l1ext.ch <- tmpHash
+						l1ext.ch <- &StrItems{extends: &tmpHash}
 						tmpHash = nil
 						del1, add1 = false, 0
 					}
 					if del2 { // L2
 						//logf(DEBUGL2, L2 flush tmpOffset=%d", len(tmpOffset))
-						l2ext.ch <- tmpOffset
+						l2ext.ch <- &IntItems{extends: &tmpOffset}
 						tmpOffset = nil
 						del2, add2 = false, 0
 					}
 					if del3 { // L3
 						//logf(DEBUGL3, "L3 flush tmpKey=%d", len(tmpKey))
-						l3ext.ch <- tmpKey
+						l3ext.ch <- &StrItems{extends: &tmpKey} // &tmpKey
 						tmpKey = nil
 						del3, add3 = false, 0
 					}
