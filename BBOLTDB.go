@@ -217,7 +217,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 
 	if DEBUG {
-		log.Printf("DEBUG boltDB_Init launch WatchBolt ForcedReplay=%t", ForcedReplay, ForcedReplay)
+		log.Printf("DEBUG boltDB_Init launch WatchBolt")
 		// run manually: go history.History.WatchBolt()
 		go his.WatchBolt()
 	}
