@@ -97,7 +97,7 @@ func main() {
 	// start of the app will be delayed by this timeframe to start workers within this timeframe
 	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 65536*2, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 16384, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 
@@ -269,8 +269,8 @@ func main() {
 					hash := utils.Hash256(strconv.FormatInt(i, 10)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 					//hash := utils.Hash256(strconv.FormatInt(i*p, 10)) // GENERATES DUPLICATES
 					//hash := utils.Hash256(strconv.FormatInt(utils.Nano(), 10)) // GENERATES ALMOST NO DUPES
-					//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
-					//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
+					//hash := utils.Hash256(strconv.FormatInt(UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
+					//hash := utils.Hash256(strconv.FormatInt(UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
 					char := string(hash[0])
 					//log.Printf("hash=%s char=%s", hash, char)
 					//if hash == TESTHASH {
@@ -416,8 +416,8 @@ func main() {
 				hash := utils.Hash256(strconv.FormatInt(i, 10)) // GENERATES ONLY DUPLICATES (in parallel or after first run)
 				//hash := utils.Hash256(strconv.FormatInt(i*p, 10)) // GENERATES DUPLICATES
 				//hash := utils.Hash256(strconv.FormatInt(utils.Nano(), 10)) // GENERATES ALMOST NO DUPES
-				//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
-				//hash := utils.Hash256(strconv.FormatInt(utils.UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
+				//hash := utils.Hash256(strconv.FormatInt(UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
+				//hash := utils.Hash256(strconv.FormatInt(UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
 
 				char := string(hash[0])
 				//log.Printf("hash=%s char=%s", hash, char)
