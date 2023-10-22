@@ -335,15 +335,6 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	var dq []string
 forever:
 	for {
-		if dqq >= dqmax {
-			mux.mux.Lock()
-			for _, key := range dq {
-				delete(ptr.cache, key)
-			}
-			cnt.Counter["Count_Delete"] += dqq
-			mux.mux.Unlock()
-			dq, dqq = nil, 0
-		}
 		pqM.mux.Lock()
 		lpq = len(*pq)
 		if lpq == 0 {
@@ -366,8 +357,18 @@ forever:
 			//logf(DEBUGL3, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
 			heap.Pop(pq)
 			pqM.mux.Unlock()
+
 			dq = append(dq, item.Key)
 			dqq++
+			if dqq >= dqmax {
+				mux.mux.Lock()
+				for _, key := range dq {
+					delete(ptr.cache, key)
+				}
+				cnt.Counter["Count_Delete"] += dqq
+				mux.mux.Unlock()
+				dq, dqq = nil, 0
+			}
 		} else {
 			pqM.mux.Unlock()
 			// The nearest item hasn't expired yet, sleep until it does
