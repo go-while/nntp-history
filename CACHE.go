@@ -48,8 +48,6 @@ type IntItems struct {
 	extends []int64
 }
 
-type DQSlice []string // delete queue slice
-
 func (his *HISTORY) PrintCacheStats() {
 	/*
 	 * statsKeys := []string{
