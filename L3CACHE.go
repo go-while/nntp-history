@@ -336,12 +336,13 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	if !L3 {
 		return
 	}
+	//log.Printf("L3 pqExpire [%s] wait l3 lock", char)
 	l3.mux.Lock() // waits for boot to finish
 	l3.mux.Unlock()
-	//start := utils.UnixTimeMilliSec()
+	logf(DEBUGL3, "L3 pqExpire [%s] booted", char)
+
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
-	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
 	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
@@ -368,7 +369,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//logf(DEBUGL3 || ALWAYS, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
+			//logf(DEBUGL3, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
 			heap.Pop(pq.que)
 			pq.mux.Unlock()
 
@@ -387,7 +388,7 @@ forever:
 			pq.mux.Unlock()
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//logf(DEBUGL3 || ALWAYS, "L3 pqExpire [%s] SLEEP key='%s' sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
+			//logf(DEBUGL3, "L3 pqExpire [%s] SLEEP key='%s' sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
 			time.Sleep(sleepTime)
 		}
 	} // end for

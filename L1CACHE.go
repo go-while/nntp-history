@@ -320,15 +320,13 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	if !L1 {
 		return
 	}
-	log.Printf("L1 pqExpire [%s] wait l1 lock", char)
+	//log.Printf("L1 pqExpire [%s] wait l1 lock", char)
 	l1.mux.Lock() // waits for boot to finish
 	l1.mux.Unlock()
-	log.Printf("L1 pqExpire [%s] booted", char)
+	logf(DEBUGL1, "L1 pqExpire [%s] booted", char)
 
-	//start := utils.UnixTimeMilliSec()
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
-	//extC := l1.Extend[char]
 	mux := l1.Muxers[char]
 	pq := l1.prioQue[char]
 	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
@@ -341,10 +339,10 @@ forever:
 		lpq = len(*pq.que)
 		if lpq == 0 {
 			pq.mux.Unlock()
-			//logf(DEBUGL1 || ALWAYS, "L1 pqExpire [%s] wait on <-pqC", char)
+			//logf(DEBUGL1, "L1 pqExpire [%s] wait on <-pqC", char)
 			select {
 			case <-pq.pqC: // blocking wait for l1.prioPush
-				//logf(DEBUGL1 || ALWAYS, "L1 pqExpire [%s] recv on <-pqC", char)
+				//logf(DEBUGL1, "L1 pqExpire [%s] recv on <-pqC", char)
 				continue forever
 			}
 		} else {
@@ -356,7 +354,7 @@ forever:
 
 		if item.Expires <= currentTime {
 			// This item has expired, remove it from the cache and priority queue
-			//logf(DEBUGL1 || ALWAYS, "L1 pqExpire [%s] DELETE hash='%s' over=%d", char, item.Key, currentTime-item.Expires)
+			//logf(DEBUGL1, "L1 pqExpire [%s] DELETE hash='%s' over=%d", char, item.Key, currentTime-item.Expires)
 			heap.Pop(pq.que)
 			pq.mux.Unlock()
 
@@ -375,7 +373,7 @@ forever:
 			pq.mux.Unlock()
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//logf(DEBUGL1 || ALWAYS, "L1 pqExpire [%s] SLEEP hash='%s sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
+			//logf(DEBUGL1, "L1 pqExpire [%s] SLEEP hash='%s sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
 			time.Sleep(sleepTime)
 		}
 	} // end for

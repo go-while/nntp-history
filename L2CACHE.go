@@ -306,8 +306,11 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	if !L2 {
 		return
 	}
+	//log.Printf("L2 pqExpire [%s] wait l2lock", char)
 	l2.mux.Lock() // waits for boot to finish
 	l2.mux.Unlock()
+	logf(DEBUGL2, "L2 pqExpire [%s] booted", char)
+
 	cnt := l2.Counter[char]
 	ptr := l2.Caches[char]
 	mux := l2.Muxers[char]
@@ -355,7 +358,7 @@ forever:
 			pq.mux.Unlock()
 			// The nearest item hasn't expired yet, sleep until it does
 			sleepTime := time.Duration(item.Expires - currentTime)
-			//logf(DEBUGL2 || ALWAYS, "L2 pqExpire [%s] SLEEP offset='%d' sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
+			//logf(DEBUGL2, "L2 pqExpire [%s] SLEEP offset='%d' sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
 			time.Sleep(sleepTime)
 		}
 	} // end for
