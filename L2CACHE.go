@@ -126,8 +126,6 @@ func (l2 *L2CACHE) L2Cache_Thread(char string) {
 		extC := l2.Extend[char]
 		mux := l2.Muxers[char]
 		pq := l2.prioQue[char]
-		//pqC := l2.pqChans[char]
-		//pqM := l2.pqMuxer[char]
 		//forever:
 		for {
 			select {
@@ -172,8 +170,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	cnt := l2.Counter[char]
 	mux := l2.Muxers[char]
 	pq := l2.prioQue[char]
-	//pqC := l2.pqChans[char]
-	//pqM := l2.pqMuxer[char]
 
 	if flagexpires {
 		//pqEX := time.Now().UnixNano() + (L2CacheExpires * int64(time.Second))
@@ -323,8 +319,6 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	ptr := l2.Caches[char]
 	mux := l2.Muxers[char]
 	pq := l2.prioQue[char]
-	//pqC := l2.pqChans[char]
-	//pqM := l2.pqMuxer[char]
 	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
 	var item *L2PQItem
 	var dq []int64

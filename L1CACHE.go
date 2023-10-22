@@ -174,8 +174,6 @@ func (l1 *L1CACHE) L1Cache_Thread(char string) {
 		extC := l1.Extend[char]
 		mux := l1.Muxers[char]
 		pq := l1.prioQue[char]
-		//pqC := l1.pqChans[char]
-		//pqM := l1.pqMuxer[char]
 		pushq := []string{}
 		//forever:
 		for {
@@ -225,8 +223,6 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	//extC := l1.Extend[char]
 	mux := l1.Muxers[char]
 	pq := l1.prioQue[char]
-	//pqC := l1.pqChans[char]
-	//pqM := l1.pqMuxer[char]
 
 	if flagexpires {
 		//pqEX := time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
@@ -342,8 +338,6 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	//extC := l1.Extend[char]
 	mux := l1.Muxers[char]
 	pq := l1.prioQue[char]
-	//pqC := l1.pqChans[char]
-	//pqM := l1.pqMuxer[char]
 	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
 	var item *L1PQItem
 	var dq []string

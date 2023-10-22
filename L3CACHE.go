@@ -129,8 +129,6 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 		extC := l3.Extend[char]
 		mux := l3.Muxers[char]
 		pq := l3.prioQue[char]
-		//pqC := l3.pqChans[char]
-		//pqM := l3.pqMuxer[char]
 		//forever:
 		for {
 			select {
@@ -175,11 +173,8 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
-	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	//pqC := l3.pqChans[char]
-	//pqM := l3.pqMuxer[char]
 
 	if flagexpires {
 		//pqEX := time.Now().UnixNano() + (L3CacheExpires * int64(time.Second))
@@ -356,8 +351,6 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	//pqC := l3.pqChans[char]
-	//pqM := l3.pqMuxer[char]
 	lpq, dqq, dqmax := 0, uint64(0), uint64(64)
 	var item *L3PQItem
 	var dq []string
