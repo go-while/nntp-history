@@ -20,7 +20,7 @@ var (
 	DefaultCacheExpires   int64 = 5          // gets x2 BatchFlushEvery x2
 	DefaultCacheExtend    int64 = 5          // extends cached items after writes
 	DefaultCachePurge     int64 = 1          // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
-	DefaultEvictsCapacity int   = 128 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
+	DefaultEvictsCapacity int   = 512 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
 )
 
 // CharCacheCounter
