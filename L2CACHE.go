@@ -32,10 +32,7 @@ type L2CACHE struct {
 	Muxers  map[string]*L2MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	//prioQue map[string]*L2PQ         // Priority queue for item expiration
 	prioQue map[string]*L2PrioQue // Priority queue for item expiration
-	//pqChans map[string]chan struct{} // Priority queue notify channels
-	//pqMuxer map[string]*L2PQMUX      // Priority queue Muxers
 }
 
 type L2CACHEMAP struct {
@@ -48,10 +45,6 @@ type L2ITEM struct {
 
 type L2MUXER struct {
 	mux sync.RWMutex
-}
-
-type L2PQMUX struct {
-	mux sync.Mutex
 }
 
 type L2PrioQue struct {

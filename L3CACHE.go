@@ -34,10 +34,7 @@ type L3CACHE struct {
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	//prioQue map[string]*L3PQ         // Priority queue for item expiration
 	prioQue map[string]*L3PrioQue // Priority queue for item expiration
-	//pqChans map[string]chan struct{} // Priority queue notify channels
-	//pqMuxer map[string]*L3PQMUX      // Priority queue Muxers
 
 }
 
@@ -51,10 +48,6 @@ type L3ITEM struct {
 
 type L3MUXER struct {
 	mux sync.RWMutex
-}
-
-type L3PQMUX struct {
-	mux sync.Mutex
 }
 
 type L3PrioQue struct {

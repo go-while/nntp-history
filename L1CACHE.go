@@ -32,10 +32,7 @@ type L1CACHE struct {
 	Extend  map[string]*StrECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC
-	//prioQue map[string]*L1PQ // Priority queue for item expiration
 	prioQue map[string]*L1PrioQue // Priority queue for item expiration
-	//pqChans map[string]chan struct{} // Priority queue notify channels
-	//pqMuxer map[string]*L1PQMUX      // Priority queue Muxers
 }
 
 type L1CACHEMAP struct {
@@ -47,10 +44,6 @@ type L1ITEM struct {
 }
 
 type L1MUXER struct {
-	mux sync.Mutex
-}
-
-type L1PQMUX struct {
 	mux sync.Mutex
 }
 
