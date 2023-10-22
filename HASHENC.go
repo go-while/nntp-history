@@ -14,6 +14,7 @@ import (
 	//"time"
 	"crypto/rand"
 	"math/big"
+	"time"
 )
 
 var (
@@ -180,3 +181,19 @@ func generateRandomInt(min, max int) (int, error) {
 
 	return randomInt, nil
 }
+
+func UnixTimeSec() int64 {
+	return time.Now().UnixNano() / 1e9
+} // end func Now
+
+func UnixTimeMilliSec() int64 {
+	return time.Now().UnixNano() / 1e6
+} // end func Milli
+
+func UnixTimeMicroSec() int64 {
+	return time.Now().UnixNano() / 1e3
+} // end func Micro
+
+func UnixTimeNanoSec() int64 {
+	return time.Now().UnixNano()
+} // end func Nano

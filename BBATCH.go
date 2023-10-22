@@ -2,7 +2,6 @@ package history
 
 import (
 	"fmt"
-	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"log"
 	"math"
@@ -54,7 +53,7 @@ func (his *HISTORY) boltBucketPutBatch(db *bolt.DB, char string, bucket string, 
 	var err error
 	var closed bool
 	batch1 := []*BatchOffset{}
-	//start := utils.UnixTimeMicroSec()
+	//start := UnixTimeMicroSec()
 
 fetchbatch:
 	for {
@@ -122,7 +121,7 @@ fetchbatch:
 			}
 		*/
 
-		start1 := utils.UnixTimeMicroSec()
+		start1 := UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			root := tx.Bucket([]byte(bucket))
@@ -175,7 +174,7 @@ fetchbatch:
 				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
 			}
 		}
-		insert1_took := utils.UnixTimeMicroSec() - start1
+		insert1_took := UnixTimeMicroSec() - start1
 		if DBG_BS_LOG {
 			his.batchLog(&BatchLOG{c: char, b: bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
 		}

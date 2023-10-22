@@ -217,7 +217,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 
 	if DEBUG {
-		log.Printf("boltDB_Init launch WatchBolt", ForcedReplay)
+		log.Printf("DEBUG boltDB_Init launch WatchBolt ForcedReplay=%t", ForcedReplay, ForcedReplay)
 		// run manually: go history.History.WatchBolt()
 		go his.WatchBolt()
 	}
@@ -446,7 +446,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			Q := 0
 			batchFlushEvery := BatchFlushEvery
 			var lft int64 = -1 // time passed since lastflush in milliseconds
-			lastflush := utils.UnixTimeMilliSec()
+			lastflush := UnixTimeMilliSec()
 			var forced, closed bool
 			var inserted uint64
 			var err error
@@ -461,7 +461,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			var median int64 = batchFlushEvery / 10
 			var slicelim int = 5 // calculates median lastflush time over N items
 			lft_slice := []int64{}
-			now := utils.UnixTimeMilliSec()
+			now := UnixTimeMilliSec()
 			bef := now
 			logf(DEBUG2, "batchQueue [%s] wid=%d Booted", char, wid)
 			lastprintABS2A := now
@@ -482,11 +482,11 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					sleept += median
 					sleepn++
 				}
-				bef = utils.UnixTimeMilliSec()
+				bef = UnixTimeMilliSec()
 				Q, inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, Qcap, forced, "gofunc", lft, wCBBS, batchLockChan)
-				now = utils.UnixTimeMilliSec()
+				now = UnixTimeMilliSec()
 				if forced { // DEBUG
-					logf(wantPrint(DBG_ABS2, &lastprintABS2A, utils.UnixTimeMilliSec(), BatchFlushEvery/4), "DBG_ABS2A forbatchqueue F0 [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t median=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, median, lft, now-lastflush, err)
+					logf(wantPrint(DBG_ABS2, &lastprintABS2A, UnixTimeMilliSec(), BatchFlushEvery/4), "DBG_ABS2A forbatchqueue F0 [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t median=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, median, lft, now-lastflush, err)
 				}
 				if closed { // received nil pointer
 					logf(his.reopenDBeveryN > 0, "Closed gofunc forbatchqueue [%s|%s]", char, bucket)
@@ -498,7 +498,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 				if inserted > 0 {
 					lft, lastflush = now-lastflush, now
-					logf(wantPrint(DBG_ABS2, &lastprintMED, utils.UnixTimeMilliSec(), 32768),
+					logf(wantPrint(DBG_ABS2, &lastprintMED, UnixTimeMilliSec(), 32768),
 						"DBG_ABS2 batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
 						char, bucket, inserted, lft, forced, median, len(lft_slice), Q, Qcap, now-bef, sleept, sleepn)
 					median = GetMedian(char, bucket, &lft_slice, lft, slicelim, minian, maxian, false)
@@ -508,8 +508,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 				//his.prioPush(char, pq, pqC, pqM, &BBPQItem{WID: wid, Run: runAT(median / 2), NCH: notifyChan, Now: now})
 
-				if Q > 0 && lastflush < utils.UnixTimeMilliSec()-batchFlushEvery {
-					logf(wantPrint(DBG_ABS2, &lastprintABS2B, utils.UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
+				if Q > 0 && lastflush < UnixTimeMilliSec()-batchFlushEvery {
+					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
 				} else {
@@ -1018,9 +1018,9 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string, reopen bool) error {
 		his.batchQueues.mux.Lock()
 		defer his.batchQueues.mux.Unlock()
 	}
-	startwait := utils.UnixTimeMilliSec()
+	startwait := UnixTimeMilliSec()
 	his.LockAllBatchLocks(char)
-	start := utils.UnixTimeMilliSec()
+	start := UnixTimeMilliSec()
 	waited := start - startwait
 	//logf(DEBUG2, "BoltDB SYNC [%s]", char)
 	// Manually sync the database to flush changes to disk
@@ -1028,7 +1028,7 @@ func (his *HISTORY) BoltSync(db *bolt.DB, char string, reopen bool) error {
 		log.Printf("ERROR BoltSync [%s] db.Sync failed err='%v'", char, err)
 		return err
 	}
-	logf(DEBUG, "BoltDB SYNC [%s] reopen=%t (took=%d ms) waited=%d", char, reopen, utils.UnixTimeMilliSec()-start, waited)
+	logf(DEBUG, "BoltDB SYNC [%s] reopen=%t (took=%d ms) waited=%d", char, reopen, UnixTimeMilliSec()-start, waited)
 
 	his.returnLockAllBatchLocks(char)
 
