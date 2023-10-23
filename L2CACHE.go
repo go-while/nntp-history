@@ -277,8 +277,8 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	l2.mux.Unlock()
 	logf(DEBUGL2, "L2 pqExpire [%s] booted", char)
 
-	cnt := l2.Counter[char]
 	ptr := l2.Caches[char]
+	cnt := l2.Counter[char]
 	mux := l2.Muxers[char]
 	pq := l2.prioQue[char]
 	//lenpq := 0
