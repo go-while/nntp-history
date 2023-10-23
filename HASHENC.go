@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/gob"
-	"hash/crc32"
-	//"encoding/hex"
 	"fmt"
+	"hash/crc32"
 	"log"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
-	//"time"
-	"crypto/rand"
-	"math/big"
 	"time"
 )
 
@@ -159,27 +156,9 @@ func CRC(input string) string {
 	return checksumStr
 } // end func CRC
 
-func generateRandomInt(min, max int) (int, error) {
-	if min > max {
-		return 0, fmt.Errorf("Invalid range: min > max")
-	}
-
-	// Calculate the range size
-	rangeSize := big.NewInt(int64(max - min + 1))
-
-	// Generate a random integer within the specified range
-	randomNumber, err := rand.Int(rand.Reader, rangeSize)
-	if err != nil {
-		return 0, err
-	}
-
-	// Add min to shift the range to the desired values
-	randomNumber.Add(randomNumber, big.NewInt(int64(min)))
-
-	// Convert the *big.Int to an int
-	randomInt := int(randomNumber.Int64())
-
-	return randomInt, nil
+func getRandomInt(min, max int) int {
+	//rand.Seed(time.Now().UnixNano())
+	return rand.Intn(max-min+1) + min
 }
 
 func UnixTimeSec() int64 {
