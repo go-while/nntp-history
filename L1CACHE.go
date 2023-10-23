@@ -171,7 +171,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	extC := l1.Extend[char]
 	mux := l1.Muxers[char]
 	pq := l1.deQueue[char]
-	pushq, pushmax, dq := make([]L1PQItem, clearEv), clearEv, 0
+	pushq, pushmax, pushcnt := make([]L1PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 
@@ -183,19 +183,19 @@ func (l1 *L1CACHE) pqExtend(char string) {
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
 				//log.Printf("L1 pushq append pqitem=%#v", pqitem)
-				pushq[dq] = *pqitem
+				pushq[pushcnt] = *pqitem
 				pqitem = nil
-				dq++
+				pushcnt++
 			} else {
 				log.Printf("ERROR L1 pqExtend extC.ch <- nil pointer")
 				return
 			}
-		}
-		if dq >= pushmax || (timeout && dq > 0) {
-			if dq > 0 {
+		} // end select
+		if pushcnt >= pushmax || (timeout && pushcnt > 0) {
+			if pushcnt > 0 {
 
 				mux.mux.Lock()
-				for i := 0; i < dq; i++ {
+				for i := 0; i < pushcnt; i++ {
 					if _, exists := ptr.cache[pushq[i].Key]; exists {
 						cnt.Counter["Count_BatchD"]++
 					}
@@ -203,12 +203,12 @@ func (l1 *L1CACHE) pqExtend(char string) {
 				mux.mux.Unlock()
 
 				pq.mux.Lock()
-				for i := 0; i < dq; i++ {
+				for i := 0; i < pushcnt; i++ {
 					pq.Push(pushq[i])
 				}
 				pq.mux.Unlock()
 
-				pushq, dq = make([]L1PQItem, clearEv), 0
+				pushq, pushcnt = make([]L1PQItem, clearEv), 0
 			}
 		}
 		if timeout {
