@@ -61,7 +61,7 @@ type L3PrioQue struct {
 	pqC chan struct{}
 }
 
-type L3PQ []*L3PQItem
+type L3PQ []L3PQItem
 
 type L3PQItem struct {
 	Key     string
@@ -125,7 +125,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 	extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	pushq, pushmax := []*L3PQItem{}, clearEv
+	pushq, pushmax, dq := make([]L3PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 
@@ -135,20 +135,35 @@ func (l3 *L3CACHE) pqExtend(char string) {
 		case <-timer.C:
 			timeout = true
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
-			pushq = append(pushq, pqitem)
+			if pqitem != nil {
+				pushq[dq] = *pqitem
+				//log.Printf("L3 pushq append pqitem=%#v", pqitem)
+				dq++
+			} else {
+				log.Printf("ERROR L3 pqExtend extC.ch <- nil pointer")
+				return
+			}
 		} // end select
-		if len(pushq) >= pushmax || (timeout && len(pushq) > 0) {
+		if dq >= pushmax || (timeout && dq > 0) {
 			mux.mux.Lock()
 			for _, item := range pushq {
+				if item.Key == "" {
+					continue
+				}
+				//log.Printf("L3 pushq timeout=%t item=%#v", timeout, item)
 				if _, exists := ptr.cache[item.Key]; exists {
 					cnt.Counter["Count_BatchD"]++
 				}
 			}
 			mux.mux.Unlock()
+
 			for _, item := range pushq {
+				if item.Key == "" {
+					continue
+				}
 				pq.Push(item)
 			}
-			pushq = nil
+			pushq, dq = make([]L3PQItem, clearEv), 0
 		}
 		if timeout {
 			timeout = false
@@ -182,7 +197,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	pq := l3.prioQue[char]
 
 	if flagexpires {
-		pq.Push(&L3PQItem{Key: key, Expires: L3CacheExpires})
+		pq.Push(L3PQItem{Key: key, Expires: L3CacheExpires})
 
 	}
 	mux.mux.Lock()
@@ -297,7 +312,7 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 	return false
 }
 
-func (pq *L3PrioQue) Push(item *L3PQItem) {
+func (pq *L3PrioQue) Push(item L3PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	pq.mux.Lock()
 	*pq.que = append(*pq.que, item)
@@ -316,7 +331,7 @@ func (pq *L3PrioQue) Pop() (*L3PQItem, int) {
 	pq.mux.Unlock()
 	item := old[0]
 	old = nil
-	return item, lenpq
+	return &item, lenpq
 } // end func Pop
 
 // Remove expired items from the cache
