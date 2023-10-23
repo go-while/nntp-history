@@ -939,10 +939,10 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 		go his.Sync_upcounter("BoltDB_decodedOffsets")
 		*returnoffsets = decodedOffsets
 
-		if len(offsets) > 0 {
-			his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagExpires, "boltBucketGetOffsets:got") // boltBucketGetOffsets
+		if len(decodedOffsets) > 0 {
+			his.L3Cache.SetOffsets(char+bucket+key, char, decodedOffsets, FlagExpires, "boltBucketGetOffsets:got") // boltBucketGetOffsets
 		}
-		return len(offsets), nil
+		return len(decodedOffsets), nil
 	}
 	//if offsets != nil {
 	////logf(DEBUG2, "boltBucketGetOffsets returns [%s|%s] key=%s err='%v' offsetsN=%d", *char, *bucket, *key, err, len(*offsets))
