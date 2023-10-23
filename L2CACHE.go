@@ -118,12 +118,10 @@ func (l2 *L2CACHE) pqExtend(char string) {
 				// got offset we will extend
 				if len(dat.extends) > 0 {
 					//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
-					//pqEX := time.Now().UnixNano() + L2ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
 					for _, offset := range dat.extends {
 						if _, exists := ptr.cache[offset]; exists {
 							cnt.Counter["Count_BatchD"]++
-							//l2.prioPush(char, pq, &L2PQItem{Key: offset, Expires: L2ExtendExpires})
 							pq.Push(&L2PQItem{Key: offset, Expires: L2ExtendExpires})
 
 						}
@@ -157,8 +155,6 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	pq := l2.prioQue[char]
 
 	if flagexpires {
-		//pqEX := time.Now().UnixNano() + (L2CacheExpires * int64(time.Second))
-		//l2.prioPush(char, pq, &L2PQItem{Key: offset, Expires: L2CacheExpires})
 		pq.Push(&L2PQItem{Key: offset, Expires: L2CacheExpires})
 	}
 

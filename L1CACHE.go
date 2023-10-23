@@ -168,7 +168,6 @@ func (l1 *L1CACHE) pqExtend(char string) {
 				// got hashes we will extend
 				if len(dat.extends) > 0 {
 					//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
-					//pqEX := time.Now().UnixNano() + L1ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
 					for _, hash := range dat.extends {
 						if _, exists := ptr.cache[hash]; exists {
@@ -180,7 +179,6 @@ func (l1 *L1CACHE) pqExtend(char string) {
 					mux.mux.Unlock()
 
 					for _, hash := range pushq {
-						//l1.prioPush(char, pq, &L1PQItem{Key: hash, Expires: L1ExtendExpires})
 						pq.Push(&L1PQItem{Key: hash, Expires: L1ExtendExpires})
 					}
 					dat.extends, pushq = nil, nil
@@ -210,8 +208,6 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	pq := l1.prioQue[char]
 
 	if flagexpires {
-		//pqEX := time.Now().UnixNano() + (L1CacheExpires * int64(time.Second))
-		//l1.prioPush(char, pq, &L1PQItem{Key: hash, Expires: L1CacheExpires})
 		pq.Push(&L1PQItem{Key: hash, Expires: L1CacheExpires})
 	}
 	mux.mux.Lock()

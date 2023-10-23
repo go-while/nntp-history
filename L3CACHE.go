@@ -123,12 +123,10 @@ func (l3 *L3CACHE) pqExtend(char string) {
 				// got keys we will extend
 				if len(dat.extends) > 0 {
 					//logf(DEBUG, "L3 [%s] extends=%d", char, len(extends))
-					//pqEX := time.Now().UnixNano() + L3ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
 					for _, key := range dat.extends {
 						if _, exists := ptr.cache[key]; exists {
 							cnt.Counter["Count_BatchD"]++
-							//l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3ExtendExpires})
 							pq.Push(&L3PQItem{Key: key, Expires: L3ExtendExpires})
 
 						}
@@ -166,8 +164,6 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	pq := l3.prioQue[char]
 
 	if flagexpires {
-		//pqEX := time.Now().UnixNano() + (L3CacheExpires * int64(time.Second))
-		//l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3CacheExpires})
 		pq.Push(&L3PQItem{Key: key, Expires: L3CacheExpires})
 
 	}
@@ -184,7 +180,6 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	//var tailstr string
 	if _, exists := ptr.cache[key]; exists {
 		// cache entry exists
-		//ptr.cache[key].expires = expires
 		cachedlen := len(ptr.cache[key].offsets)
 		if cachedlen == 0 {
 			// there is an empty offsets-slice cached: set this
