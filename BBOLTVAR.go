@@ -414,7 +414,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 				}
 				did += len(batchCreate)
 				batchCreate = nil
-				time.Sleep(time.Millisecond/10) // cpu burner and disk killer
+				time.Sleep(time.Millisecond / 10) // cpu burner and disk killer
 			}
 		} // end for range subbuckets
 		if len(batchCreate) > 0 {
@@ -424,7 +424,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 		retbool = true
 
 	} else if his.keyIndex <= 0 {
-		log.Printf("boltCreateBucket [%s|%s] pre-create root buckets =%d", char, bucket, len(ROOTBUCKETS))
+		logf(DEBUG1, "boltCreateBucket [%s|%s] pre-create root buckets =%d", char, bucket, len(ROOTBUCKETS))
 		if err := db.Update(func(tx *bolt.Tx) error {
 			_, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
 			//_, err := tx.CreateBucketIfNotExists([]byte(*bucket)) // _ == bb == *bbolt.Bucket
@@ -582,3 +582,39 @@ func CPUBURN() {
 		runtime.Gosched()
 	}
 }
+
+func GetMedian(char string, bucket string, slice *[]int64, new int64, lim int, minian int64, maxian int64, print bool) (med int64) {
+	var sum int64
+	*slice = append(*slice, new)
+	if len(*slice) > lim {
+		// pop one and shift slice
+		shift := *slice
+		shift = shift[1:]
+		*slice = shift
+	}
+	for _, val := range *slice {
+		sum += val
+	}
+	if sum > 0 {
+		// heartbeat: median / 4 will push us ~25% over the wCBBS. Q is x2.
+		med = int64(sum/int64(len(*slice))) / 4
+		//logf(print, "GetMedian: [%s|%s] med=%d +new=%d", char, bucket, med, new)
+	}
+	if med < minian {
+		med = minian
+	} else if med > maxian {
+		med = maxian
+	}
+	return
+} // end func median
+
+func wantPrint(want bool, lastprint *int64, now int64, printEvery int64) bool {
+	if !want {
+		return false
+	}
+	if *lastprint < now-printEvery {
+		*lastprint = now
+		return true
+	}
+	return false
+} // end func wantPrint

@@ -1,8 +1,6 @@
 package history
 
 import (
-	//"arena"
-	"container/heap"
 	"fmt"
 	"log"
 	"sync"
@@ -10,11 +8,20 @@ import (
 )
 
 /*
-L3Cache: key => offsets
-less requests to boltDB
-*/
+ *
+ * L3Cache: key => offsets
+ * less requests to boltDB
+ *
+ * disabling L3 is not a good idea!!
+ * queues hold offsets which DB does not know about!
+ * cache keeps track of duplicate writes
+ * duplicate keys will get an empty_offsets
+ * and the latest will overwrite the past write maybe still in queue
+ *
+ */
 var (
 	DEBUGL3         bool  = false
+	L3              bool  = true // do not disable!
 	L3CacheExpires  int64 = DefaultCacheExpires
 	L3ExtendExpires int64 = DefaultCacheExtend
 	L3Purge         int64 = DefaultCachePurge
@@ -27,10 +34,8 @@ type L3CACHE struct {
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	prioQue map[string]*L3PQ         // Priority queue for item expiration
-	pqChans map[string]chan struct{} // Priority queue notify channels
-	pqMuxer map[string]*L3PQMUX      // Priority queue Muxers
-	//arenas  map[string]*L3Arena
+	prioQue map[string]*L3PrioQue // Priority queue for item expiration
+
 }
 
 type L3CACHEMAP struct {
@@ -45,25 +50,25 @@ type L3MUXER struct {
 	mux sync.RWMutex
 }
 
-type L3PQMUX struct {
-	mux sync.RWMutex
+type L3PrioQue struct {
+	que *L3PQ
+	mux sync.Mutex
+	pqC chan struct{}
 }
 
-/*
-type L3Arena struct {
-	mux sync.RWMutex
+type L3PQ []*L3PQItem
 
-	pqmem   *arena.Arena
-	prioQue *L3PQ
-
-	dqmem   *arena.Arena
-	dqslice *DQSlice
+type L3PQItem struct {
+	Key     string
+	Expires int64
 }
-*/
 
 // The L3CACHE_Boot method initializes the L3 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
 func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
+	if !L3 {
+		return
+	}
 	l3.mux.Lock()
 	defer l3.mux.Unlock()
 	if l3.Caches != nil {
@@ -74,36 +79,31 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 	l3.Extend = make(map[string]*StrECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
-	l3.prioQue = make(map[string]*L3PQ, intBoltDBs)
-	l3.pqChans = make(map[string]chan struct{}, intBoltDBs)
-	l3.pqMuxer = make(map[string]*L3PQMUX, intBoltDBs)
-	//l3.arenas = make(map[string]*L3Arena, intBoltDBs)
+	l3.prioQue = make(map[string]*L3PrioQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
-		l3.Extend[char] = &StrECH{ch: make(chan []string, his.cEvCap)}
+		l3.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l3.prioQue[char] = &L3PQ{}
-		l3.pqChans[char] = make(chan struct{}, 1)
-		l3.pqMuxer[char] = &L3PQMUX{}
-		//l3.arenas[char] = &L3Arena{pqmem: arena.NewArena(), dqmem: arena.NewArena()}
-		//l3.arenas[char].prioQue = arena.New[L3PQ](l3.arenas[char].pqmem)
-		//l3.arenas[char].dqslice = arena.New[DQSlice](l3.arenas[char].dqmem)
+		l3.prioQue[char] = &L3PrioQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
 		// stupid race condition on boot when placed in loop before
 		go l3.pqExpire(char)
-		go l3.L3Cache_Thread(char)
+		go l3.pqExtend(char)
 	}
 
 } // end func L3CACHE_Boot
 
-// The L3Cache_Thread function runs as a goroutine for each character.
-func (l3 *L3CACHE) L3Cache_Thread(char string) {
+// The pqExtend function runs as a goroutine for each character.
+func (l3 *L3CACHE) pqExtend(char string) {
+	if !L3 {
+		return
+	}
 	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
 	l3.mux.Unlock()
-	//logf(DEBUGL3, "Boot L3Cache_Thread [%s]", char)
+	//logf(DEBUGL3, "Boot L3pqExtend [%s]", char)
 	l3purge := L3Purge
 	if l3purge < 1 {
 		l3purge = 1
@@ -116,42 +116,37 @@ func (l3 *L3CACHE) L3Cache_Thread(char string) {
 		extC := l3.Extend[char]
 		mux := l3.Muxers[char]
 		pq := l3.prioQue[char]
-		pqC := l3.pqChans[char]
-		pqM := l3.pqMuxer[char]
-		var extends []string
-		//if UseArenas {
-		//	a := l3.arenas[char]
-		//	pq = a.prioQue
-		//	pqM = a
-		//}
-
 		//forever:
 		for {
 			select {
-			case extends = <-extC.ch: // receives stuff from CacheEvictThread()
+			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
 				// got keys we will extend
-				if len(extends) > 0 {
+				if len(dat.extends) > 0 {
 					//logf(DEBUG, "L3 [%s] extends=%d", char, len(extends))
-					pqEX := time.Now().UnixNano() + L3ExtendExpires*int64(time.Second)
+					//pqEX := time.Now().UnixNano() + L3ExtendExpires*int64(time.Second)
 					mux.mux.Lock()
-					for _, key := range extends {
+					for _, key := range dat.extends {
 						if _, exists := ptr.cache[key]; exists {
 							cnt.Counter["Count_BatchD"]++
-							l3.prioPush(char, pq, pqC, pqM, &L3PQItem{Key: key, Expires: pqEX})
+							//l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3ExtendExpires})
+							pq.Push(&L3PQItem{Key: key, Expires: L3ExtendExpires})
+
 						}
 					}
 					mux.mux.Unlock()
-					extends = nil
 				}
 			} // end select
 
 		} // end forever
 	}() // end gofunc1
-} //end func L3Cache_Thread
+} //end func pqExtend
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
 func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpires bool, src string) {
+	if !L3 {
+		return
+	}
 	//if key == TESTCACKEY {
 	//	log.Printf("L3CAC [%s|  ] SetOffsets key='%s' offsets='%#v' flagexpires=%t src='%s'", char, key, offsets, flagexpires, src)
 	//}
@@ -167,21 +162,14 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
-	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	pqC := l3.pqChans[char]
-	pqM := l3.pqMuxer[char]
-	/*if UseArenas {
-		a := l3.arenas[char]
-		pq := a.prioQue
-		pqC := l3.pqChans[char]
-		pqM := a
-	}*/
 
 	if flagexpires {
-		pqEX := time.Now().UnixNano() + (L3CacheExpires * int64(time.Second))
-		l3.prioPush(char, pq, pqC, pqM, &L3PQItem{Key: key, Expires: pqEX})
+		//pqEX := time.Now().UnixNano() + (L3CacheExpires * int64(time.Second))
+		//l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3CacheExpires})
+		pq.Push(&L3PQItem{Key: key, Expires: L3CacheExpires})
+
 	}
 	mux.mux.Lock()
 	switch flagexpires {
@@ -233,6 +221,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
 func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64) int {
+	if !L3 {
+		return 0
+	}
 	if key == "" || offsets == nil || len(*offsets) > 0 {
 		log.Printf("ERROR L3CACHEGet key or io nil or var `offsets` not empty")
 		return 0
@@ -293,147 +284,76 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 	return false
 }
 
-type L3PQ []*L3PQItem
+func (pq *L3PrioQue) Push(item *L3PQItem) {
+	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
+	pq.mux.Lock()
+	*pq.que = append(*pq.que, item)
+	pq.mux.Unlock()
+} // end func Push
 
-type L3PQItem struct {
-	Key     string
-	Expires int64
-}
-
-func (pq L3PQ) Len() int { return len(pq) }
-
-func (pq L3PQ) Less(i, j int) bool {
-	//log.Printf("L3PQ Less()")
-	return pq[i].Expires < pq[j].Expires
-}
-
-func (pq L3PQ) Swap(i, j int) {
-	//log.Printf("L3PQ Swap()")
-	pq[i], pq[j] = pq[j], pq[i]
-}
-
-func (pq *L3PQ) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	*pq = old[0 : n-1]
+func (pq *L3PrioQue) Pop() (*L3PQItem, int) {
+	pq.mux.Lock()
+	lenpq := len(*pq.que)
+	if lenpq == 0 {
+		pq.mux.Unlock()
+		return nil, 0
+	}
+	old := *pq.que
+	*pq.que = old[1:]
+	pq.mux.Unlock()
+	item := old[0]
 	old = nil
-	//log.Printf("L3PQ POP() item='%#v", item)
-	return item
-}
-
-func (pq *L3PQ) Push(x interface{}) {
-	item := x.(*L3PQItem)
-	*pq = append(*pq, item)
-}
+	return item, lenpq
+} // end func Pop
 
 // Remove expired items from the cache
 func (l3 *L3CACHE) pqExpire(char string) {
+	if !L3 {
+		return
+	}
+	//log.Printf("L3 pqExpire [%s] wait l3 lock", char)
 	l3.mux.Lock() // waits for boot to finish
 	l3.mux.Unlock()
-	//start := utils.UnixTimeMilliSec()
+	logf(DEBUGL3, "L3 pqExpire [%s] booted", char)
+
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
-	//extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	pqC := l3.pqChans[char]
-	pqM := l3.pqMuxer[char]
-	dq := []string{} // with arenas needs to change dq to *dq below
-	/*if UseArenas {
-		a := l3.arenas[char]
-		pq := a.prioQue
-		dq := a.dqslice // delete queue slice in memory arena
-		pqM := a
-	}*/
-	//var item *L3PQItem
-	var empty bool
-	lpq, dqcnt, dqmax := 0, 0, 512
-
-	lastdel := time.Now().Unix()
-forever:
+	//lenpq := 0
+	var item *L3PQItem
+	var isleep int64
+	l3purge := L3Purge
+	dq, dqmax := []string{}, ClearEveryN
+	lf := UnixTimeSec()
+	now := UnixTimeSec()
+cleanup:
 	for {
-		if dqcnt >= dqmax || (lastdel < time.Now().Unix()-L3Purge && dqcnt > 0) {
-			//log.Printf("L3 pqExpire [%s] cleanup dqcnt=%d lpq=%d", char, dqcnt, lpq)
-			mux.mux.Lock()
-			for _, delkey := range dq {
-				delete(ptr.cache, delkey)
-				cnt.Counter["Count_Delete"]++
-			}
-			mux.mux.Unlock()
-			dqcnt, dq, lastdel = 0, nil, time.Now().Unix()
-		}
-
-		pqM.mux.RLock()
-		lpq = len(*pq)
-		if lpq == 0 {
-			empty = true
-			pqM.mux.RUnlock()
-		waiter:
-			for {
-				//log.Printf("L3 pqExpire [%s] blocking wait dqcnt=%d lpq=%d", char, dqcnt, lpq)
-				select {
-				case <-pqC: // waits for notify to run
-					//log.Printf("L3 pqExpire [%s] got notify <-pqC dqcnt=%d lpq=%d", char, dqcnt, lpq)
-				default:
-					time.Sleep(time.Duration(L3Purge) * time.Second)
-					pqM.mux.RLock() // watch this! RLock gets opened here
-					lpq = len(*pq)
-					if lpq > 0 {
-						empty = false
-					}
-					if !empty {
-						//log.Printf("L3 pqExpire [%s] released wait: !empty dqcnt=%d lpq=%d", char, dqcnt, lpq)
-						break waiter
-					}
-					// RUnlock here but the break !empty before keeps it open to get the item!
-					pqM.mux.RUnlock()
-				} // end select
-				if empty {
-					if dqcnt > 0 {
-						continue forever
-					}
+		now = UnixTimeSec()
+		if len(dq) >= dqmax || lf <= now-l3purge {
+			if len(dq) > 0 {
+				mux.mux.Lock()
+				for _, key := range dq {
+					delete(ptr.cache, key)
 				}
-			} // end for waiter
-		} // end if len(*pq) == 0 {
-
-		// Get the item with the nearest expiration time
-		item := (*pq)[0]
-		pqM.mux.RUnlock()
-
-		currentTime := time.Now().UnixNano()
-
-		if item.Expires <= currentTime {
-			// This item has expired, remove it from the cache and priority queue
-			//log.Printf("L3 pqExpire [%s] key='%s' diff=%d", char, item.Key, item.Expires-currentTime)
-			pqM.mux.Lock()
-			//delete(ptr.cache, item.Key)
-			//cnt.Counter["Count_Delete"]++
-			heap.Pop(pq)
-			pqM.mux.Unlock()
-			dq = append(dq, item.Key)
-			dqcnt++
-		} else {
-			// The nearest item hasn't expired yet, sleep until it does
-			sleepTime := time.Duration(item.Expires - currentTime)
-			//log.Printf("L3 pqExpire [%s] key='%s' diff=%d sleepTime=%d", char, item.Key, currentTime-item.Expires, sleepTime)
-			time.Sleep(sleepTime)
+				cnt.Counter["Count_Delete"] += uint64(len(dq))
+				mux.mux.Unlock()
+			}
+			dq, lf = nil, now
 		}
-	} // end for
-} // end func pqExpire
-
-func (l3 *L3CACHE) prioPush(char string, pq *L3PQ, pqC chan struct{}, pqM *L3PQMUX, item *L3PQItem) {
-	//log.Printf("l3.prioPush [%s] heap.push item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
-	pqM.mux.Lock()
-	heap.Push(pq, item)
-	pqM.mux.Unlock()
-
-	//log.Printf("l3.prioPush [%s] heap.push unlocked", char)
-	select {
-	case pqC <- struct{}{}:
-		// pass notify to pqExpire()
-	default:
-		// pass too: notify chan is full
+		item, _ = pq.Pop()
+		if item == nil {
+			time.Sleep(time.Duration(l3purge) * time.Second)
+			continue cleanup
+		}
+		if item.Expires > time.Now().UnixNano() {
+			isleep = item.Expires - time.Now().UnixNano()
+			//logf(DEBUGL1, "L3 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
+			if isleep > 0 {
+				time.Sleep(time.Duration(isleep))
+			}
+		}
+		dq = append(dq, item.Key)
+		item = nil
 	}
-	//log.Printf("l3.prioPush [%s] heap.push passed pqC", char)
-} // end func prioPush
+} // end func pqExpire

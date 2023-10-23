@@ -63,7 +63,7 @@ func (his *HISTORY) WatchBolt() {
 				diff := batchinsnow - batchins
 				pps := diff / uWatchBoltTimer
 				medbatchsize := uint64(insertednow / batchinsnow)
-				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in %ds) medBS=~%d", pps, diff, medbatchsize, WatchBoltTimer)
+				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in %ds) medBS=~%d", pps, diff, WatchBoltTimer, medbatchsize)
 			}
 			batchins = batchinsnow
 		}

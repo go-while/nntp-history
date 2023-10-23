@@ -95,12 +95,12 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if BatchFlushEvery <= 0 { // milliseconds
 		BatchFlushEvery = 1
 	}
-
-	if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
-		DefaultCacheExpires = BatchFlushEvery * 2 / 1000
-		DefaultCacheExtend = DefaultCacheExpires
-	}
-
+	/*
+		if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
+			DefaultCacheExpires = BatchFlushEvery * 2 / 1000
+			DefaultCacheExtend = DefaultCacheExpires
+		}
+	*/
 	if DefaultCachePurge <= 0 { // seconds
 		DefaultCachePurge = 1
 	}
@@ -304,12 +304,14 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
 	}
 	his.L1Cache.L1CACHE_Boot(his)
-
+	log.Printf("L1Cache Booted")
 	if his.useHashDB {
+		log.Printf("Booting boltDB")
 		his.boltDB_Init(boltOpts)
+		log.Printf("boltDB init done")
 	}
 
-	his.CacheEvictThread()
+	his.CacheEvictThread(4)
 
 	logf(BootVerbose, "\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
