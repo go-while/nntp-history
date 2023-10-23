@@ -20,7 +20,8 @@ var (
 	DefaultCacheExpires   int64 = 5          // gets x2 BatchFlushEvery x2
 	DefaultCacheExtend    int64 = 5          // extends cached items after writes
 	DefaultCachePurge     int64 = 1          // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
-	DefaultEvictsCapacity int   = 512 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
+	DefaultEvictsCapacity       = 512 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
+	ClearEveryN                 = 256        // cache cleansup every N items or when DefaultCachePurge triggers
 )
 
 // CharCacheCounter
@@ -187,7 +188,7 @@ func (his *HISTORY) CacheEvictThread(num int) {
 				l2ext := his.L2Cache.Extend[char]
 				l3ext := his.L3Cache.Extend[char]
 
-				clearEveryN := 1024 // hardcoded: should match dqmax
+				clearEveryN := ClearEveryN // hardcoded: should match dqmax
 				basetimer := DefaultCachePurge
 
 				tmpHash := []string{}

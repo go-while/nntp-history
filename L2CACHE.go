@@ -289,23 +289,36 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	var item *L2PQItem
 	var isleep int64
 	l2purge := L2Purge
+	dq, dqmax := []int64{}, ClearEveryN
+	lf := UnixTimeSec()
+	now := UnixTimeSec()
 cleanup:
 	for {
+		now = UnixTimeSec()
+		if len(dq) >= dqmax || lf <= now-l2purge {
+			if len(dq) > 0 {
+				mux.mux.Lock()
+				for _, key := range dq {
+					delete(ptr.cache, key)
+				}
+				cnt.Counter["Count_Delete"] += uint64(len(dq))
+				mux.mux.Unlock()
+			}
+			dq, lf = nil, now
+		}
 		item, _ = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l2purge) * time.Second)
 			continue cleanup
 		}
-		if item.Expires >= time.Now().UnixNano() {
+		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			//logf(DEBUGL2, "L2 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
+			//logf(DEBUGL1, "L2 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
 			if isleep > 0 {
 				time.Sleep(time.Duration(isleep))
 			}
 		}
-		mux.mux.Lock()
-		delete(ptr.cache, item.Key)
-		cnt.Counter["Count_Delete"]++
-		mux.mux.Unlock()
+		dq = append(dq, item.Key)
+		item = nil
 	}
 } // end func pqExpire
