@@ -40,7 +40,7 @@ type ClearCacheChan struct {
 func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
 	if char == "" {
 		// char derived from hash or for offset: offset=>hex[lastchar]
-		//log.Printf("ERROR CacheEvict char empty.")
+		log.Printf("ERROR DoCacheEvict char=nil")
 		return
 	}
 
