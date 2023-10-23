@@ -351,8 +351,8 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	var isleep int64
 	l3purge := L3Purge
 	dq, dqmax := []string{}, ClearEveryN
-	lf := UnixTimeSec()
 	now := UnixTimeSec()
+	lf := now
 cleanup:
 	for {
 		now = UnixTimeSec()
