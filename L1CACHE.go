@@ -32,7 +32,7 @@ type L1CACHE struct {
 	Extend  map[string]*L1ECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC
-	prioQue map[string]*L1PrioQue // Priority queue for item expiration
+	deQueue map[string]*L1DeQue // Priority queue for item expiration
 }
 
 type L1CACHEMAP struct {
@@ -52,7 +52,7 @@ type L1MUXER struct {
 	mux sync.Mutex
 }
 
-type L1PrioQue struct {
+type L1DeQue struct {
 	que *L1PQ
 	mux sync.Mutex
 	pqC chan struct{}
@@ -81,13 +81,13 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	l1.Extend = make(map[string]*L1ECH, intBoltDBs)
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
-	l1.prioQue = make(map[string]*L1PrioQue, intBoltDBs)
+	l1.deQueue = make(map[string]*L1DeQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l1.prioQue[char] = &L1PrioQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
+		l1.deQueue[char] = &L1DeQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -170,7 +170,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	cnt := l1.Counter[char]
 	extC := l1.Extend[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
+	pq := l1.deQueue[char]
 	pushq, pushmax, dq := make([]L1PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
@@ -234,7 +234,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
+	pq := l1.deQueue[char]
 
 	if flagexpires {
 		pq.mux.Lock()
@@ -290,12 +290,12 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	return
 } // end func L1Stats
 
-func (pq *L1PrioQue) Push(item L1PQItem) {
+func (pq *L1DeQue) Push(item L1PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	*pq.que = append(*pq.que, item)
 } // end func Push
 
-func (pq *L1PrioQue) Pop() (*L1PQItem, int) {
+func (pq *L1DeQue) Pop() (*L1PQItem, int) {
 	pq.mux.Lock()
 	lenpq := len(*pq.que)
 	if lenpq == 0 {
@@ -323,8 +323,8 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
-	//lenpq := 0
+	pq := l1.deQueue[char]
+	lenpq := 0
 	var item *L1PQItem
 	var isleep int64
 	l1purge := L1Purge
@@ -345,15 +345,15 @@ cleanup:
 			}
 			dq, lf = nil, now
 		}
-		item, _ = pq.Pop()
+		item, lenpq = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
 		}
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			//logf(DEBUGL1, "L1 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
 			if isleep > 0 {
+				logf(DEBUGL1, "L1 pqExpire [%s] sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 				time.Sleep(time.Duration(isleep))
 			}
 		}
