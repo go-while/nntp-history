@@ -827,31 +827,6 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 
 	// puts offset into batchQ
 	batchQueue <- &BatchOffset{bucket: bucket, key: key, encodedOffsets: encodedOffsets, hash: hash, char: char, offsets: offsets}
-
-	/*
-		his.BatchLocks[char][bucket] <- struct{}{}
-		defer his.returnBatchLock(char, bucket)
-
-		if err := db.Update(func(tx *bolt.Tx) error {
-			var err error
-			b := tx.Bucket([]byte(bucket))
-			b.FillPercent = 0.3
-			puterr := b.Put([]byte(key), encodedOffsets)
-			if puterr != nil {
-				return puterr
-			}
-			return err
-		}); err != nil {
-			log.Printf("ERROR boltBucketKeyPutOffsets [%s|%s] err='%v'", char, bucket, err)
-			return err
-		}
-
-		his.Sync_upcounter("inserted")
-		his.DoCacheEvict(char, hash, 0, char+bucket+key)
-		for _, offset := range offsets {
-			his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
-		}
-	*/
 	return
 } // end func boltBucketKeyPutOffsets
 
