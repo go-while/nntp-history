@@ -374,9 +374,11 @@ cleanup:
 		}
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			if isleep > 0 {
+			if isleep > int64(100*time.Millisecond) {
 				logf(DEBUGL3, "L3 pqExpire [%s] sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 				time.Sleep(time.Duration(isleep))
+			} else {
+				logf(DEBUGL3, "L3 pqExpire [%s] NEG sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 			}
 		}
 		dq = append(dq, item.Key)
