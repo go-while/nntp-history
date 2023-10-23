@@ -417,14 +417,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		his.batchQueues.mux.Lock()
 		his.batchQueues.Maps[char][bucket] = batchQueue
 		his.batchQueues.mux.Unlock()
-
-		// delays the start of a worker by batchflushevery divided by len of all root buckets.
-		// should somehow result in slowly booting workers to get a better flushing behavior
-		// more even distribution on runtime. else all workers boot at the same time and flush at the same time.
-		//delay = int64(wid * int(BatchFlushEvery) / len(ROOTBUCKETS))
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
-		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
-
+		// It results in a total of `intBoltDBs` by `RootBuckets` queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 		go func(db *bolt.DB, wid int, char string, bucket string,
 			batchQueue chan *BatchOffset, closedBuckets chan struct{}) {
 
@@ -467,16 +461,13 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			lastprintABS2B := now
 			lastprintMED := now
 
+			qcapPercent := 15 // hardcoded: affects insert performance and memory
+			randPercent := 15 // hardcoded: affects insert performance and memory
+
 		forbatchqueue:
 			for {
 				if !forced {
-					//log.Printf("batchQueue [%s] wid=%d !forced wait4notifyChan", char, wid)
-					//select {
-					//case <-notifyChan:
-					//	//log.Printf("batchQueue [%s] wid=%d received notify wakeup", char, wid)
-					//}
 					time.Sleep(time.Duration(median) * time.Millisecond)
-					//sleept += median
 					sleept += median
 					sleepn++
 				}
@@ -512,12 +503,12 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
-				} else if Q > (Qcap / 2 / 100 * 25) {
-					// queue has more than 25% of elements
-					// randomly flush 25% of requests to get some random distribution?
+				} else if Q > (Qcap / 2 / 100 * qcapPercent) {
+					// queue has more than `capPercent`% of elements
 					arand, err := generateRandomInt(1, 100)
-					if err == nil && arand < 25 {
-						logf(DEBUG, "forbatchqueue [%s|%s] arand=%d<25 forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
+					if err == nil && arand > 0 && arand < randPercent {
+						// randomly flush `randPercent`% of requests to get some random distribution?
+						logf(DEBUG2, "forbatchqueue [%s|%s] arand=%d<%d forced=>true Q=%d/%d >%d%% median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, randPercent, Q, Qcap, qcapPercent, median, len(lft_slice), sleept, sleepn)
 						forced = true
 						continue forbatchqueue
 					}
