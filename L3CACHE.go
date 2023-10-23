@@ -1,7 +1,6 @@
 package history
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -136,8 +135,9 @@ func (l3 *L3CACHE) pqExtend(char string) {
 			timeout = true
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
-				pushq[dq] = *pqitem
 				//log.Printf("L3 pushq append pqitem=%#v", pqitem)
+				pushq[dq] = *pqitem
+				pqitem = nil
 				dq++
 			} else {
 				log.Printf("ERROR L3 pqExtend extC.ch <- nil pointer")
@@ -145,25 +145,24 @@ func (l3 *L3CACHE) pqExtend(char string) {
 			}
 		} // end select
 		if dq >= pushmax || (timeout && dq > 0) {
-			mux.mux.Lock()
-			for _, item := range pushq {
-				if item.Key == "" {
-					continue
-				}
-				//log.Printf("L3 pushq timeout=%t item=%#v", timeout, item)
-				if _, exists := ptr.cache[item.Key]; exists {
-					cnt.Counter["Count_BatchD"]++
-				}
-			}
-			mux.mux.Unlock()
+			if dq > 0 {
 
-			for _, item := range pushq {
-				if item.Key == "" {
-					continue
+				mux.mux.Lock()
+				for i := 0; i < dq; i++ {
+					if _, exists := ptr.cache[pushq[i].Key]; exists {
+						cnt.Counter["Count_BatchD"]++
+					}
 				}
-				pq.Push(item)
+				mux.mux.Unlock()
+
+				pq.mux.Lock()
+				for i := 0; i < dq; i++ {
+					pq.Push(pushq[i])
+				}
+				pq.mux.Unlock()
+
+				pushq, dq = make([]L3PQItem, clearEv), 0
 			}
-			pushq, dq = make([]L3PQItem, clearEv), 0
 		}
 		if timeout {
 			timeout = false
@@ -197,7 +196,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	pq := l3.prioQue[char]
 
 	if flagexpires {
+		pq.mux.Lock()
 		pq.Push(L3PQItem{Key: key, Expires: L3CacheExpires})
+		pq.mux.Unlock()
 
 	}
 	mux.mux.Lock()
@@ -210,7 +211,6 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		cnt.Counter["Count_Set"]++
 	}
 
-	//var tailstr string
 	if _, exists := ptr.cache[key]; exists {
 		// cache entry exists
 		cachedlen := len(ptr.cache[key].offsets)
@@ -227,9 +227,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 				continue
 			}
 			// checks cached offsets backwards too
-			tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, offsets[i], src)
+			//tailstr := fmt.Sprintf("key='%s' cached=%d='%#v' i=%d %d/%d='%#v' offsets[i]=%d src='%s'", key, cachedlen, l3.Caches[char].cache[key].offsets, i, i+1, len(offsets), offsets, offsets[i], src)
 			if !valueExistsInSliceReverseOrder(offsets[i], ptr.cache[key].offsets) {
-				logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
+				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets append %s", char, tailstr)
 				ptr.cache[key].offsets = append(ptr.cache[key].offsets, offsets[i])
 			} else {
 				//logf(DEBUG, "INFO L3CACHE [%s] SetOffsets exists %s", char, tailstr)
@@ -314,9 +314,7 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 
 func (pq *L3PrioQue) Push(item L3PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	pq.mux.Lock()
 	*pq.que = append(*pq.que, item)
-	pq.mux.Unlock()
 } // end func Push
 
 func (pq *L3PrioQue) Pop() (*L3PQItem, int) {
@@ -376,7 +374,7 @@ cleanup:
 		}
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			//logf(DEBUGL1, "L3 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
+			//logf(DEBUGL3, "L3 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
 			if isleep > 0 {
 				time.Sleep(time.Duration(isleep))
 			}

@@ -131,8 +131,9 @@ func (l2 *L2CACHE) pqExtend(char string) {
 			timeout = true
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
-				pushq[dq] = *pqitem
 				//log.Printf("L2 pushq append pqitem=%#v", pqitem)
+				pushq[dq] = *pqitem
+				pqitem = nil
 				dq++
 			} else {
 				log.Printf("ERROR L2 pqExtend extC.ch <- nil pointer")
@@ -140,25 +141,24 @@ func (l2 *L2CACHE) pqExtend(char string) {
 			}
 		} // end select
 		if dq >= pushmax || (timeout && dq > 0) {
-			mux.mux.Lock()
-			for _, item := range pushq {
-				if item.Key <= 0 { // key is an offset
-					continue
-				}
-				//log.Printf("L2 pushq timeout=%t item=%#v", timeout, item)
-				if _, exists := ptr.cache[item.Key]; exists {
-					cnt.Counter["Count_BatchD"]++
-				}
-			}
-			mux.mux.Unlock()
+			if dq > 0 {
 
-			for _, item := range pushq {
-				if item.Key <= 0 { // key is an offset
-					continue
+				mux.mux.Lock()
+				for i := 0; i < dq; i++ {
+					if _, exists := ptr.cache[pushq[i].Key]; exists {
+						cnt.Counter["Count_BatchD"]++
+					}
 				}
-				pq.Push(item)
+				mux.mux.Unlock()
+
+				pq.mux.Lock()
+				for i := 0; i < dq; i++ {
+					pq.Push(pushq[i])
+				}
+				pq.mux.Unlock()
+
+				pushq, dq = make([]L2PQItem, clearEv), 0
 			}
-			pushq, dq = make([]L2PQItem, clearEv), 0
 		}
 		if timeout {
 			timeout = false
@@ -188,7 +188,9 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	pq := l2.prioQue[char]
 
 	if flagexpires {
+		pq.mux.Lock()
 		pq.Push(L2PQItem{Key: offset, Expires: L2CacheExpires})
+		pq.mux.Unlock()
 	}
 
 	mux.mux.Lock()
@@ -280,9 +282,7 @@ func (l2 *L2CACHE) L2Stats(statskey string) (retval uint64, retmap map[string]ui
 
 func (pq *L2PrioQue) Push(item L2PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	pq.mux.Lock()
 	*pq.que = append(*pq.que, item)
-	pq.mux.Unlock()
 } // end func Push
 
 func (pq *L2PrioQue) Pop() (*L2PQItem, int) {
@@ -342,7 +342,7 @@ cleanup:
 		}
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			//logf(DEBUGL1, "L2 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
+			//logf(DEBUGL2, "L2 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
 			if isleep > 0 {
 				time.Sleep(time.Duration(isleep))
 			}

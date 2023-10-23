@@ -182,8 +182,9 @@ func (l1 *L1CACHE) pqExtend(char string) {
 			timeout = true
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
-				pushq[dq] = *pqitem
 				//log.Printf("L1 pushq append pqitem=%#v", pqitem)
+				pushq[dq] = *pqitem
+				pqitem = nil
 				dq++
 			} else {
 				log.Printf("ERROR L1 pqExtend extC.ch <- nil pointer")
@@ -191,26 +192,24 @@ func (l1 *L1CACHE) pqExtend(char string) {
 			}
 		}
 		if dq >= pushmax || (timeout && dq > 0) {
-			mux.mux.Lock()
-			for _, item := range pushq {
-				if item.Key == "" {
-					continue
-				}
-				//log.Printf("L1 pushq timeout=%t item=%#v", timeout, item)
-				if _, exists := ptr.cache[item.Key]; exists {
-					ptr.cache[item.Key].value = CaseDupes
-					cnt.Counter["Count_BatchD"]++
-				}
-			}
-			mux.mux.Unlock()
+			if dq > 0 {
 
-			for _, item := range pushq {
-				if item.Key == "" {
-					continue
+				mux.mux.Lock()
+				for i := 0; i < dq; i++ {
+					if _, exists := ptr.cache[pushq[i].Key]; exists {
+						cnt.Counter["Count_BatchD"]++
+					}
 				}
-				pq.Push(item)
+				mux.mux.Unlock()
+
+				pq.mux.Lock()
+				for i := 0; i < dq; i++ {
+					pq.Push(pushq[i])
+				}
+				pq.mux.Unlock()
+
+				pushq, dq = make([]L1PQItem, clearEv), 0
 			}
-			pushq, dq = make([]L1PQItem, 32), 0
 		}
 		if timeout {
 			timeout = false
@@ -238,7 +237,9 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	pq := l1.prioQue[char]
 
 	if flagexpires {
+		pq.mux.Lock()
 		pq.Push(L1PQItem{Key: hash, Expires: L1CacheExpires})
+		pq.mux.Unlock()
 	}
 	mux.mux.Lock()
 	if _, exists := ptr.cache[hash]; !exists {
@@ -291,9 +292,7 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 
 func (pq *L1PrioQue) Push(item L1PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	pq.mux.Lock()
 	*pq.que = append(*pq.que, item)
-	pq.mux.Unlock()
 } // end func Push
 
 func (pq *L1PrioQue) Pop() (*L1PQItem, int) {
