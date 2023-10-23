@@ -26,7 +26,6 @@ var (
 
 type L2CACHE struct {
 	Caches map[string]*L2CACHEMAP
-	//Extend  map[string]*IntECH
 	Extend  map[string]*L2ECH
 	Muxers  map[string]*L2MUXER
 	mux     sync.Mutex

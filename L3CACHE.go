@@ -30,7 +30,6 @@ var (
 
 type L3CACHE struct {
 	Caches map[string]*L3CACHEMAP
-	//Extend  map[string]*StrECH
 	Extend  map[string]*L3ECH
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
@@ -82,14 +81,12 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		return
 	}
 	l3.Caches = make(map[string]*L3CACHEMAP, intBoltDBs)
-	//l3.Extend = make(map[string]*StrECH, intBoltDBs)
 	l3.Extend = make(map[string]*L3ECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
 	l3.prioQue = make(map[string]*L3PrioQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
-		//l3.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}

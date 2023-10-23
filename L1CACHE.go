@@ -29,7 +29,6 @@ var (
 type L1CACHE struct {
 	mux    sync.Mutex // global L1 mutex
 	Caches map[string]*L1CACHEMAP
-	//Extend  map[string]*StrECH
 	Extend  map[string]*L1ECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC
@@ -79,14 +78,12 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		return
 	}
 	l1.Caches = make(map[string]*L1CACHEMAP, intBoltDBs)
-	//l1.Extend = make(map[string]*StrECH, intBoltDBs)
 	l1.Extend = make(map[string]*L1ECH, intBoltDBs)
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
 	l1.prioQue = make(map[string]*L1PrioQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
-		//l1.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
