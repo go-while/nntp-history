@@ -54,23 +54,23 @@ func (his *HISTORY) WatchBolt() {
 		searchesnow := his.GetCounter("searches")
 		if insertednow > inserted {
 			diff := insertednow - inserted
-			pps := diff / uWatchBoltTimer
-			log.Printf("WatchBolt: (inserted %d/s) (+%d inserted in %ds)", pps, diff, WatchBoltTimer)
+			pps := float64(diff) / float64(uWatchBoltTimer)
+			log.Printf("WatchBolt: (inserted %.2f/s) (+%d inserted in %ds)", pps, diff, WatchBoltTimer)
 			inserted = insertednow
 		}
 		if batchinsnow > batchins {
 			if insertednow > 0 {
 				diff := batchinsnow - batchins
-				pps := diff / uWatchBoltTimer
+				pps := float64(diff) / float64(uWatchBoltTimer)
 				medbatchsize := uint64(insertednow / batchinsnow)
-				log.Printf("WatchBolt: (batchins %d/s) (+%d batchins in %ds) medBS=~%d", pps, diff, WatchBoltTimer, medbatchsize)
+				log.Printf("WatchBolt: (batchins %.2f/s) (+%d batchins in %ds) medBS=~%d", pps, diff, WatchBoltTimer, medbatchsize)
 			}
 			batchins = batchinsnow
 		}
 		if searchesnow > searches {
 			diff := searchesnow - searches
-			pps := diff / uWatchBoltTimer
-			log.Printf("WatchBolt: (searches %d/s) (+%d searches in %ds)", pps, diff, WatchBoltTimer)
+			pps := float64(diff) / float64(uWatchBoltTimer)
+			log.Printf("WatchBolt: (searches %.2f/s) (+%d searches in %ds)", pps, diff, WatchBoltTimer)
 			searches = searchesnow
 		}
 	}

@@ -512,11 +512,12 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
-				} else {
-					// queue has elements: randomly flush early to get some random distribution?
-					arand, err := generateRandomInt(1, 3333)
-					if err == nil && arand == 777 {
-						logf(DEBUG, "forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
+				} else if Q > (Qcap / 2 / 100 * 25) {
+					// queue has more than 25% of elements
+					// randomly flush 25% of requests to get some random distribution?
+					arand, err := generateRandomInt(1, 100)
+					if err == nil && arand < 25 {
+						logf(DEBUG, "forbatchqueue [%s|%s] arand=%d<25 forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
 						forced = true
 						continue forbatchqueue
 					}
