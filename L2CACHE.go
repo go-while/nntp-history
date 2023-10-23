@@ -30,7 +30,7 @@ type L2CACHE struct {
 	Muxers  map[string]*L2MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	deQueue map[string]*L2DeQue // Priority queue for item expiration
+	pqQueue map[string]*L2DeQue // Priority queue for item expiration
 }
 
 type L2CACHEMAP struct {
@@ -79,13 +79,13 @@ func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 	l2.Extend = make(map[string]*L2ECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
 	l2.Counter = make(map[string]*CCC)
-	l2.deQueue = make(map[string]*L2DeQue, intBoltDBs)
+	l2.pqQueue = make(map[string]*L2DeQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}
 		l2.Muxers[char] = &L2MUXER{}
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l2.deQueue[char] = &L2DeQue{que: &L2PQ{}, pqC: make(chan struct{}, 1)}
+		l2.pqQueue[char] = &L2DeQue{que: &L2PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -119,7 +119,7 @@ func (l2 *L2CACHE) pqExtend(char string) {
 	cnt := l2.Counter[char]
 	extC := l2.Extend[char]
 	mux := l2.Muxers[char]
-	pq := l2.deQueue[char]
+	pq := l2.pqQueue[char]
 	pushq, pushmax, pushcnt := make([]L2PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l2purge) * time.Second)
@@ -185,7 +185,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	ptr := l2.Caches[char]
 	cnt := l2.Counter[char]
 	mux := l2.Muxers[char]
-	pq := l2.deQueue[char]
+	pq := l2.pqQueue[char]
 
 	if flagexpires {
 		pq.mux.Lock()
@@ -313,7 +313,7 @@ func (l2 *L2CACHE) pqExpire(char string) {
 	ptr := l2.Caches[char]
 	cnt := l2.Counter[char]
 	mux := l2.Muxers[char]
-	pq := l2.deQueue[char]
+	pq := l2.pqQueue[char]
 	lenpq := 0
 	var item *L2PQItem
 	var isleep int64

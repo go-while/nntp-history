@@ -32,7 +32,7 @@ type L1CACHE struct {
 	Extend  map[string]*L1ECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC
-	deQueue map[string]*L1DeQue // Priority queue for item expiration
+	pqQueue map[string]*L1DeQue // Priority queue for item expiration
 }
 
 type L1CACHEMAP struct {
@@ -81,13 +81,13 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	l1.Extend = make(map[string]*L1ECH, intBoltDBs)
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
-	l1.deQueue = make(map[string]*L1DeQue, intBoltDBs)
+	l1.pqQueue = make(map[string]*L1DeQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l1.deQueue[char] = &L1DeQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
+		l1.pqQueue[char] = &L1DeQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -170,7 +170,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	cnt := l1.Counter[char]
 	extC := l1.Extend[char]
 	mux := l1.Muxers[char]
-	pq := l1.deQueue[char]
+	pq := l1.pqQueue[char]
 	pushq, pushmax, pushcnt := make([]L1PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
@@ -234,7 +234,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.deQueue[char]
+	pq := l1.pqQueue[char]
 
 	if flagexpires {
 		pq.mux.Lock()
@@ -323,7 +323,7 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.deQueue[char]
+	pq := l1.pqQueue[char]
 	lenpq := 0
 	var item *L1PQItem
 	var isleep int64

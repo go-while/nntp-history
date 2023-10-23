@@ -33,7 +33,7 @@ type L3CACHE struct {
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	deQueue map[string]*L3DeQue // Priority queue for item expiration
+	pqQueue map[string]*L3DeQue // Priority queue for item expiration
 
 }
 
@@ -83,13 +83,13 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 	l3.Extend = make(map[string]*L3ECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
-	l3.deQueue = make(map[string]*L3DeQue, intBoltDBs)
+	l3.pqQueue = make(map[string]*L3DeQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l3.deQueue[char] = &L3DeQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
+		l3.pqQueue[char] = &L3DeQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -123,7 +123,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 	cnt := l3.Counter[char]
 	extC := l3.Extend[char]
 	mux := l3.Muxers[char]
-	pq := l3.deQueue[char]
+	pq := l3.pqQueue[char]
 	pushq, pushmax, pushcnt := make([]L3PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
@@ -193,7 +193,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
 	mux := l3.Muxers[char]
-	pq := l3.deQueue[char]
+	pq := l3.pqQueue[char]
 
 	if flagexpires {
 		pq.mux.Lock()
@@ -345,7 +345,7 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	ptr := l3.Caches[char]
 	cnt := l3.Counter[char]
 	mux := l3.Muxers[char]
-	pq := l3.deQueue[char]
+	pq := l3.pqQueue[char]
 	lenpq := 0
 	var item *L3PQItem
 	var isleep int64
