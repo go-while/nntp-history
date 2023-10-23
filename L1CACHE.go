@@ -27,8 +27,8 @@ var (
 )
 
 type L1CACHE struct {
-	mux    sync.Mutex // global L1 mutex
-	Caches map[string]*L1CACHEMAP
+	mux     sync.Mutex // global L1 mutex
+	Caches  map[string]*L1CACHEMAP
 	Extend  map[string]*L1ECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC

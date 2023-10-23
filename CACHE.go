@@ -9,9 +9,8 @@ import (
 
 const (
 	// never change this
-	FlagExpires      bool  = true
-	FlagNeverExpires bool  = false
-	NoExpiresVal     int64 = -1
+	FlagExpires      bool = true
+	FlagNeverExpires bool = false
 )
 
 var (
@@ -20,15 +19,15 @@ var (
 	DefaultCacheExpires   int64 = 5  // gets x2 BatchFlushEvery x2
 	DefaultCacheExtend    int64 = 5  // extends cached items after writes
 	DefaultCachePurge     int64 = 1  // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
-	DefaultEvictsCapacity       = 32 // his.cEvCap is normally fine as is but higher values can, not will, give better performance by eating memory
-	NumCacheEvictThreads        = 1  // 1 is enough
+	DefaultEvictsCapacity       = intBoltDBs // his.cEvCap (size of Extend chan) is normally fine as is.
+	ClearEveryN = DefaultEvictsCapacity
+	// higher will eat more mem. no congestion problems with 100+k tx/sec
 	// cache cleansup every N items or when DefaultCachePurge triggers
-	// beware of the appetite!
+	// beware of the appetite! watch debugs in DoCacheEvict()
 	// 16 dbs * RootBuckets * ClearEveryN * 2 Caches * 2 PrioQue * 64 bytes (sha256) + maps overhead = lots of bytes
 	// 16     *      16     *    32       * 2        * 2         * 64 =   2.097.152 bytes
 	// 16     *     256     *    32       * 2        * 2         * 64 =  33.554.432 bytes
 	// 16     *    4096     *    32       * 2        * 2         * 64 = 536.870.912 bytes
-	ClearEveryN = DefaultEvictsCapacity
 )
 
 // CharCacheCounter

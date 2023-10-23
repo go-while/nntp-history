@@ -29,7 +29,7 @@ var (
 )
 
 type L3CACHE struct {
-	Caches map[string]*L3CACHEMAP
+	Caches  map[string]*L3CACHEMAP
 	Extend  map[string]*L3ECH
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
