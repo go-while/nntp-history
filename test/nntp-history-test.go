@@ -103,10 +103,10 @@ func main() {
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 64, "milliseconds (default: 10)")
+	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 16, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB / 2 or 4 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 256, "0-65536 default: -1 = 1000")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 1024, "0-65536 default: -1 = 1000")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
