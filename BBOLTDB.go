@@ -458,12 +458,15 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			lft_slice := []int64{}
 			now := UnixTimeMilliSec()
 			bef := now
+			Qcap := cap(batchQueue)
+			batchLockChan := his.BatchLocks[char].bl[bucket].ch
+
 			logf(DEBUG2, "batchQueue [%s] wid=%d Booted", char, wid)
+			// DEBUG
 			lastprintABS2A := now
 			lastprintABS2B := now
 			lastprintMED := now
-			Qcap := cap(batchQueue)
-			batchLockChan := his.BatchLocks[char].bl[bucket].ch
+
 		forbatchqueue:
 			for {
 				if !forced {
@@ -480,7 +483,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				bef = UnixTimeMilliSec()
 				Q, inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, Qcap, forced, "gofunc", lft, wCBBS, batchLockChan)
 				now = UnixTimeMilliSec()
-				if forced { // DEBUG
+				if forced {
+					// DEBUG
 					logf(wantPrint(DBG_ABS2, &lastprintABS2A, UnixTimeMilliSec(), BatchFlushEvery/4), "DBG_ABS2A forbatchqueue F0 [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t median=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, median, lft, now-lastflush, err)
 				}
 				if closed { // received nil pointer
@@ -493,6 +497,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 				if inserted > 0 {
 					lft, lastflush = now-lastflush, now
+					// DEBUG
 					logf(wantPrint(DBG_ABS2, &lastprintMED, UnixTimeMilliSec(), 32768),
 						"DBG_ABS2 batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
 						char, bucket, inserted, lft, forced, median, len(lft_slice), Q, Qcap, now-bef, sleept, sleepn)
@@ -503,6 +508,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 
 				if Q > 0 && lastflush < UnixTimeMilliSec()-batchFlushEvery {
+					// DEBUG
 					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
@@ -510,7 +516,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					// queue has elements: randomly flush early to get some random distribution?
 					arand, err := generateRandomInt(1, 3333)
 					if err == nil && arand == 777 {
-						logf(DEBUG2, "forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
+						logf(DEBUG, "forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
 						forced = true
 						continue forbatchqueue
 					}
