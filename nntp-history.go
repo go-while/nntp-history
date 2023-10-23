@@ -55,7 +55,7 @@ var (
 	eofhash          = "EOF"
 )
 
-// History_Boot initializes the history component, configuring its settings and preparing it for operation.
+// BootHistory initializes the history component, configuring its settings and preparing it for operation.
 // It sets up the necessary directories for history and hash databases, and opens the history data file.
 // The function also manages the communication channels for reading and writing historical data.
 // If the `useHashDB` parameter is set to true, it initializes the history database (HashDB) and starts worker routines.
@@ -66,7 +66,7 @@ var (
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
-func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
+func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if CPUProfile { // PROFILE.go
@@ -108,6 +108,11 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	if DefaultCacheExpires <= 0 { // seconds
 		DefaultCacheExpires = 1
 	}
+
+	if DefaultEvictsCapacity <= 0 {
+		DefaultEvictsCapacity = 1
+	}
+	his.cEvCap = DefaultEvictsCapacity
 
 	// boltDB_Index receives a HistoryIndex struct and passes it down to boltDB_Worker['0-9a-f']
 	if IndexParallel <= 0 {
@@ -185,12 +190,12 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		*
 	*/
 	default:
-		log.Printf("ERROR History_Boot unknown keyalgo")
+		log.Printf("ERROR BootHistory unknown keyalgo")
 		return
 	}
 	his.keylen = keylen
 	if his.keylen < MinKeyLen {
-		log.Printf("ERROR History_Boot keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
+		log.Printf("ERROR BootHistory keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
 	if KeyIndex <= 0 {
@@ -214,7 +219,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 	}
 	fh, err := os.OpenFile(his.hisDat, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		log.Printf("ERROR History_Boot os.OpenFile err='%v'", err)
+		log.Printf("ERROR BootHistory os.OpenFile err='%v'", err)
 		os.Exit(1)
 	}
 	dw := bufio.NewWriterSize(fh, BUFIOBUFFER)
@@ -223,11 +228,11 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		// create history.dat
 		_, err := gobEncodeHeader(&headerdata, history_settings)
 		if err != nil {
-			log.Printf("ERROR History_Boot gobEncodeHeader err='%v'", err)
+			log.Printf("ERROR BootHistory gobEncodeHeader err='%v'", err)
 			os.Exit(1)
 		}
 		if err := writeHistoryHeader(dw, headerdata, &his.Offset, true); err != nil {
-			log.Printf("ERROR History_Boot writeHistoryHeader err='%v'", err)
+			log.Printf("ERROR BootHistory writeHistoryHeader err='%v'", err)
 			os.Exit(1)
 		}
 
@@ -235,13 +240,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		var header []byte
 		// read history.dat header history_settings
 		if b, err := his.FseekHistoryHeader(&header); b == 0 || err != nil {
-			log.Printf("ERROR History_Boot header FseekHistoryLine err='%v' header='%v'", err, header)
+			log.Printf("ERROR BootHistory header FseekHistoryLine err='%v' header='%v'", err, header)
 			os.Exit(1)
 		}
-		logf(DEBUG0, "History_Boot history.dat headerBytes='%v'", header)
+		logf(DEBUG0, "BootHistory history.dat headerBytes='%v'", header)
 
 		if err := gobDecodeHeader(header, history_settings); err != nil {
-			log.Printf("ERROR History_Boot gobDecodeHeader err='%v'", err)
+			log.Printf("ERROR BootHistory gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}
 		switch history_settings.Ka { // KeyAlgo
@@ -260,7 +265,7 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 			*
 		*/
 		default:
-			log.Printf("ERROR History_Boot gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.Ka)
+			log.Printf("ERROR BootHistory gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.Ka)
 			os.Exit(1)
 		}
 		his.keyalgo = history_settings.Ka
@@ -297,13 +302,13 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		//	}
 		//}
 	default:
-		log.Printf("ERROR History_Boot his.rootBUCKETS invalid=%d", his.rootBUCKETS)
+		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
 	if his.keyIndex > 0 {
 		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
 	}
-	his.L1Cache.L1CACHE_Boot(his)
+	his.L1Cache.BootL1Cache(his)
 	log.Printf("L1Cache Booted")
 	if his.useHashDB {
 		log.Printf("Booting boltDB")
@@ -311,12 +316,12 @@ func (his *HISTORY) History_Boot(history_dir string, hashdb_dir string, useHashD
 		log.Printf("boltDB init done")
 	}
 
-	his.CacheEvictThread(4)
+	//his.CacheEvictThread(NumCacheEvictThreads) // hardcoded
 
 	logf(BootVerbose, "\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
-} // end func History_Boot
+} // end func BootHistory
 
 func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	if hobj == nil {

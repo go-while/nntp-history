@@ -45,8 +45,8 @@ var (
 	BoltDB_AllocSize     int                                       // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
 	BoltSyncEveryS       int64   = 60                              // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	BoltSyncEveryN       uint64  = 500000                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
-	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
-	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling History_Boot.
+	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling BootHistory.
+	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling BootHistory.
 	BoltHashOpen                 = make(chan struct{}, intBoltDBs) // dont change this
 	HISTORY_INDEX_LOCK           = make(chan struct{}, 1)          // main lock
 	HISTORY_INDEX_LOCK16         = make(chan struct{}, intBoltDBs) // sub locks
@@ -144,8 +144,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 	gob.Register(HistorySettings{})
 
-	his.L2Cache.L2CACHE_Boot(his)
-	his.L3Cache.L3CACHE_Boot(his)
+	his.L2Cache.BootL2Cache(his)
+	his.L3Cache.BootL3Cache(his)
 
 	his.batchQueues = &BQ{}
 	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.rootBUCKETS)         // char [0-9a-f] * bucket [0-9a-f]
@@ -184,11 +184,6 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		QindexChans = 1
 	}
 
-	if DefaultEvictsCapacity < 1024 {
-		DefaultEvictsCapacity = 1024
-	}
-
-	his.cEvCap = DefaultEvictsCapacity
 	his.reopenDBeveryN = BoltDBreopenEveryN
 	his.adaptBatch = AdaptBatch
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)

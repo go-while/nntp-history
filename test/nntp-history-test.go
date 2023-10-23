@@ -244,7 +244,7 @@ func main() {
 	}
 
 	if RunTCPonly {
-		history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+		history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
 
@@ -339,7 +339,7 @@ func main() {
 	if useHashDB {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
-	history.History.History_Boot(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
 	history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {

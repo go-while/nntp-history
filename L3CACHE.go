@@ -29,8 +29,9 @@ var (
 )
 
 type L3CACHE struct {
-	Caches  map[string]*L3CACHEMAP
-	Extend  map[string]*StrECH
+	Caches map[string]*L3CACHEMAP
+	//Extend  map[string]*StrECH
+	Extend  map[string]*L3ECH
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
@@ -44,6 +45,11 @@ type L3CACHEMAP struct {
 
 type L3ITEM struct {
 	offsets []int64
+}
+
+// L3ExtendChan
+type L3ECH struct {
+	ch chan *L3PQItem
 }
 
 type L3MUXER struct {
@@ -63,9 +69,9 @@ type L3PQItem struct {
 	Expires int64
 }
 
-// The L3CACHE_Boot method initializes the L3 cache.
+// The BootL3Cache method initializes the L3 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
-func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
+func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 	if !L3 {
 		return
 	}
@@ -76,13 +82,15 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 		return
 	}
 	l3.Caches = make(map[string]*L3CACHEMAP, intBoltDBs)
-	l3.Extend = make(map[string]*StrECH, intBoltDBs)
+	//l3.Extend = make(map[string]*StrECH, intBoltDBs)
+	l3.Extend = make(map[string]*L3ECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
 	l3.prioQue = make(map[string]*L3PrioQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
-		l3.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
+		//l3.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
+		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 		l3.prioQue[char] = &L3PrioQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
@@ -93,50 +101,63 @@ func (l3 *L3CACHE) L3CACHE_Boot(his *HISTORY) {
 		go l3.pqExpire(char)
 		go l3.pqExtend(char)
 	}
-
-} // end func L3CACHE_Boot
+	log.Printf("L3Cache_Boot")
+} // end func BootL3Cache
 
 // The pqExtend function runs as a goroutine for each character.
 func (l3 *L3CACHE) pqExtend(char string) {
 	if !L3 {
 		return
 	}
-	l3.mux.Lock() // waits for L3CACHE_Boot to unlock
+	l3.mux.Lock() // waits for BootL3Cache to unlock
 	l3.mux.Unlock()
 	//logf(DEBUGL3, "Boot L3pqExtend [%s]", char)
+	//defer log.Printf("LEFT L3 [%s] pqExtend", char)
+
 	l3purge := L3Purge
-	if l3purge < 1 {
+	if l3purge <= 0 {
 		l3purge = 1
 	}
+	clearEv := ClearEveryN
+	if clearEv <= 0 {
+		clearEv = 1
+	}
 
-	go func() {
-		defer log.Printf("LEFT L3T gofunc1 extend [%s]", char)
-		ptr := l3.Caches[char]
-		cnt := l3.Counter[char]
-		extC := l3.Extend[char]
-		mux := l3.Muxers[char]
-		pq := l3.prioQue[char]
-		//forever:
-		for {
-			select {
-			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
-				// got keys we will extend
-				if len(dat.extends) > 0 {
-					//logf(DEBUG, "L3 [%s] extends=%d", char, len(extends))
-					mux.mux.Lock()
-					for _, key := range dat.extends {
-						if _, exists := ptr.cache[key]; exists {
-							cnt.Counter["Count_BatchD"]++
-							pq.Push(&L3PQItem{Key: key, Expires: L3ExtendExpires})
+	ptr := l3.Caches[char]
+	cnt := l3.Counter[char]
+	extC := l3.Extend[char]
+	mux := l3.Muxers[char]
+	pq := l3.prioQue[char]
+	pushq, pushmax := []*L3PQItem{}, clearEv
+	timeout := false
+	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 
-						}
-					}
-					mux.mux.Unlock()
+	//forever:
+	for {
+		select {
+		case <-timer.C:
+			timeout = true
+		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
+			pushq = append(pushq, pqitem)
+		} // end select
+		if len(pushq) >= pushmax || (timeout && len(pushq) > 0) {
+			mux.mux.Lock()
+			for _, item := range pushq {
+				if _, exists := ptr.cache[item.Key]; exists {
+					cnt.Counter["Count_BatchD"]++
 				}
-			} // end select
-
-		} // end forever
-	}() // end gofunc1
+			}
+			mux.mux.Unlock()
+			for _, item := range pushq {
+				pq.Push(item)
+			}
+			pushq = nil
+		}
+		if timeout {
+			timeout = false
+		}
+		timer.Reset(time.Duration(l3purge) * time.Second)
+	} // end forever
 } //end func pqExtend
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.

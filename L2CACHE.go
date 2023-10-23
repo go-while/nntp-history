@@ -25,8 +25,9 @@ var (
 )
 
 type L2CACHE struct {
-	Caches  map[string]*L2CACHEMAP
-	Extend  map[string]*IntECH
+	Caches map[string]*L2CACHEMAP
+	//Extend  map[string]*IntECH
+	Extend  map[string]*L2ECH
 	Muxers  map[string]*L2MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
@@ -39,6 +40,11 @@ type L2CACHEMAP struct {
 
 type L2ITEM struct {
 	hash string
+}
+
+// L2ExtendChan
+type L2ECH struct {
+	ch chan *L2PQItem
 }
 
 type L2MUXER struct {
@@ -58,9 +64,9 @@ type L2PQItem struct {
 	Expires int64
 }
 
-// The L2CACHE_Boot method initializes the L2 cache.
+// The BootL2Cache method initializes the L2 cache.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically clean up expired entries.
-func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
+func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 	if !L2 {
 		return
 	}
@@ -71,13 +77,13 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 		return
 	}
 	l2.Caches = make(map[string]*L2CACHEMAP, 16)
-	l2.Extend = make(map[string]*IntECH, 16)
+	l2.Extend = make(map[string]*L2ECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
 	l2.Counter = make(map[string]*CCC)
 	l2.prioQue = make(map[string]*L2PrioQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
-		l2.Extend[char] = &IntECH{ch: make(chan *IntItems, his.cEvCap)}
+		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}
 		l2.Muxers[char] = &L2MUXER{}
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
 		l2.prioQue[char] = &L2PrioQue{que: &L2PQ{}, pqC: make(chan struct{}, 1)}
@@ -88,50 +94,63 @@ func (l2 *L2CACHE) L2CACHE_Boot(his *HISTORY) {
 		go l2.pqExpire(char)
 		go l2.pqExtend(char)
 	}
-
-} // end func L2CACHE_Boot
+	log.Printf("L2Cache_Boot")
+} // end func BootL2Cache
 
 // The pqExtend function runs as a goroutine for each character.
 func (l2 *L2CACHE) pqExtend(char string) {
 	if !L2 {
 		return
 	}
-	l2.mux.Lock() // waits for L2CACHE_Boot to unlock
+	l2.mux.Lock() // waits for BootL2Cache to unlock
 	l2.mux.Unlock()
 	//logf(DEBUGL2, "Boot L2pqExtend [%s]", char)
+	//defer log.Printf("LEFT L2 [%s] pqExtend", char)
+
 	l2purge := L2Purge
-	if l2purge < 1 {
+	if l2purge <= 0 {
 		l2purge = 1
 	}
+	clearEv := ClearEveryN
+	if clearEv <= 0 {
+		clearEv = 1
+	}
 
-	go func() {
-		defer log.Printf("LEFT L2T gofunc1 extend [%s]", char)
-		ptr := l2.Caches[char]
-		cnt := l2.Counter[char]
-		extC := l2.Extend[char]
-		mux := l2.Muxers[char]
-		pq := l2.prioQue[char]
-		//forever:
-		for {
-			select {
-			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
-				// got offset we will extend
-				if len(dat.extends) > 0 {
-					//logf(DEBUG, "L2 [%s] extends=%d", char, len(extends))
-					mux.mux.Lock()
-					for _, offset := range dat.extends {
-						if _, exists := ptr.cache[offset]; exists {
-							cnt.Counter["Count_BatchD"]++
-							pq.Push(&L2PQItem{Key: offset, Expires: L2ExtendExpires})
+	ptr := l2.Caches[char]
+	cnt := l2.Counter[char]
+	extC := l2.Extend[char]
+	mux := l2.Muxers[char]
+	pq := l2.prioQue[char]
+	pushq, pushmax := []*L2PQItem{}, clearEv
+	timeout := false
+	timer := time.NewTimer(time.Duration(l2purge) * time.Second)
 
-						}
-					}
-					mux.mux.Unlock()
+	//forever:
+	for {
+		select {
+		case <-timer.C:
+			timeout = true
+		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
+			pushq = append(pushq, pqitem)
+		} // end select
+		if len(pushq) >= pushmax || (timeout && len(pushq) > 0) {
+			mux.mux.Lock()
+			for _, item := range pushq {
+				if _, exists := ptr.cache[item.Key]; exists {
+					cnt.Counter["Count_BatchD"]++
 				}
-			} // end select
-
-		} // end forever
-	}() // end gofunc1
+			}
+			mux.mux.Unlock()
+			for _, item := range pushq {
+				pq.Push(item)
+			}
+			pushq = nil
+		}
+		if timeout {
+			timeout = false
+		}
+		timer.Reset(time.Duration(l2purge) * time.Second)
+	} // end forever
 } //end func pqExtend
 
 // The SetOffsetHash method sets a cache item in the L2 cache using an offset as the key and a hash as the value.
