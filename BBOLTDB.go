@@ -506,7 +506,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				} else {
 					//log.Printf("batchQueue [%s|%s] !inserted lft=%d forced=%t median=%d timer=%d len(lft_slice)=%d Q=%d (took %d ms)", char, bucket, now-lastflush, forced, median, timer, len(lft_slice), Q, now-bef)
 				}
-				//his.prioPush(char, pq, pqC, pqM, &BBPQItem{WID: wid, Run: runAT(median / 2), NCH: notifyChan, Now: now})
 
 				if Q > 0 && lastflush < UnixTimeMilliSec()-batchFlushEvery {
 					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
