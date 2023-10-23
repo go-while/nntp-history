@@ -21,7 +21,13 @@ var (
 	DefaultCacheExtend    int64 = 5          // extends cached items after writes
 	DefaultCachePurge     int64 = 1          // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
 	DefaultEvictsCapacity       = 512 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
-	ClearEveryN                 = 256        // cache cleansup every N items or when DefaultCachePurge triggers
+	// cache cleansup every N items or when DefaultCachePurge triggers
+	// beware of the appetite!
+	// 16 dbs * RootBuckets * ClearEveryN * 2 Caches * 2 PrioQue * 64 bytes (sha256) + maps overhead = lots of bytes
+	// 16     *      16     *    32       * 2        * 2         * 64 =   2.097.152 bytes
+	// 16     *     256     *    32       * 2        * 2         * 64 =  33.554.432 bytes
+	// 16     *    4096     *    32       * 2        * 2         * 64 = 536.870.912 bytes
+	ClearEveryN                 = 32
 )
 
 // CharCacheCounter
@@ -224,7 +230,7 @@ func (his *HISTORY) CacheEvictThread(num int) {
 							tmpOffset = append(tmpOffset, item.offset)
 							add2++ // L2
 						} else {
-							if item.hash != "" { // l1 hash
+							if item.hash != "" && L1 { // l1 hash
 								tmpHash = append(tmpHash, item.hash)
 								add1++ // L1
 							}
