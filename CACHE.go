@@ -22,7 +22,9 @@ var (
 	// cache cleansup every N items or when DefaultCachePurge triggers
 	// beware of the appetite! watch debugs in DoCacheEvict()
 	// 16 dbs * RootBuckets * ClearEveryN * 2 Caches * 2 pqQ * 64 bytes (sha256) + maps overhead = lots of bytes
+	// 16     *      16     *    16       * 2        * 2         * 64 =   1.048.576 bytes
 	// 16     *      16     *    32       * 2        * 2         * 64 =   2.097.152 bytes
+	// 16     *     256     *    16       * 2        * 2         * 64 =  16.777.216 bytes
 	// 16     *     256     *    32       * 2        * 2         * 64 =  33.554.432 bytes
 	// 16     *    4096     *    32       * 2        * 2         * 64 = 536.870.912 bytes
 )
