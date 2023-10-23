@@ -33,7 +33,7 @@ type L3CACHE struct {
 	Muxers  map[string]*L3MUXER
 	mux     sync.Mutex
 	Counter map[string]*CCC
-	pqQueue map[string]*L3DeQue // Priority queue for item expiration
+	pqQueue map[string]*L3PQQue // Priority queue for item expiration
 
 }
 
@@ -54,7 +54,7 @@ type L3MUXER struct {
 	mux sync.RWMutex
 }
 
-type L3DeQue struct {
+type L3PQQue struct {
 	que *L3PQ
 	mux sync.Mutex
 	pqC chan struct{}
@@ -83,13 +83,13 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 	l3.Extend = make(map[string]*L3ECH, intBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
-	l3.pqQueue = make(map[string]*L3DeQue, intBoltDBs)
+	l3.pqQueue = make(map[string]*L3PQQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l3.pqQueue[char] = &L3DeQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
+		l3.pqQueue[char] = &L3PQQue{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -312,12 +312,12 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 	return false
 }
 
-func (pq *L3DeQue) Push(item L3PQItem) {
+func (pq *L3PQQue) Push(item L3PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	*pq.que = append(*pq.que, item)
 } // end func Push
 
-func (pq *L3DeQue) Pop() (*L3PQItem, int) {
+func (pq *L3PQQue) Pop() (*L3PQItem, int) {
 	pq.mux.Lock()
 	lenpq := len(*pq.que)
 	if lenpq == 0 {

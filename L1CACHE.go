@@ -32,7 +32,7 @@ type L1CACHE struct {
 	Extend  map[string]*L1ECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC
-	pqQueue map[string]*L1DeQue // Priority queue for item expiration
+	pqQueue map[string]*L1PQQue // Priority queue for item expiration
 }
 
 type L1CACHEMAP struct {
@@ -52,7 +52,7 @@ type L1MUXER struct {
 	mux sync.Mutex
 }
 
-type L1DeQue struct {
+type L1PQQue struct {
 	que *L1PQ
 	mux sync.Mutex
 	pqC chan struct{}
@@ -81,13 +81,13 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	l1.Extend = make(map[string]*L1ECH, intBoltDBs)
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
-	l1.pqQueue = make(map[string]*L1DeQue, intBoltDBs)
+	l1.pqQueue = make(map[string]*L1PQQue, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l1.pqQueue[char] = &L1DeQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
+		l1.pqQueue[char] = &L1PQQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -290,12 +290,12 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	return
 } // end func L1Stats
 
-func (pq *L1DeQue) Push(item L1PQItem) {
+func (pq *L1PQQue) Push(item L1PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	*pq.que = append(*pq.que, item)
 } // end func Push
 
-func (pq *L1DeQue) Pop() (*L1PQItem, int) {
+func (pq *L1PQQue) Pop() (*L1PQItem, int) {
 	pq.mux.Lock()
 	lenpq := len(*pq.que)
 	if lenpq == 0 {
