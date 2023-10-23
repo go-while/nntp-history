@@ -1,8 +1,6 @@
 package history
 
 import (
-	// "arena"
-	//"container/heap"
 	"fmt"
 	"log"
 	"sync"
@@ -10,18 +8,20 @@ import (
 )
 
 /*
-L3Cache: key => offsets
-less requests to boltDB
-
-disabling L3 is not a good idea!!
-queues hold offsets which DB does not know about!
-cache keeps track of duplicate writes
-duplicate keys will get an empty_offsets
-* and the latest will overwrite the past write maybe still in queue
-*/
+ *
+ * L3Cache: key => offsets
+ * less requests to boltDB
+ *
+ * disabling L3 is not a good idea!!
+ * queues hold offsets which DB does not know about!
+ * cache keeps track of duplicate writes
+ * duplicate keys will get an empty_offsets
+ * and the latest will overwrite the past write maybe still in queue
+ *
+ */
 var (
 	DEBUGL3         bool  = false
-	L3              bool  = true
+	L3              bool  = true // do not disable!
 	L3CacheExpires  int64 = DefaultCacheExpires
 	L3ExtendExpires int64 = DefaultCacheExtend
 	L3Purge         int64 = DefaultCachePurge
@@ -128,7 +128,9 @@ func (l3 *L3CACHE) pqExtend(char string) {
 					for _, key := range dat.extends {
 						if _, exists := ptr.cache[key]; exists {
 							cnt.Counter["Count_BatchD"]++
-							l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3ExtendExpires})
+							//l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3ExtendExpires})
+							pq.Push(&L3PQItem{Key: key, Expires: L3ExtendExpires})
+
 						}
 					}
 					mux.mux.Unlock()
@@ -165,7 +167,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 	if flagexpires {
 		//pqEX := time.Now().UnixNano() + (L3CacheExpires * int64(time.Second))
-		l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3CacheExpires})
+		//l3.prioPush(char, pq, &L3PQItem{Key: key, Expires: L3CacheExpires})
+		pq.Push(&L3PQItem{Key: key, Expires: L3CacheExpires})
+
 	}
 	mux.mux.Lock()
 	switch flagexpires {
@@ -280,50 +284,27 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 	return false
 }
 
-func (pq *L3PQ) Len() int {
-	//log.Printf("Len L1PQ=%d", len(*pq))
-	return len(*pq)
-}
-
-func (pq *L3PQ) Less(i, j int) bool {
-	return false
-}
-
-func (pq *L3PQ) Swap(i, j int) {
-	return
-}
-
-func (pq *L3PQ) Pop() interface{} {
-	old := *pq
-	*pq = old[1:]
-	old = nil
-	return nil
-}
-
-func (pq *L3PQ) Push(x interface{}) {
-	item := x.(*L3PQItem)
+func (pq *L3PrioQue) Push(item *L3PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	*pq = append(*pq, item)
-}
-
-func (l3 *L3CACHE) prioPush(char string, pq *L3PrioQue, item *L3PQItem) {
-	if !L3 {
-		return
-	}
-	//log.Printf("L3 prioPush [%s] item='%#v' expireS=%d", char, item, (pqEX-time.Now().UnixNano())/int64(time.Second))
 	pq.mux.Lock()
-	pq.que.Push(item)
+	*pq.que = append(*pq.que, item)
 	pq.mux.Unlock()
+} // end func Push
 
-	//log.Printf("L3 prioPush [%s] unlocked", char)
-	select {
-	case pq.pqC <- struct{}{}:
-		// pass notify to pqExpire()
-	default:
-		// pass too: notify chan is full
+func (pq *L3PrioQue) Pop() (*L3PQItem, int) {
+	pq.mux.Lock()
+	lenpq := len(*pq.que)
+	if lenpq == 0 {
+		pq.mux.Unlock()
+		return nil, 0
 	}
-	//log.Printf("L3 prioPush [%s] passed pqC", char)
-} // end func prioPush
+	old := *pq.que
+	*pq.que = old[1:]
+	pq.mux.Unlock()
+	item := old[0]
+	old = nil
+	return item, lenpq
+} // end func Pop
 
 // Remove expired items from the cache
 func (l3 *L3CACHE) pqExpire(char string) {
@@ -339,52 +320,27 @@ func (l3 *L3CACHE) pqExpire(char string) {
 	cnt := l3.Counter[char]
 	mux := l3.Muxers[char]
 	pq := l3.prioQue[char]
-	// hardcoded dqmax
-	lpq, dqq, dqmax := 0, uint64(0), uint64(1024)
+	//lenpq := 0
 	var item *L3PQItem
-	var dq []string
-forever:
+	var isleep int64
+	l3purge := L3Purge
+cleanup:
 	for {
-		pq.mux.Lock()
-		lpq = len(*pq.que)
-		if lpq == 0 {
-			pq.mux.Unlock()
-			//logf(DEBUGL3, "L3 pqExpire [%s] wait on <-pqC", char)
-			select {
-			case <-pq.pqC: // blocking wait for l3.prioPush
-				//logf(DEBUGL3, "L3 pqExpire [%s] recv on <-pqC", char)
-				continue forever
-			}
-		} else {
-			// Get the item with the nearest expiration time
-			item = (*pq.que)[0]
+		item, _ = pq.Pop()
+		if item == nil {
+			time.Sleep(time.Duration(l3purge) * time.Second)
+			continue cleanup
 		}
-
-		currentTime := time.Now().UnixNano()
-
-		if item.Expires <= currentTime {
-			// This item has expired, remove it from the cache and priority queue
-			//logf(DEBUGL3, "L3 pqExpire [%s] DELETE key='%s' over=%d", char, item.Key, currentTime-item.Expires)
-			pq.que.Pop()
-			pq.mux.Unlock()
-
-			dq = append(dq, item.Key)
-			dqq++
-			if dqq >= dqmax {
-				mux.mux.Lock()
-				for _, key := range dq {
-					delete(ptr.cache, key)
-				}
-				cnt.Counter["Count_Delete"] += dqq
-				mux.mux.Unlock()
-				dq, dqq = nil, 0
+		if item.Expires >= time.Now().UnixNano() {
+			isleep = item.Expires - time.Now().UnixNano()
+			//logf(DEBUGL3, "L3 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
+			if isleep > 0 {
+				time.Sleep(time.Duration(isleep))
 			}
-		} else {
-			pq.mux.Unlock()
-			// The nearest item hasn't expired yet, sleep until it does
-			sleepTime := time.Duration(item.Expires - currentTime)
-			//logf(DEBUGL3, "L3 pqExpire [%s] SLEEP key='%s' sleep=%d lpq=%d", char, item.Key, sleepTime, lpq)
-			time.Sleep(sleepTime)
 		}
-	} // end for
+		mux.mux.Lock()
+		delete(ptr.cache, item.Key)
+		cnt.Counter["Count_Delete"]++
+		mux.mux.Unlock()
+	}
 } // end func pqExpire
