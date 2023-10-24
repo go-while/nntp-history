@@ -243,7 +243,7 @@ replay: // backwards: from latest hash
 				os.Exit(1)
 			}
 			switch isDup {
-			case CasePass:
+			case CaseAdded:
 				// hash from history.dat is missing in hashdb
 				added++
 				log.Printf("INFO ReplayHisDat added missing hash='%s' @offset=%d added=%d/%d", hash, offset, added, missed)
