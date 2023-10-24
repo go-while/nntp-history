@@ -35,7 +35,7 @@ func main() {
 	var parallelTest int
 	var useHashDB bool
 	var boltOpts *bolt.Options
-	var BoltDB_MaxBatchDelay int
+	var BoltDB_MaxBatchDelay int64
 	var KeyAlgo int
 	var KeyLen int
 	var debugs int
@@ -97,16 +97,18 @@ func main() {
 	// start of the app will be delayed by this timeframe to start workers within this timeframe
 	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 16384, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5000, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.IntVar(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 16, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB / 2 or 4 ? ]")
+	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 100, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB / 2 or 4 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 1024, "0-65536 default: -1 = 1000")
+	// triggers not very often with our pre-batching, default is fine
+	// higher MaxBatchSize dont do much.
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 64, "0-... default: -1 = 1000")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
@@ -135,27 +137,27 @@ func main() {
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
 
 	flag.Parse()
-
-	if BoltDB_MaxBatchDelay == -1 {
-		var divider float64 = 1
-		switch history.RootBUCKETSperDB {
-		case 16:
-			divider = 8
-		case 256:
-			divider = 4
-		case 4096:
-			divider = 1
+	/*
+		if BoltDB_MaxBatchDelay == -1 {
+			var divider float64 = 1
+			switch history.RootBUCKETSperDB {
+			case 16:
+				divider = 8
+			case 256:
+				divider = 4
+			case 4096:
+				divider = 1
+			}
+			autoBoltDB_MaxBatchDelay := int(float64(history.BatchFlushEvery) / float64(history.RootBUCKETSperDB) / divider) // tuneable
+			if autoBoltDB_MaxBatchDelay < 16 {
+				BoltDB_MaxBatchDelay = 16
+			} else {
+				BoltDB_MaxBatchDelay = autoBoltDB_MaxBatchDelay
+			}
+			log.Printf("DEBUG AUTO SETTING: BoltDB_MaxBatchDelay: %d ms (auto=%d)", BoltDB_MaxBatchDelay, autoBoltDB_MaxBatchDelay)
+			time.Sleep(3 * time.Second)
 		}
-		autoBoltDB_MaxBatchDelay := int(float64(history.BatchFlushEvery) / float64(history.RootBUCKETSperDB) / divider) // tuneable
-		if autoBoltDB_MaxBatchDelay < 16 {
-			BoltDB_MaxBatchDelay = 16
-		} else {
-			BoltDB_MaxBatchDelay = autoBoltDB_MaxBatchDelay
-		}
-		log.Printf("DEBUG AUTO SETTING: BoltDB_MaxBatchDelay: %d ms (auto=%d)", BoltDB_MaxBatchDelay, autoBoltDB_MaxBatchDelay)
-		time.Sleep(3 * time.Second)
-	}
-
+	*/
 	if numCPU > 0 {
 		runtime.GOMAXPROCS(numCPU)
 	}
