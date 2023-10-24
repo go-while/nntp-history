@@ -328,23 +328,25 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	var item *L1PQItem
 	var isleep int64
 	l1purge := L1Purge
-	dq, dqmax := []string{}, ClearEveryN
-	now := UnixTimeSec()
-	lf := now
+	//dq, dqmax, dqcnt := make([]string, ClearEveryN), ClearEveryN, 0
+	//now := UnixTimeSec()
+	//lf := now
 cleanup:
 	for {
-		now = UnixTimeSec()
-		if len(dq) >= dqmax || lf <= now-l1purge {
-			if len(dq) > 0 {
-				mux.mux.Lock()
-				for _, key := range dq {
-					delete(ptr.cache, key)
+		/*
+			now = UnixTimeSec()
+			if dqcnt >= dqmax || lf <= now-l1purge {
+				if dqcnt > 0 {
+					mux.mux.Lock()
+					for i := 0; i < dqcnt; i++ {
+						delete(ptr.cache, dq[i])
+					}
+					cnt.Counter["Count_Delete"] += uint64(dqcnt)
+					mux.mux.Unlock()
 				}
-				cnt.Counter["Count_Delete"] += uint64(len(dq))
-				mux.mux.Unlock()
+				dq, lf, dqcnt = make([]string, ClearEveryN), now, 0
 			}
-			dq, lf = nil, now
-		}
+		*/
 		item, lenpq = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
@@ -352,14 +354,23 @@ cleanup:
 		}
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			if isleep > int64(100*time.Millisecond) {
+			if isleep >= int64(1*time.Millisecond) {
 				logf(DEBUGL1, "L1 pqExpire [%s] POS sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 				time.Sleep(time.Duration(isleep))
 			} else {
 				logf(DEBUGL1, "L1 pqExpire [%s] NEG sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 			}
 		}
-		dq = append(dq, item.Key)
+
+		mux.mux.Lock()
+		delete(ptr.cache, item.Key)
+		cnt.Counter["Count_Delete"]++
+		mux.mux.Unlock()
 		item = nil
+		continue cleanup
+
+		//dq = append(dq, item.Key)
+		//dqcnt++
+		//item = nil
 	}
 } // end func pqExpire
