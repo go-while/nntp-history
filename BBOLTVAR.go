@@ -43,14 +43,12 @@ type Memhash struct {
 
 func (his *HISTORY) ReplayHisDat() {
 	var bufferSize int64 = 192
-	//mem := arena.NewArena()
-	//defer mem.Free()
-	//memhash := arena.New[AHASH](mem)
 
 	memhash := &Memhash{}
 	memhash.buffer = make([]byte, bufferSize)
 
 	if NoReplayHisDat {
+		log.Printf("NoReplayHisDat=%t", NoReplayHisDat)
 		return
 	}
 	if !his.useHashDB {
@@ -384,7 +382,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 			batchCreate = append(batchCreate, subb)
 			if len(batchCreate) > lim {
 				//logf(DEBUG2, "boltCreateBucket [%s|%s] batchCreate %d sub buckets %d/%d", char, bucket, len(batchCreate), did, len(SUBBUCKETS))
-				if err := db.Batch(func(tx *bolt.Tx) error {
+				if err := db.Update(func(tx *bolt.Tx) error {
 					root, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
 					root.FillPercent = 1.0
 					if err != nil {
