@@ -379,4 +379,4 @@ func pullChan(achan chan struct{}) bool {
 		// pass
 	}
 	return false
-} // end func runChan
+} // end func pullChan
