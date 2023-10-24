@@ -324,7 +324,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		db.MaxBatchSize = BoltDB_MaxBatchSize
 	}
 
-	if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
+	if BoltDB_MaxBatchDelay >= 0 {
+		//if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
 		db.MaxBatchDelay = BoltDB_MaxBatchDelay
 	}
 	if BoltDB_AllocSize > 0xFFFFF {
@@ -461,8 +462,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			lastprintABS2B := now
 			lastprintMED := now
 
-			qcapPercent := 20 // hardcoded: affects insert performance and memory
-			randPercent := 2  // hardcoded: affects insert performance and memory
+			qcapPercent := 50 // hardcoded: affects insert performance and memory
+			randPercent := 25 // hardcoded: affects insert performance and memory
 
 		forbatchqueue:
 			for {
@@ -490,7 +491,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					lft, lastflush = now-lastflush, now
 					// DEBUG
 					logf(wantPrint(DBG_ABS2, &lastprintMED, UnixTimeMilliSec(), 32768),
-						"DBG_ABS2 batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
+						"DBG_ABS2a batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
 						char, bucket, inserted, lft, forced, median, len(lft_slice), Q, Qcap, now-bef, sleept, sleepn)
 					median = GetMedian(char, bucket, &lft_slice, lft, slicelim, minian, maxian, false)
 					sleept, sleepn = 0, 0
@@ -500,7 +501,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 
 				if Q > 0 && lastflush < UnixTimeMilliSec()-batchFlushEvery {
 					// DEBUG
-					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
+					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2b forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
 				} else if Q > (Qcap / 2 / 100 * qcapPercent) {
