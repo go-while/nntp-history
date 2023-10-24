@@ -677,7 +677,7 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (string, error) {
 	//result := strings.Split(line, "\t")[0]
 	if len(result) > 0 {
 		if offset > 0 && result[0] != '{' {
-			return "", fmt.Errorf("ERROR FseekHistoryLine line[0]!='{' offset=%d", offset)
+			return "", fmt.Errorf("ERROR FseekHistoryLine line[0]!='{' offset=%d line='%s'", offset, result)
 		}
 	}
 	result = strings.TrimSuffix(result, "\n")

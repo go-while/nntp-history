@@ -228,13 +228,32 @@ replay: // backwards: from latest hash
 
 	if len(memhash.missing_hashes) > 0 || ForcedReplay {
 		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
-		// missing is ordered from latest backward
-		// reverse order to have oldestFirst
-		reverseStrings(memhash.missing_hashes)
+		// needs investigation for possibly re-inserting bad offsets with hashes?
 		/*
-		 * loop over missing and pass hash to indexQuery with offset
-		 *
-		 */
+					 *
+					 ERROR HDBZW char=6 FseekHistoryMessageHash bucket=73 err='ERROR FseekHistoryMessageHash BAD line @offset=3060004197 result='
+			{673124ea3297b1aa18e6ed5f44c743a8705605d203cf9a15f58b29ddedcc691d}'' offset=3060004197
+			ERROR HDBZW his.DupeCheck err='ERROR FseekHistoryMessageHash BAD line @offset=3060004197 result='
+			{673124ea3297b1aa18e6ed5f44c743a8705605d203cf9a15f58b29ddedcc691d}'' close(hi.IndexRetChan)
+			ERROR HDBZW char=f FseekHistoryMessageHash bucket=57 err='ERROR FseekHistoryMessageHash BAD line @offset=3060004095 result='
+			{f572ac9ab215b2facdd92ebf3c5ee9bd7820c963d6acac013aac93067b08aef6}'' offset=3060004095
+			ERROR HDBZW his.DupeCheck err='ERROR FseekHistoryMessageHash BAD line @offset=3060004095 result='
+			{f572ac9ab215b2facdd92ebf3c5ee9bd7820c963d6acac013aac93067b08aef6}'' close(hi.IndexRetChan)
+
+					 *
+					 *
+					 *
+					if !ForcedReplay {
+						os.Exit(1)
+					}
+
+					// missing is ordered from latest backward
+					// reverse order to have oldestFirst
+					reverseStrings(memhash.missing_hashes)
+					/*
+					 * loop over missing and pass hash to indexQuery with offset
+					 *
+		*/
 		for _, hash := range memhash.missing_hashes {
 			offset := memhash.missingoffsets[hash]
 			isDup, err := his.IndexQuery(hash, indexRetChan, offset)
