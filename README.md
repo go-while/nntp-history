@@ -16,17 +16,17 @@ go get github.com/go-while/nntp-history
 
 ## Code Hints
 
-## History_Boot Function
+## BootHistory Function
 
-The `History_Boot` function in this Go code is responsible for initializing and booting a history management system.
+The `BootHistory` function in this Go code is responsible for initializing and booting a history management system.
 
 It provides essential configuration options and prepares the system for historical data storage and retrieval.
 
 ## Usage
 
-To use the `History_Boot` function, follow these steps:
+To use the `BootHistory` function, follow these steps:
 
-1. Call the `History_Boot` function with the desired configuration options.
+1. Call the `BootHistory` function with the desired configuration options.
 
 2. The history management system will be initialized and ready for use.
 

@@ -45,8 +45,8 @@ var (
 	BoltDB_AllocSize     int                                       // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
 	BoltSyncEveryS       int64   = 60                              // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
 	BoltSyncEveryN       uint64  = 500000                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
-	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling History_Boot.
-	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling History_Boot.
+	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling BootHistory.
+	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling BootHistory.
 	BoltHashOpen                 = make(chan struct{}, intBoltDBs) // dont change this
 	HISTORY_INDEX_LOCK           = make(chan struct{}, 1)          // main lock
 	HISTORY_INDEX_LOCK16         = make(chan struct{}, intBoltDBs) // sub locks
@@ -144,8 +144,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	}
 	gob.Register(HistorySettings{})
 
-	his.L2Cache.L2CACHE_Boot(his)
-	his.L3Cache.L3CACHE_Boot(his)
+	his.L2Cache.BootL2Cache(his)
+	his.L3Cache.BootL3Cache(his)
 
 	his.batchQueues = &BQ{}
 	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.rootBUCKETS)         // char [0-9a-f] * bucket [0-9a-f]
@@ -184,11 +184,6 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		QindexChans = 1
 	}
 
-	if DefaultEvictsCapacity < 1024 {
-		DefaultEvictsCapacity = 1024
-	}
-
-	his.cEvCap = DefaultEvictsCapacity
 	his.reopenDBeveryN = BoltDBreopenEveryN
 	his.adaptBatch = AdaptBatch
 	his.boltInitChan = make(chan struct{}, BoltINITParallel)
@@ -329,7 +324,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		db.MaxBatchSize = BoltDB_MaxBatchSize
 	}
 
-	if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
+	if BoltDB_MaxBatchDelay >= 0 {
+		//if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
 		db.MaxBatchDelay = BoltDB_MaxBatchDelay
 	}
 	if BoltDB_AllocSize > 0xFFFFF {
@@ -422,14 +418,8 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		his.batchQueues.mux.Lock()
 		his.batchQueues.Maps[char][bucket] = batchQueue
 		his.batchQueues.mux.Unlock()
-
-		// delays the start of a worker by batchflushevery divided by len of all root buckets.
-		// should somehow result in slowly booting workers to get a better flushing behavior
-		// more even distribution on runtime. else all workers boot at the same time and flush at the same time.
-		//delay = int64(wid * int(BatchFlushEvery) / len(ROOTBUCKETS))
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
-		// It results in a total of 16 by 16 queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
-
+		// It results in a total of `intBoltDBs` by `RootBuckets` queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 		go func(db *bolt.DB, wid int, char string, bucket string,
 			batchQueue chan *BatchOffset, closedBuckets chan struct{}) {
 
@@ -463,29 +453,30 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			lft_slice := []int64{}
 			now := UnixTimeMilliSec()
 			bef := now
+			Qcap := cap(batchQueue)
+			batchLockChan := his.BatchLocks[char].bl[bucket].ch
+
 			logf(DEBUG2, "batchQueue [%s] wid=%d Booted", char, wid)
+			// DEBUG
 			lastprintABS2A := now
 			lastprintABS2B := now
 			lastprintMED := now
-			Qcap := cap(batchQueue)
-			batchLockChan := his.BatchLocks[char].bl[bucket].ch
+
+			qcapPercent := 50 // hardcoded: affects insert performance and memory
+			randPercent := 25 // hardcoded: affects insert performance and memory
+
 		forbatchqueue:
 			for {
 				if !forced {
-					//log.Printf("batchQueue [%s] wid=%d !forced wait4notifyChan", char, wid)
-					//select {
-					//case <-notifyChan:
-					//	//log.Printf("batchQueue [%s] wid=%d received notify wakeup", char, wid)
-					//}
 					time.Sleep(time.Duration(median) * time.Millisecond)
-					//sleept += median
 					sleept += median
 					sleepn++
 				}
 				bef = UnixTimeMilliSec()
 				Q, inserted, err, closed = his.boltBucketPutBatch(db, char, bucket, batchQueue, Qcap, forced, "gofunc", lft, wCBBS, batchLockChan)
 				now = UnixTimeMilliSec()
-				if forced { // DEBUG
+				if forced {
+					// DEBUG
 					logf(wantPrint(DBG_ABS2, &lastprintABS2A, UnixTimeMilliSec(), BatchFlushEvery/4), "DBG_ABS2A forbatchqueue F0 [%s|%s] boltBucketPutBatch F1 Q=%05d inserted=%05d/wCBBS=%05d closed=%t forced=%t median=%d lft=%d age=%d err='%v'", char, bucket, Q, inserted, wCBBS, closed, forced, median, lft, now-lastflush, err)
 				}
 				if closed { // received nil pointer
@@ -498,8 +489,9 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 				if inserted > 0 {
 					lft, lastflush = now-lastflush, now
+					// DEBUG
 					logf(wantPrint(DBG_ABS2, &lastprintMED, UnixTimeMilliSec(), 32768),
-						"DBG_ABS2 batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
+						"DBG_ABS2a batchQueue [%s|%s] inserted=%d lft=%d forced=%t median=%d sl=[%d] Q=%d/%d (took %d ms) sleept=(%d ms) sleepn=%d",
 						char, bucket, inserted, lft, forced, median, len(lft_slice), Q, Qcap, now-bef, sleept, sleepn)
 					median = GetMedian(char, bucket, &lft_slice, lft, slicelim, minian, maxian, false)
 					sleept, sleepn = 0, 0
@@ -508,14 +500,17 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				}
 
 				if Q > 0 && lastflush < UnixTimeMilliSec()-batchFlushEvery {
-					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2B forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
+					// DEBUG
+					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2b forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
-				} else {
-					// queue has elements: randomly flush early to get some random distribution?
-					arand, err := generateRandomInt(1, 3333)
-					if err == nil && arand == 777 {
-						logf(DEBUG2, "forbatchqueue [%s|%s] arand=%d forced=>true Q=%d median=(%d ms) lft_slice=%d sleept=%d sleepn=%d", char, bucket, arand, Q, median, len(lft_slice), sleept, sleepn)
+				} else if Q > (Qcap / 2 / 100 * qcapPercent) {
+					// queue has more than `capPercent`% of elements
+					arand := getRandomInt(1, 100)
+					if arand > 0 && arand < 100 && arand < randPercent {
+						// randomly flush `randPercent`% of requests to get some random distribution?
+						logf(DEBUG2, "forbatchqueue [%s|%s] arand=%d<%d forced=>true Q=%d/%d >%d%% median=(%d ms) lft_slice=%d sleept=%d sleepn=%d",
+							char, bucket, arand, randPercent, Q, Qcap, qcapPercent, median, len(lft_slice), sleept, sleepn)
 						forced = true
 						continue forbatchqueue
 					}
@@ -834,31 +829,6 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 
 	// puts offset into batchQ
 	batchQueue <- &BatchOffset{bucket: bucket, key: key, encodedOffsets: encodedOffsets, hash: hash, char: char, offsets: offsets}
-
-	/*
-		his.BatchLocks[char][bucket] <- struct{}{}
-		defer his.returnBatchLock(char, bucket)
-
-		if err := db.Update(func(tx *bolt.Tx) error {
-			var err error
-			b := tx.Bucket([]byte(bucket))
-			b.FillPercent = 0.3
-			puterr := b.Put([]byte(key), encodedOffsets)
-			if puterr != nil {
-				return puterr
-			}
-			return err
-		}); err != nil {
-			log.Printf("ERROR boltBucketKeyPutOffsets [%s|%s] err='%v'", char, bucket, err)
-			return err
-		}
-
-		his.Sync_upcounter("inserted")
-		his.DoCacheEvict(char, hash, 0, char+bucket+key)
-		for _, offset := range offsets {
-			his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
-		}
-	*/
 	return
 } // end func boltBucketKeyPutOffsets
 

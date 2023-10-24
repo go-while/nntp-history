@@ -43,14 +43,12 @@ type Memhash struct {
 
 func (his *HISTORY) ReplayHisDat() {
 	var bufferSize int64 = 192
-	//mem := arena.NewArena()
-	//defer mem.Free()
-	//memhash := arena.New[AHASH](mem)
 
 	memhash := &Memhash{}
 	memhash.buffer = make([]byte, bufferSize)
 
 	if NoReplayHisDat {
+		log.Printf("NoReplayHisDat=%t", NoReplayHisDat)
 		return
 	}
 	if !his.useHashDB {
@@ -184,11 +182,10 @@ replay: // backwards: from latest hash
 			// whenever we hit a missing hash
 			//  update nlm and add value of `ok` to it
 			// adding `ok` to it resets the distance calculation
-			nlm = missed + ok // + checked // adding checked to nlm extends the replay a lot
+			nlm = missed + ok + checked // adding checked to nlm extends the replay a lot
 			memhash.missing_hashes = append(memhash.missing_hashes, memhash.hash)
 			memhash.missingoffsets[memhash.hash] = offset
 			distance := ok - nlm
-			//log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)", memhash, offset, checked, missed, ok, nlm, distance, replaytestmax)
 			log.Printf("WARN ReplayHisDat NOT!FOUND hash='%s' @offset=%d (checked=%d missed=%d ok=%d nlm=%d dist=%d/%d)",
 				memhash.hash, offset+1, checked, missed, ok, nlm, distance, replaytestmax)
 
@@ -227,42 +224,37 @@ replay: // backwards: from latest hash
 		clear(memhash.buffer)
 	} // end for replay
 	log.Printf("LOOPEND ReplayHisDat checked=%d ok=%d missed=%d (took %d sec)", checked, ok, missed, time.Now().Unix()-start)
+	added := 0
 
 	if len(memhash.missing_hashes) > 0 || ForcedReplay {
 		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
 		// missing is ordered from latest backward
 		// reverse order to have oldestFirst
-		//reverseStrings(memhash.missing_hashes)
-		time.Sleep(1 * time.Second)
-		runtime.GC()
-		//CPUBURN()
-		return
-	}
-	return
-	/*
-	 * TODO loop over missing and pass hash to indexQuery with offset
-	 *
-	 */
+		reverseStrings(memhash.missing_hashes)
+		/*
+		 * loop over missing and pass hash to indexQuery with offset
+		 *
+		 */
+		for _, hash := range memhash.missing_hashes {
+			offset := memhash.missingoffsets[hash]
+			isDup, err := his.IndexQuery(hash, indexRetChan, offset)
+			if err != nil {
+				log.Printf("ERROR ReplayHisDat ADD IndexQuery hash='%s' @offset=%d err='%v'", hash, offset, err)
+				os.Exit(1)
+			}
+			switch isDup {
+			case CasePass:
+				// hash from history.dat is missing in hashdb
+				added++
+				log.Printf("INFO ReplayHisDat added missing hash='%s' @offset=%d added=%d/%d", hash, offset, added, missed)
+			default:
+				log.Printf("ERROR ReplayHisDat bad response from ADD hash='%s' to IndexQuery isDup=%x", hash, isDup)
+				os.Exit(1)
+			}
+		}
+	} // end if missing_hashes
 
-	added := 0
-	for _, hash := range memhash.missing_hashes {
-		offset := memhash.missingoffsets[hash]
-		isDup, err := his.IndexQuery(hash, indexRetChan, offset)
-		if err != nil {
-			log.Printf("ERROR ReplayHisDat ADD IndexQuery hash='%s' @offset=%d err='%v'", hash, offset, err)
-			os.Exit(1)
-		}
-		switch isDup {
-		case CasePass:
-			// hash from history.dat is missing in hashdb
-			added++
-			log.Printf("INFO ReplayHisDat added missing hash='%s' @offset=%d added=%d/%d", hash, offset, added, missed)
-		default:
-			log.Printf("ERROR ReplayHisDat bad response from ADD hash='%s' to IndexQuery isDup=%x", hash, isDup)
-			os.Exit(1)
-		}
-	}
-	log.Printf("ReplayHisDat ok=%d", ok)
+	log.Printf("ReplayHisDat ok=%d added=%d", ok, added)
 } // end func ReplayHisDat
 
 func extractHash(line string) string {
@@ -390,7 +382,7 @@ func (his *HISTORY) boltCreateBucket(db *bolt.DB, char string, bucket string) (r
 			batchCreate = append(batchCreate, subb)
 			if len(batchCreate) > lim {
 				//logf(DEBUG2, "boltCreateBucket [%s|%s] batchCreate %d sub buckets %d/%d", char, bucket, len(batchCreate), did, len(SUBBUCKETS))
-				if err := db.Batch(func(tx *bolt.Tx) error {
+				if err := db.Update(func(tx *bolt.Tx) error {
 					root, err := tx.CreateBucketIfNotExists([]byte(bucket)) // _ == bb == *bbolt.Bucket
 					root.FillPercent = 1.0
 					if err != nil {

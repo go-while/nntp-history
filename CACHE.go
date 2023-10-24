@@ -1,17 +1,13 @@
 package history
 
 import (
-	//"fmt"
 	"log"
-	"time"
-	//"sync"
 )
 
 const (
 	// never change this
-	FlagExpires      bool  = true
-	FlagNeverExpires bool  = false
-	NoExpiresVal     int64 = -1
+	FlagExpires      bool = true
+	FlagNeverExpires bool = false
 )
 
 var (
@@ -20,14 +16,17 @@ var (
 	DefaultCacheExpires   int64 = 5          // gets x2 BatchFlushEvery x2
 	DefaultCacheExtend    int64 = 5          // extends cached items after writes
 	DefaultCachePurge     int64 = 1          // checks ttl every N seconds. affects CacheExpires/Extend max to + Purge
-	DefaultEvictsCapacity       = 512 * 1024 // his.cEvCap is normally fine as is but higher values can give better performance
+	DefaultEvictsCapacity       = intBoltDBs // his.cEvCap (size of Extend chan) is normally fine as is.
+	ClearEveryN                 = DefaultEvictsCapacity
+	// higher will eat more mem. no congestion problems with 100+k tx/sec
 	// cache cleansup every N items or when DefaultCachePurge triggers
-	// beware of the appetite!
-	// 16 dbs * RootBuckets * ClearEveryN * 2 Caches * 2 PrioQue * 64 bytes (sha256) + maps overhead = lots of bytes
+	// beware of the appetite! watch debugs in DoCacheEvict()
+	// 16 dbs * RootBuckets * ClearEveryN * 2 Caches * 2 pqQ * 64 bytes (sha256) + maps overhead = lots of bytes
+	// 16     *      16     *    16       * 2        * 2         * 64 =   1.048.576 bytes
 	// 16     *      16     *    32       * 2        * 2         * 64 =   2.097.152 bytes
+	// 16     *     256     *    16       * 2        * 2         * 64 =  16.777.216 bytes
 	// 16     *     256     *    32       * 2        * 2         * 64 =  33.554.432 bytes
 	// 16     *    4096     *    32       * 2        * 2         * 64 = 536.870.912 bytes
-	ClearEveryN                 = 32
 )
 
 // CharCacheCounter
@@ -39,21 +38,30 @@ type ClearCacheChan struct {
 	ch chan []*ClearCache
 }
 
-// StrExtendChan
-type StrECH struct {
-	ch chan *StrItems
-}
-type StrItems struct {
-	extends []string
-}
+// gets called in BBATCH.go:boltBucketPutBatch() after boltTX
+func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
+	if char == "" {
+		// char derived from hash or for offset: offset=>hex[lastchar]
+		log.Printf("ERROR DoCacheEvict char=nil")
+		return
+	}
 
-// IntExtendChan
-type IntECH struct {
-	ch chan *IntItems
-}
-type IntItems struct {
-	extends []int64
-}
+	if hash != "" {
+		l1ext := his.L1Cache.Extend[char]
+		//log.Printf("L1Cache.Extend[%s].ch %d/%d his.cEvCap=%d ch='%#v'", char, len(l1ext.ch), cap(l1ext.ch), his.cEvCap, l1ext.ch)
+		l1ext.ch <- &L1PQItem{Key: hash, Expires: L1ExtendExpires}
+	}
+	if offset > 0 {
+		l2ext := his.L2Cache.Extend[char]
+		//log.Printf("L2Cache.Extend[%s].ch %d/%d his.cEvCap=%d ch='%#v'", char, len(l2ext.ch), cap(l2ext.ch), his.cEvCap, l2ext.ch)
+		l2ext.ch <- &L2PQItem{Key: offset, Expires: L2ExtendExpires}
+	}
+	if key != "" {
+		l3ext := his.L3Cache.Extend[char]
+		//log.Printf("L3Cache.Extend[%s].ch %d/%d his.cEvCap=%d ch='%#v'", char, len(l3ext.ch), cap(l3ext.ch), his.cEvCap, l3ext.ch)
+		l3ext.ch <- &L3PQItem{Key: key, Expires: L3ExtendExpires}
+	}
+} // end func DoCacheEvict
 
 func (his *HISTORY) PrintCacheStats() {
 	/*
@@ -128,149 +136,3 @@ func (his *HISTORY) PrintCacheStats() {
 	}
 	log.Printf("L3: [fex=%d/set:%d] [get=%d/mis=%d] [del:%d/bat:%d] [g/s:%d/%d] cached:%d (~%d/char)", l3map["Count_FlagEx"], l3map["Count_Set"], l3map["Count_Get"], l3map["Count_Mis"], l3map["Count_Delete"], l3map["Count_BatchD"], l3map["Count_Growup"], l3map["Count_Shrink"], l3cachesize, l3medium)
 } // end func PrintCacheStats
-
-// gets called in BBATCH.go:boltBucketPutBatch() after boltTX
-func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
-	if char == "" {
-		// char derived from hash or for offset: offset=>hex[lastchar]
-		//log.Printf("ERROR CacheEvict char empty.")
-		return
-	}
-
-	if DEBUG {
-		lench := len(his.cacheEvicts[char])
-		limit := int(float64(his.cEvCap) * 0.95)
-		if lench > limit {
-			log.Printf("WARN DoCacheEvict cacheEvicts[%s]chan=%d/%d warn>%d near-full", char, lench, his.cEvCap, limit)
-		} else {
-			//log.Printf("INFO DoCacheEvict cacheEvicts[%s]chan=%d/%d limit=%d OK", char, lench, his.cEvCap, limit)
-		}
-	}
-
-	// pass ClearCache object to evictChan in CacheEvictThread()
-	his.cacheEvicts[char] <- &ClearCache{char: char, offset: offset, hash: hash, key: key}
-} // end func DoCacheEvict
-
-func (his *HISTORY) CacheEvictThread(num int) {
-	if BootHisCli {
-		return
-	}
-	if his.cacheEvicts != nil {
-		log.Printf("ERROR CacheEvictThread already running!")
-		return
-	}
-	his.cacheEvicts = make(map[string]chan *ClearCache)
-	//delay, j := 0, 0
-	log.Printf("Booting CacheEvictThread")
-
-	for _, char := range HEXCHARS {
-		if his.cacheEvicts[char] == nil {
-			his.cacheEvicts[char] = make(chan *ClearCache, his.cEvCap)
-			log.Printf("CacheEvictThread [%s] created", char)
-		}
-		//delay = j * int(BatchFlushEvery) / len(HEXCHARS)
-		for i := 1; i <= num; i++ {
-			// launch a go func for every char with own evictChan
-			go func(char string, i int, evictChan chan *ClearCache) {
-				//time.Sleep(time.Duration(delay) * time.Millisecond)
-
-				l1MUX := his.L1Cache.Muxers[char]
-				l2MUX := his.L2Cache.Muxers[char]
-				l3MUX := his.L3Cache.Muxers[char]
-
-				// wait for caches to boot
-				l1MUX.mux.Lock()
-				l1MUX.mux.Unlock()
-				if L2 {
-					l2MUX.mux.Lock()
-					l2MUX.mux.Unlock()
-				}
-				if L3 {
-					l3MUX.mux.Lock()
-					l3MUX.mux.Unlock()
-				}
-
-				l1ext := his.L1Cache.Extend[char]
-				l2ext := his.L2Cache.Extend[char]
-				l3ext := his.L3Cache.Extend[char]
-
-				clearEveryN := ClearEveryN // hardcoded: should match dqmax
-				basetimer := DefaultCachePurge
-
-				tmpHash := []string{}
-				tmpOffset := []int64{}
-				tmpKey := []string{}
-
-				timer := time.NewTimer(time.Duration(basetimer) * time.Second)
-				var del1, del2, del3 bool
-				var add1, add2, add3 int
-			forever:
-				for {
-					select {
-					case <-timer.C:
-						del1 = len(tmpHash) > 0
-						del2 = len(tmpOffset) > 0
-						del3 = len(tmpKey) > 0
-						//Q := len(evictChan)
-						//if Q > 0 {
-						//	logf(DEBUG2, "CacheEvictThread [%s] case timer evictChan=%d", char, Q)
-						//}
-					case item, ok := <-evictChan: // channel receives a ClearCache struct from DoCacheEvict()
-						if !ok {
-							log.Printf("evictChan [%s] closed", char)
-							break forever
-						}
-						if item.char != char {
-							log.Printf("ERROR evictChan [%s] item.char='%#v' != char", char, item.char)
-							break forever
-						}
-
-						//logf(DEBUG2, "evictChan [%s] item='%#v' to tmp", char, item)
-						if item.offset > 0 && L2 { // l2 offset
-							tmpOffset = append(tmpOffset, item.offset)
-							add2++ // L2
-						} else {
-							if item.hash != "" && L1 { // l1 hash
-								tmpHash = append(tmpHash, item.hash)
-								add1++ // L1
-							}
-							if item.key != "" && L3 { // l3 key
-								tmpKey = append(tmpKey, item.key)
-								add3++ // L3
-							}
-						}
-						if add1 >= clearEveryN {
-							del1 = true // L1
-						}
-						if add2 >= clearEveryN {
-							del2 = true // L2
-						}
-						if add3 >= clearEveryN {
-							del3 = true // L3
-						}
-					} // end select
-					if del1 { // L1
-						//logf(DEBUGL1, L1 flush tmpHash=%d", len(tmpHash))
-						l1ext.ch <- &StrItems{extends: tmpHash}
-						tmpHash = nil
-						del1, add1 = false, 0
-					}
-					if del2 { // L2
-						//logf(DEBUGL2, L2 flush tmpOffset=%d", len(tmpOffset))
-						l2ext.ch <- &IntItems{extends: tmpOffset}
-						tmpOffset = nil
-						del2, add2 = false, 0
-					}
-					if del3 { // L3
-						//logf(DEBUGL3, "L3 flush tmpKey=%d", len(tmpKey))
-						l3ext.ch <- &StrItems{extends: tmpKey} // &tmpKey
-						tmpKey = nil
-						del3, add3 = false, 0
-					}
-					timer.Reset(time.Duration(basetimer) * time.Second)
-				} // end for fetchdel
-
-			}(char, i, his.cacheEvicts[char])
-		} // end for num
-	} // end for HEXCHARS
-} // end func CacheEvictThread

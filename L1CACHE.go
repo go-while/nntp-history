@@ -1,6 +1,7 @@
 package history
 
 import (
+	//"container/heap"
 	"log"
 	"sync"
 	"time"
@@ -28,10 +29,10 @@ var (
 type L1CACHE struct {
 	mux     sync.Mutex // global L1 mutex
 	Caches  map[string]*L1CACHEMAP
-	Extend  map[string]*StrECH
+	Extend  map[string]*L1ECH
 	Muxers  map[string]*L1MUXER
 	Counter map[string]*CCC
-	prioQue map[string]*L1PrioQue // Priority queue for item expiration
+	pqQueue map[string]*L1pqQ // Priority queue for item expiration
 }
 
 type L1CACHEMAP struct {
@@ -42,26 +43,31 @@ type L1ITEM struct {
 	value int
 }
 
+// L1ExtendChan
+type L1ECH struct {
+	ch chan *L1PQItem
+}
+
 type L1MUXER struct {
 	mux sync.Mutex
 }
 
-type L1PrioQue struct {
+type L1pqQ struct {
 	que *L1PQ
 	mux sync.Mutex
 	pqC chan struct{}
 }
 
-type L1PQ []*L1PQItem
+type L1PQ []L1PQItem
 
 type L1PQItem struct {
 	Key     string
 	Expires int64
 }
 
-// The L1CACHE_Boot method initializes the cache system.
+// The BootL1Cache method initializes the cache system.
 // It creates cache maps, initializes them with initial sizes, and starts goroutines to periodically purge expired entries.
-func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
+func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	if !L1 {
 		return
 	}
@@ -72,16 +78,16 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		return
 	}
 	l1.Caches = make(map[string]*L1CACHEMAP, intBoltDBs)
-	l1.Extend = make(map[string]*StrECH, intBoltDBs)
+	l1.Extend = make(map[string]*L1ECH, intBoltDBs)
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
-	l1.prioQue = make(map[string]*L1PrioQue, intBoltDBs)
+	l1.pqQueue = make(map[string]*L1pqQ, intBoltDBs)
 	for _, char := range HEXCHARS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
-		l1.Extend[char] = &StrECH{ch: make(chan *StrItems, his.cEvCap)}
+		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l1.prioQue[char] = &L1PrioQue{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
+		l1.pqQueue[char] = &L1pqQ{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -89,7 +95,8 @@ func (l1 *L1CACHE) L1CACHE_Boot(his *HISTORY) {
 		go l1.pqExpire(char)
 		go l1.pqExtend(char)
 	}
-} // end func L1CACHE_Boot
+	log.Printf("L1Cache_Boot")
+} // end func BootL1Cache
 
 // The LockL1Cache method is used to LOCK a `MessageIDHash` for processing.
 // If the value is not in the cache or has expired, it locks the cache, updates the cache with a new value, and returns the value.
@@ -145,48 +152,70 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	if !L1 {
 		return
 	}
-	l1.mux.Lock() // waits for L1CACHE_Boot to unlock
+	l1.mux.Lock() // waits for BootL1Cache to unlock
 	l1.mux.Unlock()
 	//logf(DEBUGL1, "Boot L1pqExtend [%s]", char)
+	//defer log.Printf("LEFT L1 [%s] pqExtend", char)
+
 	l1purge := L1Purge
-	if l1purge < 1 {
+	if l1purge <= 0 {
 		l1purge = 1
 	}
+	clearEv := ClearEveryN
+	if clearEv <= 0 {
+		clearEv = 1
+	}
 
-	go func() {
-		defer log.Printf("LEFT L1T gofunc1 extend [%s]", char)
-		ptr := l1.Caches[char]
-		cnt := l1.Counter[char]
-		extC := l1.Extend[char]
-		mux := l1.Muxers[char]
-		pq := l1.prioQue[char]
-		pushq := []string{}
-		//forever:
-		for {
-			select {
-			case dat := <-extC.ch: // receives stuff from CacheEvictThread()
-				// got hashes we will extend
-				if len(dat.extends) > 0 {
-					//logf(DEBUGL1, "L1 [%s] extends=%d", char, len(extends))
-					mux.mux.Lock()
-					for _, hash := range dat.extends {
-						if _, exists := ptr.cache[hash]; exists {
-							ptr.cache[hash].value = CaseDupes
-							cnt.Counter["Count_BatchD"]++
-							pushq = append(pushq, hash)
-						}
-					}
-					mux.mux.Unlock()
+	ptr := l1.Caches[char]
+	cnt := l1.Counter[char]
+	extC := l1.Extend[char]
+	mux := l1.Muxers[char]
+	pq := l1.pqQueue[char]
+	pushq, pushmax, pushcnt := make([]L1PQItem, clearEv), clearEv, 0
+	timeout := false
+	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 
-					for _, hash := range pushq {
-						pq.Push(&L1PQItem{Key: hash, Expires: L1ExtendExpires})
+	//forever:
+	for {
+		select {
+		case <-timer.C:
+			timeout = true
+		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
+			if pqitem != nil {
+				//log.Printf("L1 pushq append pqitem=%#v", pqitem)
+				pushq[pushcnt] = *pqitem
+				pqitem = nil
+				pushcnt++
+			} else {
+				log.Printf("ERROR L1 pqExtend extC.ch <- nil pointer")
+				return
+			}
+		} // end select
+		if pushcnt >= pushmax || (timeout && pushcnt > 0) {
+			if pushcnt > 0 {
+
+				mux.mux.Lock()
+				for i := 0; i < pushcnt; i++ {
+					if _, exists := ptr.cache[pushq[i].Key]; exists {
+						cnt.Counter["Count_BatchD"]++
 					}
-					dat.extends, pushq = nil, nil
-					dat = nil
 				}
-			} // end select
-		} // end forever
-	}() // end gofunc1
+				mux.mux.Unlock()
+
+				pq.mux.Lock()
+				for i := 0; i < pushcnt; i++ {
+					pq.Push(pushq[i])
+				}
+				pq.mux.Unlock()
+
+				pushq, pushcnt = make([]L1PQItem, clearEv), 0
+			}
+		}
+		if timeout {
+			timeout = false
+		}
+		timer.Reset(time.Duration(l1purge) * time.Second)
+	} // end forever
 } //end func pqExtend
 
 // The Set method is used to set a value in the cache.
@@ -205,10 +234,12 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
+	pq := l1.pqQueue[char]
 
 	if flagexpires {
-		pq.Push(&L1PQItem{Key: hash, Expires: L1CacheExpires})
+		pq.mux.Lock()
+		pq.Push(L1PQItem{Key: hash, Expires: L1CacheExpires})
+		pq.mux.Unlock()
 	}
 	mux.mux.Lock()
 	if _, exists := ptr.cache[hash]; !exists {
@@ -259,14 +290,12 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	return
 } // end func L1Stats
 
-func (pq *L1PrioQue) Push(item *L1PQItem) {
+func (pq *L1pqQ) Push(item L1PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	pq.mux.Lock()
 	*pq.que = append(*pq.que, item)
-	pq.mux.Unlock()
 } // end func Push
 
-func (pq *L1PrioQue) Pop() (*L1PQItem, int) {
+func (pq *L1pqQ) Pop() (*L1PQItem, int) {
 	pq.mux.Lock()
 	lenpq := len(*pq.que)
 	if lenpq == 0 {
@@ -278,7 +307,7 @@ func (pq *L1PrioQue) Pop() (*L1PQItem, int) {
 	pq.mux.Unlock()
 	item := old[0]
 	old = nil
-	return item, lenpq
+	return &item, lenpq
 } // end func Pop
 
 // Remove expired items from the cache
@@ -294,41 +323,54 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-	pq := l1.prioQue[char]
-	//lenpq := 0
+	pq := l1.pqQueue[char]
+	lenpq := 0
 	var item *L1PQItem
 	var isleep int64
 	l1purge := L1Purge
-	dq, dqmax := []string{}, ClearEveryN
-	lf := UnixTimeSec()
-	now := UnixTimeSec()
+	//dq, dqmax, dqcnt := make([]string, ClearEveryN), ClearEveryN, 0
+	//now := UnixTimeSec()
+	//lf := now
 cleanup:
 	for {
-		now = UnixTimeSec()
-		if len(dq) >= dqmax || lf <= now-l1purge {
-			if len(dq) > 0 {
-				mux.mux.Lock()
-				for _, key := range dq {
-					delete(ptr.cache, key)
+		/*
+			now = UnixTimeSec()
+			if dqcnt >= dqmax || lf <= now-l1purge {
+				if dqcnt > 0 {
+					mux.mux.Lock()
+					for i := 0; i < dqcnt; i++ {
+						delete(ptr.cache, dq[i])
+					}
+					cnt.Counter["Count_Delete"] += uint64(dqcnt)
+					mux.mux.Unlock()
 				}
-				cnt.Counter["Count_Delete"] += uint64(len(dq))
-				mux.mux.Unlock()
+				dq, lf, dqcnt = make([]string, ClearEveryN), now, 0
 			}
-			dq, lf = nil, now
-		}
-		item, _ = pq.Pop()
+		*/
+		item, lenpq = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
 		}
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
-			//logf(DEBUGL1, "L1 pqExpire [%s] sleep=(%d ms) lenpq=%d", char, isleep/1e6, lenpq)
-			if isleep > 0 {
+			if isleep >= int64(1*time.Millisecond) {
+				logf(DEBUGL1, "L1 pqExpire [%s] POS sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 				time.Sleep(time.Duration(isleep))
+			} else {
+				logf(DEBUGL1, "L1 pqExpire [%s] NEG sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 			}
 		}
-		dq = append(dq, item.Key)
+
+		mux.mux.Lock()
+		delete(ptr.cache, item.Key)
+		cnt.Counter["Count_Delete"]++
+		mux.mux.Unlock()
 		item = nil
+		continue cleanup
+
+		//dq = append(dq, item.Key)
+		//dqcnt++
+		//item = nil
 	}
 } // end func pqExpire
