@@ -465,9 +465,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			lastprintABS2B := now
 			lastprintMED := now
 
-			//qcapPercent := 25 // hardcoded: affects insert performance and memory
-			//randPercent := 25 // hardcoded: affects insert performance and memory
-
 		forbatchqueue:
 			for {
 				if !forced {
@@ -507,17 +504,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 					logf(wantPrint(DBG_ABS2, &lastprintABS2B, UnixTimeMilliSec(), 30000), "DBG_ABS2b forbatchqueue F9 [%s|%s] Q=%05d forced=%t=>true lft=%d wCBBS=%d", char, bucket, Q, forced, lft, wCBBS)
 					forced = true
 					continue forbatchqueue
-				} /* else if Q > (Qcap / 2 / 100 * qcapPercent) {
-					// queue has more than `capPercent`% of elements
-					arand := getRandomInt(1, 100)
-					if arand > 0 && arand < 100 && arand < randPercent {
-						// randomly flush `randPercent`% of requests to get some random distribution?
-						logf(DEBUG2, "forbatchqueue [%s|%s] arand=%d<%d forced=>true Q=%d/%d >%d%% median=(%d ms) lft_slice=%d sleept=%d sleepn=%d",
-							char, bucket, arand, randPercent, Q, Qcap, qcapPercent, median, len(lft_slice), sleept, sleepn)
-						forced = true
-						continue forbatchqueue
-					}
-				}*/
+				}
 				forced = false
 				continue forbatchqueue
 			} // end forbatchqueue
