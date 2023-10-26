@@ -9,15 +9,15 @@ import (
 )
 
 var (
-	DBG_BS_LOG           bool                           // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
-	DBG_ABS1             bool                           // debugs adaptive batchsize in boltBucketPutBatch
-	DBG_ABS2             bool                           // debugs adaptive batchsize forbatchqueue in boltDB_Worker
-	AdaptBatch           bool                           // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
-	BatchFlushEvery      int64  = 5120                  // flushes boltDB in batch every N milliseconds (1-...)
-	BoltDB_MaxBatchDelay        = 10 * time.Millisecond // default value from boltdb:db.go = 10 * time.Millisecond
-	BoltDB_MaxBatchSize  int    = 1000                  // default value from boltdb:db.go = 1000
-	CharBucketBatchSize  int    = 1024                  // default batchsize per char:bucket batchqueues
-	EmptyStr             string                         // used as pointer
+	DBG_BS_LOG           bool                            // debugs BatchLOG for every batch insert! beware of the memory eating dragon!
+	DBG_ABS1             bool                            // debugs adaptive batchsize in boltBucketPutBatch
+	DBG_ABS2             bool                            // debugs adaptive batchsize forbatchqueue in boltDB_Worker
+	AdaptBatch           bool                            // automagically adjusts CharBucketBatchSize=>wCBBS=workerCharBucketBatchSize to match BatchFlushEvery
+	BatchFlushEvery      int64  = 5120                   // flushes batch to bboltDB every N milliseconds (1-...)
+	BoltDB_MaxBatchDelay        = 256 * time.Millisecond // default value from bboltdb:db.go = 10 * time.Millisecond
+	BoltDB_MaxBatchSize  int    = 32                     // default value from bboltdb:db.go = 1000
+	CharBucketBatchSize  int    = 16                     // default batchsize per batchqueues in char(x16):bucket(x16, x256, x4096)
+	EmptyStr             string                          // used as pointer
 )
 
 func (his *HISTORY) getNewDB(char string, db *bolt.DB) *bolt.DB {
@@ -103,24 +103,10 @@ fetchbatch:
 
 	//logf(DEBUG, "boltBucketPutBatch [%s|%s] batch=%d to bboltDB", char, bucket, len(batch1))
 
-	//var freelist int
+	<-his.ticker[char]
+
 	var inserted uint64
 	if len(batch1) > 0 {
-		/*
-			if db == nil {
-				log.Printf("WARN boltBucketPutBatch db=nil")
-				//time.Sleep(time.Second * 5)
-				his.boltmux.Lock()
-				if his.BoltDBsMap[char].BoltDB != nil {
-					db = his.BoltDBsMap[char].BoltDB
-				}
-				his.boltmux.Unlock()
-				if db == nil {
-					return Q, 0, fmt.Errorf("boltBucketPutBatch [%s] db=nil", char), true // closed
-				}
-			}
-		*/
-
 		start1 := UnixTimeMicroSec()
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error

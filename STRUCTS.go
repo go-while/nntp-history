@@ -59,6 +59,7 @@ type HISTORY struct {
 	MEMfile        *os.File // ptr to file for mem profiling
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
 	TCPchan chan *HistoryObject
+	ticker  map[string]chan struct{}
 }
 
 /* builds the history.dat header */

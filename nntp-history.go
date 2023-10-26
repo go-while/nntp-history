@@ -95,12 +95,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	if BatchFlushEvery <= 0 { // milliseconds
 		BatchFlushEvery = 1
 	}
-	/*
-		if BatchFlushEvery*2 > DefaultCacheExpires*1000 {
-			DefaultCacheExpires = BatchFlushEvery * 2 / 1000
-			DefaultCacheExtend = DefaultCacheExpires
-		}
-	*/
+
 	if DefaultCachePurge <= 0 { // seconds
 		DefaultCachePurge = 1
 	}
@@ -816,4 +811,16 @@ func generateCombinations(hexChars []string, length int, currentCombination []st
 		combinations = generateCombinations(hexChars, length, newCombination, combinations)
 	}
 	return combinations
+}
+
+func (his *HISTORY) BatchTicker(char string, ticker chan struct{}) {
+	isleep := BatchFlushEvery / int64(RootBUCKETSperDB)
+	if isleep <= 0 {
+		isleep = 1
+	}
+	log.Printf("BatchTicker [%s] isleep=%d", char, isleep)
+	for {
+		ticker <- struct{}{}
+		time.Sleep(time.Duration(isleep) * time.Millisecond)
+	}
 }
