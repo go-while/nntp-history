@@ -53,6 +53,7 @@ type HISTORY struct {
 	indexPar       int  // IndexParallel
 	cutFirst       int  // used to set startindex for cutHashlen
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
+	wantReOpen     map[string]chan struct{}
 	rootBUCKETS    int
 	keyIndex       int
 	CPUfile        *os.File // ptr to file for cpu profiling
