@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	BoltDBreopenEveryN       = 0xFFFFFF / intBoltDBs // reopens boltDB every N added (not batchins)
+	BoltDBreopenEveryN       = 0x0 // 0xFFFFFF / intBoltDBs // reopens boltDB every N added (not batchins) still bugged!
 	WatchBoltTimer     int64 = 10                    // prints bolts stats every N seconds. only with DEBUG
 	NoReplayHisDat     bool  = false                 // can be set before booting to not replay history.dat
 	// ReplayDistance stops replay of HisDat if we got this many OKs with a distance to missing
