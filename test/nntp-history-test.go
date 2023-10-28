@@ -97,7 +97,7 @@ func main() {
 	// start of the app will be delayed by this timeframe to start workers within this timeframe
 	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 7168, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 8192, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 
@@ -112,11 +112,11 @@ func main() {
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
-	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.25, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.8, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.8, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 64, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 512, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1024)")

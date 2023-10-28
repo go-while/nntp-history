@@ -32,13 +32,10 @@ const (
 )
 
 var (
-	BoltDBreopenEveryN       = 0xFFFFF // reopens boltDB every N added (not batchins)
-	WatchBoltTimer     int64 = 10      // prints bolts stats every N seconds. only with DEBUG
-	NoReplayHisDat     bool  = false   // can be set before booting to not replay history.dat
-	// stop replay HisDat if we got this many OKs with a distance to missing
-	// ReplayTestMax depends on bbolt.db.MaxBatchSize. ReplayTestMax should be at least 2x bbolt.db.MaxBatchSize!
-	// if the process crashes: do NOT change the MaxBatchSize before starting!
-	// ReplayHisDat() needs the same MaxBatchSize!
+	BoltDBreopenEveryN       = 0xFFFFFF / intBoltDBs // reopens boltDB every N added (not batchins)
+	WatchBoltTimer     int64 = 10                    // prints bolts stats every N seconds. only with DEBUG
+	NoReplayHisDat     bool  = false                 // can be set before booting to not replay history.dat
+	// ReplayDistance stops replay of HisDat if we got this many OKs with a distance to missing
 	ReplayDistance       int64   = DefaultReplayDistance           // defaults to replay at least 128K messages, more if missed ones (not in hashdb) appear.
 	QIndexChan           int     = 16                              // Main-indexchan can queue this
 	QindexChans          int     = 4                               // every sub-indexchans for a `char` can queue this
@@ -669,17 +666,17 @@ waiter:
 	for {
 		// a wait to reopen can take time
 		if len(closedBuckets) == his.rootBUCKETS {
-			log.Printf("boltDB_Worker [%s] STOPPING len(closedBuckets)=%d/%d his.batchQueues.BootCh=%d", char, len(closedBuckets), his.rootBUCKETS, len(his.batchQueues.BootCh))
+			//logf(DEBUG2, "boltDB_Worker [%s] STOPPING len(closedBuckets)=%d/%d his.batchQueues.BootCh=%d", char, len(closedBuckets), his.rootBUCKETS, len(his.batchQueues.BootCh))
 			break waiter
 		}
 		time.Sleep(time.Second)
-		log.Printf("boltDB_Worker [%s] wait stop len(closedBuckets)=%d/%d", char, len(closedBuckets), his.rootBUCKETS)
+		//logf(DEBUG2, "boltDB_Worker [%s] wait stop len(closedBuckets)=%d/%d", char, len(closedBuckets), his.rootBUCKETS)
 	}
 
 	if reopen {
 		log.Printf("GO ReOpen boltDB_Worker [%s] reopenDBeveryN=%d", char, reopenDBeveryN)
 		historyfile.Close()
-		his.boltSyncClose(db, char, false, nil)
+		his.boltSyncClose(db, char, reopen, nil)
 		his.returnBoltHashOpen()
 		select { // clear
 		case <-his.wantReOpen[char]:
@@ -693,7 +690,7 @@ waiter:
 	}
 
 	historyfile.Close()
-	his.boltSyncClose(db, char, false, nil)
+	his.boltSyncClose(db, char, reopen, nil)
 	//time.Sleep(time.Duration(10 * BoltDB_MaxBatchDelay))
 	his.returnBoltHashOpen()
 } // end func boltDB_Worker
