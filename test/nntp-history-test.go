@@ -86,7 +86,7 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	//flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 64, "1-... (default: 16) don't rise too much")
+	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 128, "1-... (default: 16) don't rise too much")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
 	// detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -103,7 +103,7 @@ func main() {
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 500, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
+	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 512, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
@@ -119,7 +119,7 @@ func main() {
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 512, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
-	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1, "MB (default: 1024)")
+	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
 
 	// NoSync: When set to true, the database skips fsync() calls after each commit.
 	// This can be useful for bulk loading data, but it's not recommended for normal use.
