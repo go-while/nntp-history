@@ -15,7 +15,7 @@ import (
 
 const (
 	// never change this!
-	intBoltDBs                    = 0x10 // do NOT change this! just breaks everything and will not do anything else!
+	intBoltDBs                    = 256  // can be set to 16, 256, 4096
 	HashShort                     = 0x0B // 11
 	DefaultBoltINITParallel       = intBoltDBs
 	DefaultBoltSYNCParallel       = intBoltDBs
@@ -32,11 +32,11 @@ const (
 )
 
 var (
-	BoltDBreopenEveryN       = 0x0 // 0xFFFFFF / intBoltDBs // reopens boltDB every N added (not batchins) still bugged!
-	WatchBoltTimer     int64 = 10                    // prints bolts stats every N seconds. only with DEBUG
-	NoReplayHisDat     bool  = false                 // can be set before booting to not replay history.dat
+	BoltDBreopenEveryN       = 0x0   // 0xFFFFFF / intBoltDBs // reopens boltDB every N added (not batchins) still bugged!
+	WatchBoltTimer     int64 = 10    // prints bolts stats every N seconds. only with DEBUG
+	NoReplayHisDat     bool  = false // can be set before booting to not replay history.dat
 	// ReplayDistance stops replay of HisDat if we got this many OKs with a distance to missing
-	ReplayDistance       int64   = DefaultReplayDistance           // defaults to replay at least 128K messages, more if missed ones (not in hashdb) appear.
+	ReplayDistance       int64   = DefaultReplayDistance           // defaults to replay at least 1M messages, more if missed ones (not in hashdb) appear.
 	QIndexChan           int     = 16                              // Main-indexchan can queue this
 	QindexChans          int     = 4                               // every sub-indexchans for a `char` can queue this
 	BoltDB_AllocSize     int                                       // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
@@ -139,8 +139,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	if BootHisCli {
 		return
 	}
-	gob.Register(HistorySettings{})
 
+	gob.Register(HistorySettings{})
 	his.L2Cache.BootL2Cache(his)
 	his.L3Cache.BootL3Cache(his)
 
@@ -148,10 +148,9 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.rootBUCKETS)         // char [0-9a-f] * bucket [0-9a-f]
 	his.wantReOpen = make(map[string]chan struct{}, intBoltDBs)                      // char [0-9a-f]
 	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, intBoltDBs) // maps char : bucket => chan
-	//his.BoltDBsMap = make(map[string]*BOLTDB_PTR)                        // maps char => boltDB pointer
 	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
 	his.ticker = make(map[string]chan struct{}, intBoltDBs)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		his.wantReOpen[char] = make(chan struct{}, 1)
 		his.ticker[char] = make(chan struct{}) // no cap!
 		go his.BatchTicker(char, his.ticker[char])
@@ -192,7 +191,7 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.boltSyncChan = make(chan struct{}, BoltSYNCParallel)
 	//his.BatchLocks = make(map[string]map[string]chan struct{})
 	his.BatchLocks = make(map[string]*BATCHLOCKS)
-	for i, char := range HEXCHARS {
+	for i, char := range ROOTDBS {
 		his.charsMap[char] = i
 		his.indexChans[i] = make(chan *HistoryIndex, QindexChans)
 		his.BatchLocks[char] = &BATCHLOCKS{bl: make(map[string]*BLCH)}
@@ -201,7 +200,8 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		}
 	}
 	time.Sleep(time.Millisecond)
-	for i, char := range HEXCHARS { // dont move this up into the first for loop or it drops race conditions for nothing...
+	for i, char := range ROOTDBS {
+		// dont move this up into the first for loop or it drops race conditions for nothing...
 		go his.boltDB_Worker(char, i, his.indexChans[i], boltOpts)
 	}
 	go his.boltDB_Index()
@@ -240,7 +240,7 @@ func (his *HISTORY) boltDB_Index() {
 	for p := 1; p <= his.indexPar; p++ {
 		waitchan <- struct{}{}
 		go func(p int, waitchan chan struct{}) {
-			C1 := ""
+			char := ""
 		forever:
 			for {
 				select {
@@ -264,18 +264,15 @@ func (his *HISTORY) boltDB_Index() {
 						break forever
 					}
 
-					if len(hi.Char) == 1 {
-						C1 = hi.Char
-					} else {
-						// gets first char of hash: hash must be lowercase!
-						// hex.EncodeToString returns a lowercased string of a hashsum
-						C1 = strings.ToLower(string(hi.Hash[0]))
-					}
+					// gets first N char of hash: hash must be lowercase!
+					// hex.EncodeToString returns a lowercased string of a hashsum
+					char = strings.ToLower(string(hi.Hash[:his.cutChar]))
+
 					//logf(hi.Hash == TESTHASH0, "boltDB_Index hash='%s' hi.Offset=%d C1=%s chan=%d/%d",
 					//	hi.Hash, hi.Offset, C1, len(his.indexChans[his.charsMap[C1]]), cap(his.indexChans[his.charsMap[C1]]))
 
 					// sends object to hash boltDB_Worker char
-					his.indexChans[his.charsMap[C1]] <- hi
+					his.indexChans[his.charsMap[char]] <- hi
 				} // end select
 			} // end for
 			<-waitchan
@@ -564,7 +561,7 @@ forever:
 				}
 				break forever
 			}
-			bucket = strings.ToLower(string(hi.Hash[1:his.cutFirst])) // get 2 chars (2nd + 3rd) for bucket
+			bucket = strings.ToLower(string(hi.Hash[his.cutChar:his.cutFirst])) // get 2 chars (2nd + 3rd) for bucket
 			//logf(DEBUG2, "indexchan [%s] bucket=%s char=%s hash=%s offset=%d", char, bucket, hi.Char, hi.Hash, hi.Offset)
 			switch his.keyalgo {
 			case HashShort:
@@ -766,7 +763,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 			if len(historyHash) == 3 && historyHash == eofhash {
 				logf(DEBUG2, "EOF history.dat hash=%s check_offset=%d", hash, check_offset)
 				// The history file reached EOF for check_offset, which means the entry was not flushed. Retry later.
-				his.L1Cache.Set(hash, char, CaseRetry, FlagExpires)
+				his.L1Cache.Set(hash, char, CaseRetry, FlagExpires, his)
 				return CaseRetry, nil
 
 			} else if historyHash == hash {
@@ -776,7 +773,7 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 				} else { // is a search
 					//logf(DEBUG2, "INFO boltDB_Worker DUPLICATE historyHash=%s @offset=%d", historyHash, check_offset)
 				}
-				his.L1Cache.Set(hash, char, CaseDupes, FlagExpires)
+				his.L1Cache.Set(hash, char, CaseDupes, FlagExpires, his)
 				return CaseDupes, nil
 			}
 		} else {
@@ -837,9 +834,9 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 	//encodedOffsets, err := EncodeOffsets(offsets, char, bucket, key, "boltBucketKeyPutOffsets", his)
 
 	// offset of history entry added to key: hash is a temporary duplicate+retry in cached response now
-	his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires)                                            // was CaseDupes before // boltBucketKeyPutOffsets
-	his.L2Cache.SetOffsetHash(offset, hash, FlagNeverExpires)                                           // boltBucketKeyPutOffsets
-	his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagNeverExpires, "boltBucketKeyPutOffsets") // boltBucketKeyPutOffsets
+	his.L1Cache.Set(hash, char, CaseWrite, FlagNeverExpires, his)                                            // was CaseDupes before // boltBucketKeyPutOffsets
+	his.L2Cache.SetOffsetHash(offset, hash, FlagNeverExpires)                                                // boltBucketKeyPutOffsets
+	his.L3Cache.SetOffsets(char+bucket+key, char, offsets, FlagNeverExpires, "boltBucketKeyPutOffsets", his) // boltBucketKeyPutOffsets
 
 	var encodedOffsets []byte
 	if b, err := concatInt64(offsets, &encodedOffsets); b == 0 || err != nil {
@@ -876,7 +873,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	//	log.Printf("bBGOs [%s|%s] TESTKEY=%s newoffset=%d", char, bucket, key, newoffset)
 	//}
 	var offsets []int64
-	his.L3Cache.GetOffsets(char+bucket+key, char, &offsets)
+	his.L3Cache.GetOffsets(char+bucket+key, char, &offsets, his)
 	if offsets != nil && len(offsets) >= 0 {
 		//logf(key == TESTKEY, "bBGOs [%s|%s] get CACHED key='%s' offsets='%#v' newoffset=%d", char, bucket, key, offsets, newoffset)
 		*returnoffsets = offsets
@@ -886,25 +883,31 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 	var encodedOffsets []byte
 	if err := db.View(func(tx *bolt.Tx) error {
 		root := tx.Bucket([]byte(bucket))
+		if root == nil {
+			err := fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key='%s' rootbucket not found his.rootBUCKETS=%d len(ROOTBUCKETS)=%d", char, bucket, key, his.rootBUCKETS, len(ROOTBUCKETS))
+			// bucket not yet created??
+			return err
+		}
 		var v []byte
 		if his.keyIndex <= 0 {
 			v = root.Get([]byte(key)) // don't use a subbucket co-exists in boltBucketPutBatc
 		} else {
 			// use sub buckets
-			subbName := string(key[0:his.keyIndex])
+			subbName := string(key[:his.cutKey])
+			//log.Printf("boltBucketGetOffsets [%s|%s] his.cutKey=%d subbName='%s' key='%s'", char, bucket, his.cutKey, subbName, key)
 			subb := root.Bucket([]byte(subbName)) // subbucket co-exists in boltBucketPutBatch
 			if subb == nil {
-				//log.Printf("INFO boltBucketGetOffsets [%s|%s] key='%s' subb='%s' sub bucket not found", char, bucket, key, subbName)
+				err := fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key='%s' subb='%s' sub bucket not found", char, bucket, key, subbName)
 				// bucket not yet created
-				return nil
+				return err
 			}
-			key := string(key[his.keyIndex:])
+			key := string(key[his.cutKey:])
 			v = subb.Get([]byte(key)) // subbucket co-exists in boltBucketPutBatch
 		}
 		if v == nil {
 			//logf(DEBUG2, "NOTFOUND boltBucketGetOffsets [%s|%s] key=%s", char, bucket, key)
 			if newoffset == FlagSearch { // is a search
-				his.L3Cache.SetOffsets(char+bucket+key, char, empty_offsets, FlagExpires, "boltBucketGetOffsets:empty") // boltBucketGetOffsets
+				his.L3Cache.SetOffsets(char+bucket+key, char, empty_offsets, FlagExpires, "boltBucketGetOffsets:empty", his) // boltBucketGetOffsets
 			}
 			return nil
 		}
@@ -929,7 +932,7 @@ func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string
 		*returnoffsets = decodedOffsets
 
 		if len(decodedOffsets) > 0 {
-			his.L3Cache.SetOffsets(char+bucket+key, char, decodedOffsets, FlagExpires, "boltBucketGetOffsets:got") // boltBucketGetOffsets
+			his.L3Cache.SetOffsets(char+bucket+key, char, decodedOffsets, FlagExpires, "boltBucketGetOffsets:got", his) // boltBucketGetOffsets
 		}
 		return len(decodedOffsets), nil
 	}
@@ -953,7 +956,7 @@ func (his *HISTORY) GetBoltHashOpen() int {
 
 // Public: BoltSyncAll boltDBs
 func (his *HISTORY) BoltSyncAll() error {
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		his.LockAllBatchLocks(char)
 		if err := his.BoltSync(nil, char, false); err != nil {
 			return err

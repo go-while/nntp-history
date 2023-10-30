@@ -27,14 +27,14 @@ type HISTORY struct {
 	L1Cache        L1CACHE
 	L2Cache        L2CACHE
 	L3Cache        L3CACHE
-	boltInitChan   chan struct{}          // used to lock bolt booting to N in parallel
-	boltSyncChan   chan struct{}          // used to lock bolt syncing to N in parallel
-	Offset         int64                  // the actual offset for history.dat
-	hisDat         string                 // = "history/history.dat"
-	hisDatDB       string                 // = "hashdb/history.dat.hash[0-9a-f]"
-	WriterChan     chan *HistoryObject    // history.dat writer channel
-	IndexChan      chan *HistoryIndex     // main index query channel
-	indexChans     [16]chan *HistoryIndex // sub-index channels
+	boltInitChan   chan struct{}                  // used to lock bolt booting to N in parallel
+	boltSyncChan   chan struct{}                  // used to lock bolt syncing to N in parallel
+	Offset         int64                          // the actual offset for history.dat
+	hisDat         string                         // = "history/history.dat"
+	hisDatDB       string                         // = "hashdb/history.dat.hash[0-9a-f]"
+	WriterChan     chan *HistoryObject            // history.dat writer channel
+	IndexChan      chan *HistoryIndex             // main index query channel
+	indexChans     [intBoltDBs]chan *HistoryIndex // sub-index channels
 	BatchLogs      BatchLOGGER
 	BatchLocks     map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
 	BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
@@ -51,7 +51,9 @@ type HISTORY struct {
 	cEvCap         int  // cacheEvictsCapacity
 	wCBBS          int  // CharBucketBatchSize
 	indexPar       int  // IndexParallel
+	cutChar        int  // used to cut hash at index to divide into boltDBs
 	cutFirst       int  // used to set startindex for cutHashlen
+	cutKey         int  // keyIndex sets cutKey at this
 	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
 	wantReOpen     map[string]chan struct{}
 	rootBUCKETS    int

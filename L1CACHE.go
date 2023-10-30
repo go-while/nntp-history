@@ -82,7 +82,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
 	l1.Counter = make(map[string]*CCC, intBoltDBs)
 	l1.pqQueue = make(map[string]*L1pqQ, intBoltDBs)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
@@ -90,7 +90,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		l1.pqQueue[char] = &L1pqQ{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		// stupid race condition on boot when placed in loop before
 		go l1.pqExpire(char)
 		go l1.pqExtend(char)
@@ -106,7 +106,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 //	CaseWrite == already in processing
 //	CaseDupes == is a duplicate
 //	CasePass == not a duplicate == locked article for processing
-func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bool) int {
+func (l1 *L1CACHE) LockL1Cache(hash string, value int, his *HISTORY) int {
 	if !L1 {
 		return CasePass
 	}
@@ -117,9 +117,9 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		log.Printf("ERROR LockL1Cache hash=nil")
 		return -999
 	}
-	if char == "" {
-		char = string(hash[0])
-	}
+
+	char := string(hash[:his.cutChar])
+
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
@@ -130,7 +130,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, char string, value int, useHashDB bo
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
 		cnt.Counter["Count_Locked"]++
-		if !useHashDB {
+		if !his.useHashDB {
 			value = CaseDupes
 		}
 		ptr.cache[hash] = &L1ITEM{value: value}
@@ -220,7 +220,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 
 // The Set method is used to set a value in the cache.
 // If the cache size is close to its maximum, it grows the cache.
-func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
+func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool, his *HISTORY) {
 	if !L1 {
 		return
 	}
@@ -229,7 +229,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool) {
 		return
 	}
 	if char == "" {
-		char = string(hash[0])
+		char = string(hash[:his.cutChar])
 	}
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
@@ -269,7 +269,7 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	if l1 == nil || l1.Muxers == nil {
 		return
 	}
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		cnt := l1.Counter[char]
 		mux := l1.Muxers[char]
 		mux.mux.Lock()

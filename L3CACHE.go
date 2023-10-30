@@ -84,7 +84,7 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 	l3.Muxers = make(map[string]*L3MUXER, intBoltDBs)
 	l3.Counter = make(map[string]*CCC)
 	l3.pqQueue = make(map[string]*L3pqQ, intBoltDBs)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
@@ -92,7 +92,7 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		l3.pqQueue[char] = &L3pqQ{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		// stupid race condition on boot when placed in loop before
 		go l3.pqExpire(char)
 		go l3.pqExtend(char)
@@ -173,7 +173,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 
 // The SetOffsets method sets a cache item in the L3 cache using a key, char and a slice of offsets as the value.
 // It also dynamically grows the cache when necessary.
-func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpires bool, src string) {
+func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpires bool, src string, his *HISTORY) {
 	if !L3 {
 		return
 	}
@@ -184,7 +184,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		return
 	}
 	if char == "" {
-		char = string(key[0])
+		char = string(key[:his.cutKey])
 	}
 	if offsets == nil {
 		return
@@ -248,7 +248,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 } // end func SetOffsets
 
 // The GetOffsets method retrieves a slice of offsets from the L3 cache using a key and a char.
-func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64) int {
+func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64, his *HISTORY) int {
 	if !L3 {
 		return 0
 	}
@@ -257,7 +257,7 @@ func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64) int {
 		return 0
 	}
 	if char == "" {
-		char = string(key[0])
+		char = string(key[:his.cutKey])
 	}
 	ptr := l3.Caches[char]
 	//cnt := l3.Counter[char]
@@ -282,7 +282,7 @@ func (l3 *L3CACHE) L3Stats(statskey string) (retval uint64, retmap map[string]ui
 	if l3 == nil || l3.Muxers == nil {
 		return
 	}
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		cnt := l3.Counter[char]
 		mux := l3.Muxers[char]
 		mux.mux.RLock()

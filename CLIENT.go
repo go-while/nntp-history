@@ -126,5 +126,5 @@ forever:
 } // end func handleRemote
 
 func ConvertHistoryObjectToString(obj *HistoryObject) string {
-	return fmt.Sprintf("%s %s %s %d %d %d", obj.MessageIDHash, obj.StorageToken, obj.Char, obj.Arrival, obj.Expires, obj.Date)
+	return fmt.Sprintf("%s %s %d %d %d", obj.MessageIDHash, obj.StorageToken, obj.Arrival, obj.Expires, obj.Date)
 }

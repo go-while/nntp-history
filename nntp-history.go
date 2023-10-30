@@ -41,6 +41,7 @@ var (
 	TESTBUK     = "0d"
 	TESTDB      = "f"
 	TESTOFFSET  = 123456
+	ROOTDBS     []string
 	ROOTBUCKETS []string
 	SUBBUCKETS  []string
 	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
@@ -275,34 +276,38 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	case 16:
 		his.cutFirst = 2
 		ROOTBUCKETS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
-		//for _, c1 := range HEXCHARS {
-		//	ROOTBUCKETS = append(ROOTBUCKETS, c1)
-		//}
 	case 256:
 		his.cutFirst = 3
 		ROOTBUCKETS = generateCombinations(HEXCHARS, 2, []string{}, []string{})
-		//for _, c1 := range HEXCHARS {
-		//	for _, c2 := range HEXCHARS {
-		//		ROOTBUCKETS = append(ROOTBUCKETS, c1+c2)
-		//	}
-		//}
 	case 4096:
-		ROOTBUCKETS = generateCombinations(HEXCHARS, 3, []string{}, []string{})
 		his.cutFirst = 4
-		//for _, c1 := range HEXCHARS {
-		//	for _, c2 := range HEXCHARS {
-		//		for _, c3 := range HEXCHARS {
-		//			ROOTBUCKETS = append(ROOTBUCKETS, c1+c2+c3)
-		//		}
-		//	}
-		//}
+		ROOTBUCKETS = generateCombinations(HEXCHARS, 3, []string{}, []string{})
 	default:
 		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
+	switch intBoltDBs {
+	case 16:
+		his.cutChar = 1
+		ROOTDBS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
+	case 256:
+		his.cutChar = 2
+		his.cutFirst += 1
+		ROOTDBS = generateCombinations(HEXCHARS, 2, []string{}, []string{})
+	case 4096:
+		his.cutChar = 3
+		his.cutFirst += 2
+		ROOTDBS = generateCombinations(HEXCHARS, 3, []string{}, []string{})
+	default:
+		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
+		os.Exit(1)
+	}
+
 	if his.keyIndex > 0 {
+		his.cutKey = his.keyIndex
 		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
 	}
+
 	his.L1Cache.BootL1Cache(his)
 	log.Printf("L1Cache Booted")
 	if his.useHashDB {
@@ -329,21 +334,25 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	}
 
 	//logf(DEBUG, "AddHistory hobj='%#v' CHlen=%d CHcap=%d", hobj, len(his.WriterChan), cap(his.WriterChan))
-	his.WriterChan <- hobj // blocks if channel is full
 
-	if (his.useHashDB || useL1Cache) && hobj.ResponseChan != nil {
-		// wait for reponse from ResponseChan
-		select {
-		case isDup, ok := <-hobj.ResponseChan:
-			if !ok {
-				// error: responseChan got closed
-				log.Printf("ERROR AddHistory responseChan closed! hash='%#v'", hobj.MessageIDHash)
-				return -999
-			} else {
-				return isDup
-			}
-		} // end select
-	} // end responseChan
+	// sends it to history_Writer()
+	// blocks if channel is full
+	his.WriterChan <- hobj
+
+	//if (his.useHashDB || useL1Cache) && hobj.ResponseChan != nil {
+	//if hobj.ResponseChan != nil {
+	// wait for reponse from ResponseChan
+	select {
+	case isDup, ok := <-hobj.ResponseChan:
+		if !ok {
+			// error: responseChan got closed
+			log.Printf("ERROR AddHistory responseChan closed! hash='%#v'", hobj.MessageIDHash)
+			return -999
+		} else {
+			return isDup
+		}
+	} // end select
+	//} // end responseChan
 	return -987
 } // end func AddHistory
 
@@ -724,7 +733,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 
 		batchQ, batchLOCKS := 0, 0
 		if his.useHashDB {
-			for _, char := range HEXCHARS {
+			for _, char := range ROOTDBS {
 				for _, bucket := range ROOTBUCKETS {
 					batchQ += len(his.batchQueues.Maps[char][bucket])
 					batchLOCKS += len(his.BatchLocks[char].bl[bucket].ch)

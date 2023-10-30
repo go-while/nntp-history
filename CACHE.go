@@ -80,7 +80,7 @@ func (his *HISTORY) PrintCacheStats() {
 	l1medium := 0
 	l1map := make(map[string]uint64)
 
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		if his.L1Cache.Muxers[char] == nil {
 			continue
 		}
@@ -100,7 +100,7 @@ func (his *HISTORY) PrintCacheStats() {
 	l2cachesize := 0
 	l2medium := 0
 	l2map := make(map[string]uint64)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		if his.L2Cache.Muxers[char] == nil {
 			continue
 		}
@@ -120,7 +120,7 @@ func (his *HISTORY) PrintCacheStats() {
 	l3cachesize := 0
 	l3medium := 0
 	l3map := make(map[string]uint64)
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		if his.L3Cache.Muxers[char] == nil {
 			continue
 		}

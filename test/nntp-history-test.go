@@ -70,7 +70,7 @@ func main() {
 	// these 4 make up the HistorySettings too and are constants once DBs are initialized!
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
-	flag.IntVar(&KeyLen, "keylen", 8+2, "min:8 | default:8")
+	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
 	flag.IntVar(&history.KeyIndex, "keyindex", 2, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
 	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 256, "16, 256, 4096")
 	// experimental flags
@@ -86,7 +86,7 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	//flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 128, "1-... (default: 16) don't rise too much")
+	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 16, "1-... (default: 16) don't rise too much")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
 	// detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -103,7 +103,7 @@ func main() {
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 512, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
+	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 128, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
@@ -112,11 +112,11 @@ func main() {
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.8, "0.1-0.9 default: 0.5")
-	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.8, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
+	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 512, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 64, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
@@ -428,7 +428,7 @@ func main() {
 				//}
 
 				if useHashDB || useL1Cache {
-					retval := history.History.L1Cache.LockL1Cache(hash, char, history.CaseLock, useHashDB) // checks and locks hash for processing
+					retval := history.History.L1Cache.LockL1Cache(hash, history.CaseLock, &history.History) // checks and locks hash for processing
 					switch retval {
 					case history.CasePass:
 						//history.History.Sync_upcounter("L1CACHE_Lock")

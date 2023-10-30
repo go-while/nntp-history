@@ -167,7 +167,7 @@ forever:
 				tadded = 0
 			}
 
-			retval := his.L1Cache.LockL1Cache(hobj.MessageIDHash, hobj.Char, CaseLock, his.useHashDB) // checks and locks hash for processing
+			retval := his.L1Cache.LockL1Cache(hobj.MessageIDHash, CaseLock, his) // checks and locks hash for processing
 			switch retval {
 			case CasePass:
 				//history.History.Sync_upcounter("L1CACHE_Lock")
@@ -225,26 +225,25 @@ forever:
 
 func ConvertStringToHistoryObject(parts []string) (*HistoryObject, error) {
 	//log.Printf("ConvertStringToHistoryObject parts='%#v'=%d", parts, len(parts))
-	if len(parts) != 6 {
+	if len(parts) != 5 {
 		return nil, fmt.Errorf("Invalid input string format")
 	}
 
-	arrival, err := strconv.ParseInt(parts[3], 10, 64)
+	arrival, err := strconv.ParseInt(parts[2], 10, 64)
 	if err != nil {
 		return nil, err
 	}
-	expires, err := strconv.ParseInt(parts[4], 10, 64)
+	expires, err := strconv.ParseInt(parts[3], 10, 64)
 	if err != nil {
 		return nil, err
 	}
-	date, err := strconv.ParseInt(parts[5], 10, 64)
+	date, err := strconv.ParseInt(parts[4], 10, 64)
 	if err != nil {
 		return nil, err
 	}
 	obj := &HistoryObject{
 		MessageIDHash: parts[0],
 		StorageToken:  parts[1],
-		Char:          parts[2],
 		Arrival:       arrival,
 		Expires:       expires,
 		Date:          date,

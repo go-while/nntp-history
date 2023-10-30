@@ -130,7 +130,7 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 	if char != "" {
 		return his.GetBoltStat(char, print)
 	}
-	for _, char := range HEXCHARS {
+	for _, char := range ROOTDBS {
 		otx, tx := his.GetBoltStat(char, print)
 		OpenTxN += otx
 		TxN += tx
