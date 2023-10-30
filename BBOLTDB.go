@@ -338,7 +338,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	tocheck, checked, created := his.rootBUCKETS, 0, 0
 
 	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
-	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d * SUBBUCKETS=%d", char, len(ROOTBUCKETS), len(SUBBUCKETS))
+	logf(DEBUG2, "boltDB_Worker [%s] ROOTBUCKETS=%d * SUBBUCKETS=%d", char, len(ROOTBUCKETS), len(SUBBUCKETS))
 	for _, bucket := range ROOTBUCKETS {
 		retbool, err := his.boltCreateBucket(db, char, bucket)
 		if err != nil || !retbool {
@@ -407,7 +407,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		batchQcap = 1
 	}
 	closedBuckets := make(chan struct{}, his.rootBUCKETS)
-	log.Printf("boltDB_Worker [%s] ROOTBUCKETS=%d booting batchQueues", char, len(ROOTBUCKETS))
+	logf(DEBUG1, "boltDB_Worker [%s] ROOTBUCKETS=%d booting batchQueues", char, len(ROOTBUCKETS))
 	wid := 0
 	for _, bucket := range ROOTBUCKETS {
 		wid++
