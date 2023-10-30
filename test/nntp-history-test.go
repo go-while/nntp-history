@@ -86,7 +86,7 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	//flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 16, "1-... (default: 16) don't rise too much")
+	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 32, "1-... (default: 16) don't rise too much")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
 	// detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -97,7 +97,7 @@ func main() {
 	// start of the app will be delayed by this timeframe to start workers within this timeframe
 	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 8192, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 16384, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 	flag.IntVar(&history.NumBBoltDBs, "NumBBoltDBs", 256, "16, 256, 4096 ??")
@@ -425,7 +425,7 @@ func main() {
 				//hash := utils.Hash256(strconv.FormatInt(UnixTimeMicroSec(), 10)) // GENERATES VERY SMALL AMOUNT OF DUPES
 				//hash := utils.Hash256(strconv.FormatInt(UnixTimeMilliSec(), 10)) // GENERATES LOTS OF DUPES
 
-				char := string(hash[0])
+				char := string(hash[:history.History.CutCharRO])
 				//log.Printf("hash=%s char=%s", hash, char)
 				//if hash == TESTHASH {
 				//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
