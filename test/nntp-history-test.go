@@ -100,10 +100,11 @@ func main() {
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 8192, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
+	flag.IntVar(&history.NumBBoltDBs, "NumBBoltDBs", 256, "16, 256, 4096 ??")
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 128, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
+	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 512, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
@@ -224,7 +225,7 @@ func main() {
 			NoSync:         NoSync,
 			NoGrowSync:     NoGrowSync,
 			NoFreelistSync: NoFreelistSync,
-			MaxBatchQueue:  1,
+			MaxBatchQueue:  16,
 			MaxBatchDelay:  history.BoltDB_MaxBatchDelay,
 			MaxBatchSize:   history.BoltDB_MaxBatchSize,
 			//FreelistType: "hashmap",

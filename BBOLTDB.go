@@ -15,7 +15,6 @@ import (
 
 const (
 	// never change this!
-	NumBBoltDBs                    = 256  // can be set to 16, 256, 4096
 	HashShort                     = 0x0B // 11
 	DefaultBoltINITParallel       = NumBBoltDBs
 	DefaultBoltSYNCParallel       = NumBBoltDBs
@@ -32,6 +31,7 @@ const (
 )
 
 var (
+	NumBBoltDBs                    = 256  // can be set to 16, 256, 4096
 	BoltDBreopenEveryN       = 0x0   // 0xFFFFFF / NumBBoltDBs // reopens boltDB every N added (not batchins) still bugged!
 	WatchBoltTimer     int64 = 10    // prints bolts stats every N seconds. only with DEBUG
 	NoReplayHisDat     bool  = false // can be set before booting to not replay history.dat
