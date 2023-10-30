@@ -83,6 +83,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	l1.Counter = make(map[string]*CCC, NumBBoltDBs)
 	l1.pqQueue = make(map[string]*L1pqQ, NumBBoltDBs)
 	for _, char := range ROOTDBS {
+		//log.Printf("L1 Boot [%s]", char)
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
