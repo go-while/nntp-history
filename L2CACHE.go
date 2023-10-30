@@ -79,7 +79,7 @@ func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 	l2.Extend = make(map[string]*L2ECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
 	l2.Counter = make(map[string]*CCC)
-	l2.pqQueue = make(map[string]*L2pqQ, intBoltDBs)
+	l2.pqQueue = make(map[string]*L2pqQ, NumBBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}

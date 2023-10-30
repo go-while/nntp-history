@@ -11,8 +11,8 @@ const (
 )
 
 var (
-	IndexParallel     int = intBoltDBs
-	NumQueueWriteChan int = intBoltDBs
+	IndexParallel     int = NumBBoltDBs
+	NumQueueWriteChan int = NumBBoltDBs
 	HisDatWriteBuffer int = 4 * 1024
 )
 
@@ -34,7 +34,7 @@ type HISTORY struct {
 	hisDatDB       string                         // = "hashdb/history.dat.hash[0-9a-f]"
 	WriterChan     chan *HistoryObject            // history.dat writer channel
 	IndexChan      chan *HistoryIndex             // main index query channel
-	indexChans     [intBoltDBs]chan *HistoryIndex // sub-index channels
+	indexChans     [NumBBoltDBs]chan *HistoryIndex // sub-index channels
 	BatchLogs      BatchLOGGER
 	BatchLocks     map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
 	BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map

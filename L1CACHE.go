@@ -77,11 +77,11 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		log.Printf("ERROR L1CACHESetup already loaded!")
 		return
 	}
-	l1.Caches = make(map[string]*L1CACHEMAP, intBoltDBs)
-	l1.Extend = make(map[string]*L1ECH, intBoltDBs)
-	l1.Muxers = make(map[string]*L1MUXER, intBoltDBs)
-	l1.Counter = make(map[string]*CCC, intBoltDBs)
-	l1.pqQueue = make(map[string]*L1pqQ, intBoltDBs)
+	l1.Caches = make(map[string]*L1CACHEMAP, NumBBoltDBs)
+	l1.Extend = make(map[string]*L1ECH, NumBBoltDBs)
+	l1.Muxers = make(map[string]*L1MUXER, NumBBoltDBs)
+	l1.Counter = make(map[string]*CCC, NumBBoltDBs)
+	l1.pqQueue = make(map[string]*L1pqQ, NumBBoltDBs)
 	for _, char := range ROOTDBS {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}

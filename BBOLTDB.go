@@ -15,10 +15,10 @@ import (
 
 const (
 	// never change this!
-	intBoltDBs                    = 256  // can be set to 16, 256, 4096
+	NumBBoltDBs                    = 256  // can be set to 16, 256, 4096
 	HashShort                     = 0x0B // 11
-	DefaultBoltINITParallel       = intBoltDBs
-	DefaultBoltSYNCParallel       = intBoltDBs
+	DefaultBoltINITParallel       = NumBBoltDBs
+	DefaultBoltSYNCParallel       = NumBBoltDBs
 	DefaultReplayDistance   int64 = 1024 * 1024
 	//WCBBS_UL                      = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
 	//WCBBS_LL                      = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
@@ -32,7 +32,7 @@ const (
 )
 
 var (
-	BoltDBreopenEveryN       = 0x0   // 0xFFFFFF / intBoltDBs // reopens boltDB every N added (not batchins) still bugged!
+	BoltDBreopenEveryN       = 0x0   // 0xFFFFFF / NumBBoltDBs // reopens boltDB every N added (not batchins) still bugged!
 	WatchBoltTimer     int64 = 10    // prints bolts stats every N seconds. only with DEBUG
 	NoReplayHisDat     bool  = false // can be set before booting to not replay history.dat
 	// ReplayDistance stops replay of HisDat if we got this many OKs with a distance to missing
@@ -44,9 +44,9 @@ var (
 	BoltSyncEveryN       uint64  = 500000                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
 	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling BootHistory.
 	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling BootHistory.
-	BoltHashOpen                 = make(chan struct{}, intBoltDBs) // dont change this
+	BoltHashOpen                 = make(chan struct{}, NumBBoltDBs) // dont change this
 	HISTORY_INDEX_LOCK           = make(chan struct{}, 1)          // main lock
-	HISTORY_INDEX_LOCK16         = make(chan struct{}, intBoltDBs) // sub locks
+	HISTORY_INDEX_LOCK16         = make(chan struct{}, NumBBoltDBs) // sub locks
 	empty_offsets        []int64                                   // just nothing
 
 	// adjust root buckets page splitting behavior
@@ -69,9 +69,9 @@ var (
 	// 0 disables sub/nested buckets and uses full Keylen as Key in RootBuckets only.
 	KeyIndex = 0
 
-	// ! can't change intBoltDBs !
+	// ! can't change NumBBoltDBs !
 	//             only rootBUCKETS & KeyIndex
-	// intBoltDBs * his.rootBUCKETS * (16^)KeyIndex = n Buckets over all 16 dbs
+	// NumBBoltDBs * his.rootBUCKETS * (16^)KeyIndex = n Buckets over all 16 dbs
 	//    16      *        16       * (16^)0        =         256
 	//    16      *        16       * (16^)1        =        4096
 	//    16      *        16       * (16^)2        =       65536
@@ -145,20 +145,20 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 	his.L3Cache.BootL3Cache(his)
 
 	his.batchQueues = &BQ{}
-	his.batchQueues.BootCh = make(chan struct{}, intBoltDBs*his.rootBUCKETS)         // char [0-9a-f] * bucket [0-9a-f]
-	his.wantReOpen = make(map[string]chan struct{}, intBoltDBs)                      // char [0-9a-f]
-	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, intBoltDBs) // maps char : bucket => chan
-	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, intBoltDBs)}
-	his.ticker = make(map[string]chan struct{}, intBoltDBs)
+	his.batchQueues.BootCh = make(chan struct{}, NumBBoltDBs*his.rootBUCKETS)         // char [0-9a-f] * bucket [0-9a-f]
+	his.wantReOpen = make(map[string]chan struct{}, NumBBoltDBs)                      // char [0-9a-f]
+	his.batchQueues.Maps = make(map[string]map[string]chan *BatchOffset, NumBBoltDBs) // maps char : bucket => chan
+	his.BoltDBsMap = &BoltDBs{dbptr: make(map[string]*BOLTDB_PTR, NumBBoltDBs)}
+	his.ticker = make(map[string]chan struct{}, NumBBoltDBs)
 	for _, char := range ROOTDBS {
 		his.wantReOpen[char] = make(chan struct{}, 1)
 		his.ticker[char] = make(chan struct{}) // no cap!
 		go his.BatchTicker(char, his.ticker[char])
-		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset, intBoltDBs) // maps bucket => chan
+		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset, NumBBoltDBs) // maps bucket => chan
 		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}                       // pointer to boltDB
 	}
 	his.IndexChan = make(chan *HistoryIndex, QIndexChan) // main index chan to query the index
-	his.charsMap = make(map[string]int, intBoltDBs)      // maps char from HEXCHARS to i
+	his.charsMap = make(map[string]int, NumBBoltDBs)      // maps char from HEXCHARS to i
 
 	if his.boltInitChan != nil {
 		log.Printf("ERROR boltDB_Init already loaded")
@@ -167,14 +167,14 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 
 	if BoltINITParallel == 0 {
 		BoltINITParallel = 1
-	} else if BoltINITParallel < 0 || BoltINITParallel > intBoltDBs {
-		BoltINITParallel = intBoltDBs
+	} else if BoltINITParallel < 0 || BoltINITParallel > NumBBoltDBs {
+		BoltINITParallel = NumBBoltDBs
 	}
 
 	if BoltSYNCParallel == 0 {
 		BoltSYNCParallel = 1
-	} else if BoltSYNCParallel < 0 || BoltSYNCParallel > intBoltDBs {
-		BoltSYNCParallel = intBoltDBs
+	} else if BoltSYNCParallel < 0 || BoltSYNCParallel > NumBBoltDBs {
+		BoltSYNCParallel = NumBBoltDBs
 	}
 
 	if QIndexChan <= 0 {
@@ -420,7 +420,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		}
 		batchQueue := his.batchQueues.Maps[char][bucket]
 		// Lo Wang unleashes a legion of batch queues, one for each sacred bucket in this 'char' database.
-		// It results in a total of `intBoltDBs` by `RootBuckets` queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
+		// It results in a total of `NumBBoltDBs` by `RootBuckets` queues, as the CharBucketBatchSize stands resolute, guarding each [char][bucket] with its mighty power!
 		go func(db *bolt.DB, wid int, char string, bucket string,
 			batchQueue chan *BatchOffset, closedBuckets chan struct{}) {
 
@@ -450,10 +450,10 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 			/*
 				for {
 					time.Sleep(time.Second * 5)
-					if len(his.batchQueues.BootCh) == intBoltDBs*his.rootBUCKETS {
+					if len(his.batchQueues.BootCh) == NumBBoltDBs*his.rootBUCKETS {
 						break
 					}
-					log.Printf("forbatchqueue [%s|%s] wait boot his.batchQueues.BootCh=%d/%d", char, bucket, len(his.batchQueues.BootCh), intBoltDBs*his.rootBUCKETS)
+					log.Printf("forbatchqueue [%s|%s] wait boot his.batchQueues.BootCh=%d/%d", char, bucket, len(his.batchQueues.BootCh), NumBBoltDBs*his.rootBUCKETS)
 				}
 			*/
 			var sleept, sleepn int64
@@ -530,7 +530,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	BQtimeout := 399 * 1000
 	for {
 		time.Sleep(time.Millisecond)
-		if len(his.batchQueues.BootCh) == intBoltDBs*his.rootBUCKETS {
+		if len(his.batchQueues.BootCh) == NumBBoltDBs*his.rootBUCKETS {
 			break
 		}
 		BQtimeout--

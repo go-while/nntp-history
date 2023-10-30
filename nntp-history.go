@@ -113,8 +113,8 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	// boltDB_Index receives a HistoryIndex struct and passes it down to boltDB_Worker['0-9a-f']
 	if IndexParallel <= 0 {
 		IndexParallel = 1
-	} else if IndexParallel > intBoltDBs {
-		IndexParallel = intBoltDBs
+	} else if IndexParallel > NumBBoltDBs {
+		IndexParallel = NumBBoltDBs
 	}
 	his.indexPar = IndexParallel
 
@@ -286,7 +286,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
-	switch intBoltDBs {
+	switch NumBBoltDBs {
 	case 16:
 		his.cutChar = 1
 		ROOTDBS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
@@ -361,7 +361,7 @@ func (his *HISTORY) Wait4HashDB() {
 		now := time.Now().Unix()
 		for {
 			time.Sleep(10 * time.Millisecond)
-			if len(BoltHashOpen) == intBoltDBs {
+			if len(BoltHashOpen) == NumBBoltDBs {
 				//logf(DEBUG2, "Booted HashDB")
 				return
 			}
@@ -745,8 +745,8 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !batchQueued && !batchLocked {
 			break
 		}
-		// if batchQ < intBoltDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
-		// if v5 >= intBoltDBs*RootBuckets: all batchQueues are still running
+		// if batchQ < NumBBoltDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
+		// if v5 >= NumBBoltDBs*RootBuckets: all batchQueues are still running
 		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
 		time.Sleep(time.Second)
 	}
