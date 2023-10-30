@@ -118,7 +118,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	}
 	his.indexPar = IndexParallel
 
-	if CharBucketBatchSize < 1 {
+	if CharBucketBatchSize <= 0 {
 		CharBucketBatchSize = 1
 	}
 	his.wCBBS = CharBucketBatchSize
@@ -302,7 +302,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
-
+	his.CutCharRO = his.cutChar
 	if his.keyIndex > 0 {
 		his.cutKey = his.keyIndex
 		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})

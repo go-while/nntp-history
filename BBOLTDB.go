@@ -15,10 +15,9 @@ import (
 
 const (
 	// never change this!
-	HashShort                     = 0x0B // 11
-	DefaultBoltINITParallel       = NumBBoltDBs
-	DefaultBoltSYNCParallel       = NumBBoltDBs
-	DefaultReplayDistance   int64 = 1024 * 1024
+	HashShort = 0x0B // 11
+
+	DefaultReplayDistance int64 = 1024 * 1024
 	//WCBBS_UL                      = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
 	//WCBBS_LL                      = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
 	// KeyLen is used with HashShort
@@ -27,27 +26,29 @@ const (
 	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
 	// the key is further divided into 1st+2nd+3rd+... char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
-	MinKeyLen = 8 // goes with HashShort
+	MinKeyLen = 6
 )
 
 var (
-	NumBBoltDBs                    = 256  // can be set to 16, 256, 4096
-	BoltDBreopenEveryN       = 0x0   // 0xFFFFFF / NumBBoltDBs // reopens boltDB every N added (not batchins) still bugged!
-	WatchBoltTimer     int64 = 10    // prints bolts stats every N seconds. only with DEBUG
-	NoReplayHisDat     bool  = false // can be set before booting to not replay history.dat
+	NumBBoltDBs                   = 256 // can be set to 16, 256, 4096
+	DefaultBoltINITParallel       = NumBBoltDBs
+	DefaultBoltSYNCParallel       = NumBBoltDBs
+	BoltDBreopenEveryN            = 0x0   // 0xFFFFFF / NumBBoltDBs // reopens boltDB every N added (not batchins) still bugged!
+	WatchBoltTimer          int64 = 10    // prints bolts stats every N seconds. only with DEBUG
+	NoReplayHisDat          bool  = false // can be set before booting to not replay history.dat
 	// ReplayDistance stops replay of HisDat if we got this many OKs with a distance to missing
-	ReplayDistance       int64   = DefaultReplayDistance           // defaults to replay at least 1M messages, more if missed ones (not in hashdb) appear.
-	QIndexChan           int     = 16                              // Main-indexchan can queue this
-	QindexChans          int     = 4                               // every sub-indexchans for a `char` can queue this
-	BoltDB_AllocSize     int                                       // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
-	BoltSyncEveryS       int64   = 60                              // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
-	BoltSyncEveryN       uint64  = 500000                          // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
-	BoltINITParallel     int     = DefaultBoltINITParallel         // set this via 'history.BoltINITParallel = 1' before calling BootHistory.
-	BoltSYNCParallel     int     = DefaultBoltSYNCParallel         // set this via 'history.BoltSYNCParallel = 1' before calling BootHistory.
+	ReplayDistance       int64   = DefaultReplayDistance            // defaults to replay at least 1M messages, more if missed ones (not in hashdb) appear.
+	QIndexChan           int     = 4                                // Main-indexchan can queue this
+	QindexChans          int     = 1                                // every sub-indexchans for a `char` can queue this
+	BoltDB_AllocSize     int                                        // if not set defaults: 16 * 1024 * 1024 (min: 1024*1024)
+	BoltSyncEveryS       int64   = 60                               // call db.sync() every seconds (only used with 'boltopts.NoSync: true')
+	BoltSyncEveryN       uint64  = 500000                           // call db.sync() after N inserts (only used with 'boltopts.NoSync = true')
+	BoltINITParallel     int     = DefaultBoltINITParallel          // set this via 'history.BoltINITParallel = 1' before calling BootHistory.
+	BoltSYNCParallel     int     = DefaultBoltSYNCParallel          // set this via 'history.BoltSYNCParallel = 1' before calling BootHistory.
 	BoltHashOpen                 = make(chan struct{}, NumBBoltDBs) // dont change this
-	HISTORY_INDEX_LOCK           = make(chan struct{}, 1)          // main lock
+	HISTORY_INDEX_LOCK           = make(chan struct{}, 1)           // main lock
 	HISTORY_INDEX_LOCK16         = make(chan struct{}, NumBBoltDBs) // sub locks
-	empty_offsets        []int64                                   // just nothing
+	empty_offsets        []int64                                    // just nothing
 
 	// adjust root buckets page splitting behavior
 	// we mostly do random inserts: lower value should be better?
@@ -155,10 +156,10 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		his.ticker[char] = make(chan struct{}) // no cap!
 		go his.BatchTicker(char, his.ticker[char])
 		his.batchQueues.Maps[char] = make(map[string]chan *BatchOffset, NumBBoltDBs) // maps bucket => chan
-		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}                       // pointer to boltDB
+		his.BoltDBsMap.dbptr[char] = &BOLTDB_PTR{BoltDB: nil}                        // pointer to boltDB
 	}
 	his.IndexChan = make(chan *HistoryIndex, QIndexChan) // main index chan to query the index
-	his.charsMap = make(map[string]int, NumBBoltDBs)      // maps char from HEXCHARS to i
+	his.charsMap = make(map[string]int, NumBBoltDBs)     // maps char from HEXCHARS to i
 
 	if his.boltInitChan != nil {
 		log.Printf("ERROR boltDB_Init already loaded")
