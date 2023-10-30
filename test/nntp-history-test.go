@@ -71,7 +71,7 @@ func main() {
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
-	flag.IntVar(&history.KeyIndex, "keyindex", 2, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
+	flag.IntVar(&history.KeyIndex, "keyindex", 1, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
 	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 256, "16, 256, 4096")
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
@@ -86,7 +86,7 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	//flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 4, "1-... (default: 16) don't rise too much")
+	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 64, "1-... (default: 16) don't rise too much")
 
 	// lower value than 10000ms produces heavy write loads (only tested on ZFS)
 	// detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -109,7 +109,7 @@ func main() {
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
 	// higher MaxBatchSize dont do much.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 64, "0-... default: -1 = 1000 (should be less or equal to wCBBS, not higher)")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 128, "0-... default: -1 = 1000 (should be less or equal to wCBBS, not higher)")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
