@@ -70,9 +70,9 @@ func main() {
 	// these 4 make up the HistorySettings too and are constants once DBs are initialized!
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
-	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
+	flag.IntVar(&KeyLen, "keylen", 6, "min:8 | default:8")
 	flag.IntVar(&history.KeyIndex, "keyindex", 1, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
-	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 256, "16, 256, 4096")
+	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 16, "16, 256, 4096")
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
 	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
@@ -97,14 +97,14 @@ func main() {
 	// start of the app will be delayed by this timeframe to start workers within this timeframe
 	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 16384, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 8192, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
 	// flag.IntVar(&history.NumBBoltDBs, "NumBBoltDBs", 256, "16, 256, 4096 ??") // hardcoded struct indexChans [256] !
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 4096, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
+	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 1024, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
