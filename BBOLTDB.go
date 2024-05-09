@@ -21,16 +21,16 @@ const (
 	//WCBBS_UL                      = 0xFFFF // adaptive BatchSize => workerCharBucketBatchSize UpperLimit
 	//WCBBS_LL                      = 0xF    // adaptive BatchSize => workerCharBucketBatchSize LowerLimit
 	// KeyLen is used with HashShort
-	//  1st char of hash selects boltDB
-	//  2nd + 3rd char (+4th char: if 4K his.rootBUCKETS) of hash selects bucket in boltDB
-	//  remaining chars [3:$] are used as Key in BoltDB to store offset(s)
+	//  1st + 2nd char of hash selects boltDB
+	//  3rd + 4th char (+5th char: if 4K his.rootBUCKETS) of hash selects bucket in boltDB
+	//  remaining chars [4:$] are used as Key in BoltDB to store offset(s)
 	// the key is further divided into 1st+2nd+3rd+... char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
 	MinKeyLen = 6
 )
 
 var (
-	NumBBoltDBs                   = 256 // can be set to 16, 256, 4096
+	NumBBoltDBs                   = 256 // can be set to 16, 256, 4096 ++ hardcoded in struct indexChans
 	DefaultBoltINITParallel       = NumBBoltDBs
 	DefaultBoltSYNCParallel       = NumBBoltDBs
 	BoltDBreopenEveryN            = 0x0   // 0xFFFFFF / NumBBoltDBs // reopens boltDB every N added (not batchins) still bugged!
@@ -378,7 +378,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 
 	lastsync := time.Now().Unix()
-	var added, processed, dupes, searches, retry, countsearches uint64
+	var added, processed, dupes, searches, retry uint64
 	cutHashlen := 9 // 3:9 = 6 chars (1st is db, 2nd+3rd is bucket (bucketsPerDB=256), remaining is used as KeyLen
 	if his.keyalgo == HashShort {
 		cutHashlen = his.cutFirst + his.keylen
@@ -569,7 +569,6 @@ forever:
 				if cutHashlen > len(hi.Hash) {
 					cutHashlen = len(hi.Hash)
 				}
-				//shorthash := string(string(*hi.Hash)[his.cutFirst:cutHashlen])
 				key = strings.ToLower(string(hi.Hash[his.cutFirst:cutHashlen])) // shorthash
 			/*
 				case HashFNV32:
@@ -607,11 +606,7 @@ forever:
 			}
 			if hi.Offset == FlagSearch {
 				searches++
-				countsearches++
-				if countsearches >= 1000 {
-					his.Sync_upcounterN("searches", countsearches)
-					countsearches = 0
-				}
+				go his.Sync_upcounter("searches")
 				continue forever
 			} else if hi.Offset > 0 {
 				processed++

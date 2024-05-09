@@ -98,9 +98,9 @@ type BOLTDB_PTR struct {
 /* used to query the index */
 type HistoryIndex struct {
 	Hash         string
-	Char         string
-	Offset       int64
-	IndexRetChan chan int
+	Char         string   // first N chars of hash
+	Offset       int64    // used to search: -1 or add: > 0 a hash
+	IndexRetChan chan int // receives a 0,1,2 :: pass|duplicate|retrylater
 }
 
 /* BatchQueue */
