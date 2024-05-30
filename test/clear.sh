@@ -1,5 +1,4 @@
 #!/bin/bash
-./build.sh || exit $?
 
 echo "$0: $(pwd)"
 
