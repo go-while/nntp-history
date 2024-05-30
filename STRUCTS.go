@@ -11,8 +11,8 @@ const (
 )
 
 var (
-	IndexParallel     int = NumBBoltDBs
-	NumQueueWriteChan int = NumBBoltDBs
+	IndexParallel     int = NumHashDBs
+	NumQueueWriteChan int = NumHashDBs
 	HisDatWriteBuffer int = 4 * 1024
 )
 
@@ -51,11 +51,11 @@ type HISTORY struct {
 	cEvCap         int  // cacheEvictsCapacity
 	wCBBS          int  // CharBucketBatchSize
 	indexPar       int  // IndexParallel
-	cutChar        int  // used to cut hash at index to divide into boltDBs
+	cutChar        int  // used to cut hash at index to divide into hashDBs
 	CutCharRO      int  // read-only value of cutChar
 	cutFirst       int  // used to set startindex for cutHashlen
 	cutKey         int  // keyIndex sets cutKey at this
-	reopenDBeveryN int  // reopens boltDB every N added key:vals (not batchins)
+	reopenDBeveryN int  // reopens hashDB every N added key:vals (not batchins)
 	wantReOpen     map[string]chan struct{}
 	rootBUCKETS    int
 	keyIndex       int
@@ -111,7 +111,7 @@ type BQ struct {
 	BootCh chan struct{}
 }
 
-/* used to batch write items to boltDB */
+/* used to batch write items to hashDB */
 type BatchOffset struct {
 	bucket         string
 	key            string

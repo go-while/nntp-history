@@ -1,7 +1,7 @@
 package history
 
 /*
- * WARNING: the `char` used by L2Cache is NOT boltDB char!
+ * WARNING: the `char` used by L2Cache is NOT hashDB char!
  *          it is derived from offset via OffsetToChar !
  */
 import (
@@ -79,7 +79,7 @@ func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 	l2.Extend = make(map[string]*L2ECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
 	l2.Counter = make(map[string]*CCC)
-	l2.pqQueue = make(map[string]*L2pqQ, NumBBoltDBs)
+	l2.pqQueue = make(map[string]*L2pqQ, NumHashDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}

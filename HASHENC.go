@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	// set HEX true: converts offset into hex strings to store in bbolt
+	// set HEX true: converts offset into hex strings to store in hashdb
 	// dont change later once db is initialized!
 	HEX bool = true
 

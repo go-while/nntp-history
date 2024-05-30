@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/go-while/go-utils"
-	bolt "go.etcd.io/bbolt"
+	//bolt "go.etcd.io/bbolt"
 	"io"
 	"log"
 	"math/rand"
@@ -18,7 +18,7 @@ const (
 	HashShort               = 0x0B // 11
 	KeyIndex                = 0
 	MinKeyLen               = 6
-	NumBBoltDBs             = 256
+	NumHashDBs              = 256
 	CharBucketBatchSize int = 16
 	RootBUCKETSperDB        = 16
 	ALWAYS                  = true
@@ -39,9 +39,9 @@ const (
 var (
 	ForcedReplay         bool
 	NoReplayHisDat       bool
-	BatchFlushEvery      int64 = 5120                             // milliseconds
-	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)           // main lock
-	HISTORY_INDEX_LOCK16       = make(chan struct{}, NumBBoltDBs) // sub locks
+	BatchFlushEvery      int64 = 5120                            // milliseconds
+	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)          // main lock
+	HISTORY_INDEX_LOCK16       = make(chan struct{}, NumHashDBs) // sub locks
 	BootVerbose                = true
 	TESTHASH0                  = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
 	TESTHASH1                  = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
@@ -78,7 +78,7 @@ var (
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
-func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
+func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB bool, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if CPUProfile { // PROFILE.go
@@ -121,11 +121,11 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	}
 	his.cEvCap = DefaultEvictsCapacity
 
-	// boltDB_Index receives a HistoryIndex struct and passes it down to boltDB_Worker['0-9a-f']
+	// hashDB_Index receives a HistoryIndex struct and passes it down to hashDB_Worker['0-9a-f']
 	if IndexParallel <= 0 {
 		IndexParallel = 1
-	} else if IndexParallel > NumBBoltDBs {
-		IndexParallel = NumBBoltDBs
+	} else if IndexParallel > NumHashDBs {
+		IndexParallel = NumHashDBs
 	}
 	his.indexPar = IndexParallel
 
@@ -300,7 +300,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
-	switch NumBBoltDBs {
+	switch NumHashDBs {
 	case 16:
 		his.cutChar = 1
 		ROOTDBS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
@@ -325,9 +325,9 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	his.L1Cache.BootL1Cache(his)
 	log.Printf("L1Cache Booted")
 	if his.useHashDB {
-		log.Printf("Booting boltDB")
-		//his.boltDB_Init(boltOpts)
-		log.Printf("boltDB init done")
+		log.Printf("Booting hashDB")
+		//his.hashDB_Init(boltOpts)
+		log.Printf("hashDB init done")
 	}
 
 	//his.CacheEvictThread(NumCacheEvictThreads) // hardcoded
@@ -376,7 +376,7 @@ func (his *HISTORY) Wait4HashDB() {
 		now := time.Now().Unix()
 		for {
 			time.Sleep(10 * time.Millisecond)
-			if len(BoltHashOpen) == NumBBoltDBs {
+			if len(BoltHashOpen) == NumHashDBs {
 				//logf(DEBUG2, "Booted HashDB")
 				return
 			}
@@ -456,7 +456,7 @@ forever:
 				select {
 				case isDup, ok := <-indexRetChan:
 					if !ok {
-						log.Printf("ERROR history_Writer indexRetChan closed! error in boltDB_Worker")
+						log.Printf("ERROR history_Writer indexRetChan closed! error in hashDB_Worker")
 						if hobj.ResponseChan != nil {
 							close(hobj.ResponseChan) // close responseChan to client
 						}
@@ -704,6 +704,10 @@ func (his *HISTORY) FseekHistoryLine(offset int64) (string, error) {
 	return result, nil
 } // end func FseekHistoryLine
 
+func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
+	return 0, fmt.Errorf("not implemented")
+}
+
 func (his *HISTORY) SET_DEBUG(debug int) {
 	if debug < 0 {
 		return
@@ -761,8 +765,8 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		if !lock1 && !lock2 && !lock2 && !lock3 && !lock5 && !batchQueued && !batchLocked {
 			break
 		}
-		// if batchQ < NumBBoltDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
-		// if v5 >= NumBBoltDBs*RootBuckets: all batchQueues are still running
+		// if batchQ < NumHashDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
+		// if v5 >= NumHashDBs*RootBuckets: all batchQueues are still running
 		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
 		time.Sleep(time.Second)
 	}

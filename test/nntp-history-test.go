@@ -93,12 +93,12 @@ func main() {
 	// 32768 ms / 256 RootBucketsPerDB = every 128ms will one of the buckets put its batch to bbolt
 	// depends on your load. if you have low volume you can batchflush more frequently.
 	// but hiload (100k tx/sec) benefit from higher batchflush values 16k-64k ms.
-	// watch out for bboltDB option MaxBatchDelay. affects this somehow. how? do your tests with your load xD
+	// watch out for bhashDB option MaxBatchDelay. affects this somehow. how? do your tests with your load xD
 	// choose a pow2 number because buckets are pow2 too
 	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5120, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
-	// flag.IntVar(&history.NumBBoltDBs, "NumBBoltDBs", 256, "16, 256, 4096 ??") // hardcoded in struct indexChans [256] !
+	// flag.IntVar(&history.NumHashDBs, "NumHashDBs", 256, "16, 256, 4096 ??") // hardcoded in struct indexChans [256] !
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
@@ -178,7 +178,7 @@ func main() {
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
 	HashDBDir := "hashdb"
-	// the KeyLen defines length of hash we use as key in 'boltDB[a-f0-9][bucket][key]' minimum is 3
+	// the KeyLen defines length of hash we use as key in 'hashDB[a-f0-9][bucket][key]' minimum is 3
 	// KeyLen is only used with `HashShort`. FNV hashes have predefined length.
 	// a shorter hash stores more offsets per key
 	// a dupecheck checks all offsets per key to match a hash and shorter keys produce more Fseeks to history file.
@@ -206,7 +206,7 @@ func main() {
 	}
 
 	if RunTCPonly {
-		history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+		history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, KeyAlgo, KeyLen)
 		//history.History.Wait4HashDB()
 		select {}
 
@@ -301,7 +301,7 @@ func main() {
 	if useHashDB {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
-	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, KeyAlgo, KeyLen)
 	//history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {

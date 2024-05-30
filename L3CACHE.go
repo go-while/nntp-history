@@ -9,7 +9,7 @@ import (
 /*
  *
  * L3Cache: key => offsets
- * less requests to boltDB
+ * less requests to hashDB
  *
  * disabling L3 is not a good idea!!
  * queues hold offsets which DB does not know about!
@@ -79,11 +79,11 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		log.Printf("ERROR L3CACHESetup already loaded!")
 		return
 	}
-	l3.Caches = make(map[string]*L3CACHEMAP, NumBBoltDBs)
-	l3.Extend = make(map[string]*L3ECH, NumBBoltDBs)
-	l3.Muxers = make(map[string]*L3MUXER, NumBBoltDBs)
+	l3.Caches = make(map[string]*L3CACHEMAP, NumHashDBs)
+	l3.Extend = make(map[string]*L3ECH, NumHashDBs)
+	l3.Muxers = make(map[string]*L3MUXER, NumHashDBs)
 	l3.Counter = make(map[string]*CCC)
-	l3.pqQueue = make(map[string]*L3pqQ, NumBBoltDBs)
+	l3.pqQueue = make(map[string]*L3pqQ, NumHashDBs)
 	for _, char := range ROOTDBS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
