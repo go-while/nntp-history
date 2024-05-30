@@ -29,9 +29,9 @@ func (his *HISTORY) startServer(tcpListen string, socketPath string) {
 	if BootHisCli {
 		return
 	}
-	if his.useHashDB {
-		his.Wait4HashDB()
-	}
+	//if his.useHashDB {
+	//	his.Wait4HashDB()
+	//}
 	// socket listener
 	go func() {
 		if socketPath == "" {
@@ -192,7 +192,7 @@ forever:
 				case CaseDupes:
 					// we locked the hash but IndexQuery replied with Duplicate
 					// set L1 cache to Dupe and expire
-					his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, EmptyStr)
+					his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
 					//dupes++
 					if hobj.ResponseChan != nil {
 						hobj.ResponseChan <- isDup
@@ -201,7 +201,7 @@ forever:
 				case CaseRetry:
 					// we locked the hash but IndexQuery replied with Retry
 					// set L1 cache to Retry and expire
-					his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, EmptyStr)
+					his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
 					//retry++
 					if hobj.ResponseChan != nil {
 						hobj.ResponseChan <- isDup

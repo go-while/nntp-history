@@ -1,7 +1,7 @@
 package history
 
 import (
-	bolt "go.etcd.io/bbolt"
+	//bolt "go.etcd.io/bbolt"
 	"os"
 	"sync"
 )
@@ -21,23 +21,23 @@ type HISTORY struct {
 	 *   set, change, update values only inside (his *HISTORY) functions and
 	 *   don't forget mutex where needed or run into race conditions.
 	 */
-	mux            sync.Mutex // global history mutex used to boot
-	cmux           sync.Mutex // sync counter mutex
-	boltmux        sync.Mutex // locks boltdb to protect BoltDBsMap
-	L1Cache        L1CACHE
-	L2Cache        L2CACHE
-	L3Cache        L3CACHE
-	boltInitChan   chan struct{}           // used to lock bolt booting to N in parallel
-	boltSyncChan   chan struct{}           // used to lock bolt syncing to N in parallel
-	Offset         int64                   // the actual offset for history.dat
-	hisDat         string                  // = "history/history.dat"
-	hisDatDB       string                  // = "hashdb/history.dat.hash[0-9a-f]"
-	WriterChan     chan *HistoryObject     // history.dat writer channel
-	IndexChan      chan *HistoryIndex      // main index query channel
-	indexChans     [256]chan *HistoryIndex // sub-index channels
-	BatchLogs      BatchLOGGER
-	BatchLocks     map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
-	BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
+	mux          sync.Mutex // global history mutex used to boot
+	cmux         sync.Mutex // sync counter mutex
+	boltmux      sync.Mutex // locks boltdb to protect BoltDBsMap
+	L1Cache      L1CACHE
+	L2Cache      L2CACHE
+	L3Cache      L3CACHE
+	boltInitChan chan struct{}           // used to lock bolt booting to N in parallel
+	boltSyncChan chan struct{}           // used to lock bolt syncing to N in parallel
+	Offset       int64                   // the actual offset for history.dat
+	hisDat       string                  // = "history/history.dat"
+	hisDatDB     string                  // = "hashdb/history.dat.hash[0-9a-f]"
+	WriterChan   chan *HistoryObject     // history.dat writer channel
+	IndexChan    chan *HistoryIndex      // main index query channel
+	indexChans   [256]chan *HistoryIndex // sub-index channels
+	BatchLogs    BatchLOGGER
+	BatchLocks   map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
+	//BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
 	charsMap       map[string]int
 	useHashDB      bool
 	keyalgo        int
@@ -85,15 +85,15 @@ type HistoryObject struct {
 	ResponseChan  chan int // receives a 0,1,2 :: pass|duplicate|retrylater
 }
 
-type BoltDBs struct {
-	mux   sync.Mutex
-	dbptr map[string]*BOLTDB_PTR
-}
+//type BoltDBs struct {
+//	mux   sync.Mutex
+//	dbptr map[string]*BOLTDB_PTR
+//}
 
-type BOLTDB_PTR struct {
-	BoltDB *bolt.DB
-	mux    sync.Mutex
-}
+//type BOLTDB_PTR struct {
+//	BoltDB *bolt.DB
+//	mux    sync.Mutex
+//}
 
 /* used to query the index */
 type HistoryIndex struct {

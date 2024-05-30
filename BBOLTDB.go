@@ -1,6 +1,12 @@
 package history
 
 import (
+	"fmt"
+)
+
+/*
+import (
+
 	//"bytes"
 	"encoding/gob"
 	"fmt"
@@ -11,9 +17,11 @@ import (
 	"os"
 	"strings"
 	"time"
+
 )
 
 const (
+
 	// never change this!
 	HashShort = 0x0B // 11
 
@@ -27,9 +35,11 @@ const (
 	// the key is further divided into 1st+2nd+3rd+... char as sub buckets and remainder used as key in the root.bucket.sub.bucket[3:$]
 	//  offsets lead into history.dat and point to start of a line containing the full hash
 	MinKeyLen = 6
+
 )
 
 var (
+
 	NumBBoltDBs                   = 256 // can be set to 16, 256, 4096 ++ hardcoded in struct indexChans
 	DefaultBoltINITParallel       = NumBBoltDBs
 	DefaultBoltSYNCParallel       = NumBBoltDBs
@@ -96,18 +106,14 @@ var (
 	//    16      *      4096       * (16^)3        =   268435456
 	//    16      *      4096       * (16^)4        =  4294967296
 	//    16      *      4096       * (16^)5        = 68719476736
-)
 
+)
+*/
 func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
 	if !his.useHashDB {
 		//log.Printf("INFO return IndexQuery !his.useHashDB")
 		return CasePass, nil
 	}
-	/*
-		if hash == nil {
-			return -999, fmt.Errorf("ERROR IndexQuery hash=nil")
-		}
-	*/
 	if len(hash) < 32 {
 		return -999, fmt.Errorf("ERROR IndexQuery hash=nil")
 	}
@@ -133,6 +139,7 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 	return -999, fmt.Errorf("ERROR IndexQuery")
 } // end func IndexQuery
 
+/*
 // boltDB_Init initializes the history database (HashDB) and starts the worker goroutines for processing historical data.
 // It creates worker channels for each character in HEXCHARS and launches corresponding worker goroutines.
 // The provided boltOpts parameter allows configuring the BoltDB database options.
@@ -393,16 +400,6 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 
 	batchQcap := CharBucketBatchSize * 2
-	/*
-		switch his.rootBUCKETS {
-		case 16:
-			timer = 64
-		case 256:
-			timer = 128
-		case 4096:
-			timer = 512
-		}
-	*/
 	if batchQcap < 1 {
 		batchQcap = 1
 	}
@@ -448,15 +445,7 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 				log.Printf("FATAL ERROR LOCKFUNC batchQueues!!!")
 				return
 			}
-			/*
-				for {
-					time.Sleep(time.Second * 5)
-					if len(his.batchQueues.BootCh) == NumBBoltDBs*his.rootBUCKETS {
-						break
-					}
-					log.Printf("forbatchqueue [%s|%s] wait boot his.batchQueues.BootCh=%d/%d", char, bucket, len(his.batchQueues.BootCh), NumBBoltDBs*his.rootBUCKETS)
-				}
-			*/
+
 			var sleept, sleepn int64
 			var minian int64 = 128  // ms min sleeper
 			var maxian int64 = 8192 // ms max sleeper
@@ -570,16 +559,6 @@ forever:
 					cutHashlen = len(hi.Hash)
 				}
 				key = strings.ToLower(string(hi.Hash[his.cutFirst:cutHashlen])) // shorthash
-			/*
-				case HashFNV32:
-					key = FNV32S(hi.Hash)
-				case HashFNV32a:
-					key = FNV32aS(hi.Hash)
-				case HashFNV64:
-					key = FNV64S(hi.Hash)
-				case HashFNV64a:
-					key = FNV64aS(hi.Hash)
-			*/
 			default:
 				log.Printf("ERROR boltDB_Worker unknown switch keyalgo=%x", his.keyalgo)
 				his.CLOSE_HISTORY()
@@ -694,11 +673,6 @@ waiter:
 // It also handles the creation of new hash entries in the bucket when needed.
 func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key string, hash string, offset int64, setempty bool, file *os.File, batchQueue chan *BatchOffset) (int, error) {
 	// return -999 with err only
-	/*
-		if db == nil {
-			return -999, fmt.Errorf("ERROR DupeCheck db=nil")
-		}
-	*/
 	//logf(hash == TESTHASH0, "DeDup [%s|%s] key='%s' hash='%s'", char, bucket, key, hash)
 	var offsets []int64 // retrieves offsets from boltBucketGetOffsets into this
 	if _, err := his.boltBucketGetOffsets(db, char, bucket, key, offset, &offsets); err != nil {
@@ -803,24 +777,6 @@ func (his *HISTORY) DupeCheck(db *bolt.DB, char string, bucket string, key strin
 } // end func DupeCheck
 
 func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket string, key string, hash string, offset int64, offsets []int64, setempty bool, batchQueue chan *BatchOffset) (err error) {
-	/*
-		if db == nil {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s db=nil", char)
-		}
-
-		if char == "" {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=nil")
-		}
-		if bucket == "" {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets char=%s bucket=nil", char)
-		}
-		if key == "" {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] key=nil", char, bucket)
-		}
-		if offsets == nil {
-			return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsets=nil", char, bucket)
-		}
-	*/
 	if !setempty && len(offsets) == 0 {
 		return fmt.Errorf("ERROR boltBucketKeyPutOffsets [%s|%s] offsetsN=0 setempty=%t", char, bucket, setempty)
 	}
@@ -847,23 +803,6 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 
 // func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64) (offsets []int64, err error) {
 func (his *HISTORY) boltBucketGetOffsets(db *bolt.DB, char string, bucket string, key string, newoffset int64, returnoffsets *[]int64) (int, error) {
-	/*
-		if db == nil {
-			return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=%s db=nil", char)
-		}
-		if returnoffsets == nil {
-			return 0, fmt.Errorf("ERROR boltBucketGetOffsets returnoffsets=nil")
-		}
-		if char == "" {
-			return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=nil")
-		}
-		if bucket == "" {
-			return 0, fmt.Errorf("ERROR boltBucketGetOffsets char=%s bucket=nil", char)
-		}
-		if key == "" {
-			return 0, fmt.Errorf("ERROR boltBucketGetOffsets [%s|%s] key=nil", char, bucket)
-		}
-	*/
 
 	//if key == TESTKEY {
 	//	log.Printf("bBGOs [%s|%s] TESTKEY=%s newoffset=%d", char, bucket, key, newoffset)
@@ -1066,3 +1005,4 @@ func (his *HISTORY) returnBoltSync() {
 func (his *HISTORY) lockBoltSync() {
 	his.boltSyncChan <- struct{}{}
 } // end func lockBoltSync
+*/

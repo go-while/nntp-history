@@ -1,5 +1,6 @@
 package history
 
+/*
 import (
 	"fmt"
 	bolt "go.etcd.io/bbolt"
@@ -64,32 +65,7 @@ fetchbatch:
 				//logf(DEBUG2, "boltBucketPutBatch received nil pointer [%s|%s]", char, bucket)
 				break fetchbatch
 			}
-			/*
-				if bo.char != char {
-					log.Printf("ERROR boltBucketPutBatch bo.char nil or empty or mismatch!")
-					continue fetchbatch
-				}
-				if bo.bucket == "" {
-					log.Printf("ERROR boltBucketPutBatch bo.bucket nil or empty")
-					continue fetchbatch
-				}
-				if bo.bucket != bucket {
-					err = fmt.Errorf("ERROR boltBucketPutBatch bo.bucket=%s != bucket=%s", bo.bucket, bucket)
-					return 0, 0, err, closed
-				}
-				if bo.encodedOffsets == nil || len(bo.encodedOffsets) == 0 {
-					log.Printf("ERROR boltBucketPutBatch bo.encodedOffsets nil or empty!")
-					continue fetchbatch
-				}
-				if bo.hash == "" {
-					log.Printf("ERROR boltBucketPutBatch bo.hash nil or empty!")
-					continue fetchbatch
-				}
-				if bo.key == "" {
-					log.Printf("ERROR boltBucketPutBatch bo.key nil or empty!")
-					continue fetchbatch
-				}
-			*/
+
 			// appends to tmp batch
 			batch1 = append(batch1, bo)
 			if (!forced && len(batch1) >= workerCharBucketBatchSize) || (forced && len(batch1) >= Qcap) {
@@ -181,15 +157,15 @@ func (his *HISTORY) returnBatchLock(char string, bucket string, batchLockChan ch
 	} else if char != "" && bucket != "" {
 		<-his.BatchLocks[char].bl[bucket].ch
 	}
-	/*
-		select {
-		case _ = <-his.BatchLocks[char].bl[bucket].ch:
-			// pass
-		default:
-			log.Printf("ERROR returnBatchLock char=%s BatchLocks empty!? CLOSE_HISTORY", char)
-			his.CLOSE_HISTORY()
-		}
-	*/
+
+	//	select {
+	//	case _ = <-his.BatchLocks[char].bl[bucket].ch:
+	//		// pass
+	//	default:
+	//		log.Printf("ERROR returnBatchLock char=%s BatchLocks empty!? CLOSE_HISTORY", char)
+	//		his.CLOSE_HISTORY()
+	//	}
+
 } // end func returnBatchLock
 
 func (his *HISTORY) batchLog(log *BatchLOG) {
@@ -366,3 +342,4 @@ func pullChan(achan chan struct{}) bool {
 	}
 	return false
 } // end func pullChan
+*/

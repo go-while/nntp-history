@@ -71,8 +71,8 @@ func main() {
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
 	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
-	flag.IntVar(&history.KeyIndex, "keyindex", 1, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
-	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 16, "16, 256, 4096")
+	//flag.IntVar(&history.KeyIndex, "keyindex", 1, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
+	//flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 16, "16, 256, 4096")
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
 	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
@@ -82,11 +82,11 @@ func main() {
 	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
 
 	// options for our pre-batching
-	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
-	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
-	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
+	//flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
+	//flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
+	//flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	//flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 128, "1-... (default: 16) don't rise too much")
+	//flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 128, "1-... (default: 16) don't rise too much")
 
 	// lower value can produce heavy write loads (only tested on ZFS)
 	// detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -107,12 +107,12 @@ func main() {
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
 	// higher MaxBatchSize dont do much.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 128, "0-... default: -1 = 1000 (should be less or equal to wCBBS, not higher)")
+	//flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 128, "0-... default: -1 = 1000 (should be less or equal to wCBBS, not higher)")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
-	flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
-	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
+	//flag.Float64Var(&history.RootBucketFillPercent, "RootBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
+	//flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
 	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 128, "KB (default: 4)")
@@ -192,49 +192,7 @@ func main() {
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
 	if useHashDB {
-		//history.BoltDB_MaxBatchSize = 256                    // = history.his.rootBUCKETS // 0 disables boltdb internal batching. default: 1000
-		history.BoltDB_MaxBatchDelay = time.Duration(BoltDB_MaxBatchDelay) * time.Millisecond // default: 10 * time.Millisecond
-
-		// AllocSize is the amount of space allocated when the database
-		// needs to create new pages. This is done to amortize the cost
-		// of truncate() and fsync() when growing the data file.
-		//history.BoltDB_AllocSize = 128 * 1024 * 1024 // default: 16 * 1024 * 1024
-
-		//history.AdaptBatch = true        // automagically adjusts CharBucketBatchSize to match history.BatchFlushEvery // default: false
-		//history.CharBucketBatchSize = 256 // ( can be: 1-65536 ) BatchSize per db[char][bucket]queuechan (16*16). default: 64
-		//history.BatchFlushEvery = 5000 // ( can be: 500-5000 ) if CharBucketBatchSize is not reached within this milliseconds: flush hashdb queues
-		// "SYNC" options are only used with 'boltopts.NoSync: true'
-		history.BoltSyncEveryS = 60     // only used with 'boltopts.NoSync: true'
-		history.BoltSyncEveryN = 500000 // only used with 'boltopts.NoSync: true'
-		//history.BoltSYNCParallel = 1   // ( can be 1-16 ) default: 16 // only used with 'boltopts.NoSync: true' or shutdown
-		//history.BoltINITParallel = 4   // ( can be 1-16 ) default: 16 // used when booting and initalizing bolt databases
-		//history.NumQueueWriteChan = 1  // ( can be any value > 0 ) default: 16 [note: keep it low!]
-		//history.QIndexChan = 1     // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
-		//history.QindexChans = 2 // ( can be any value > 0 ) default: 16 [note: keep it low(er)!]
-		//history.IndexParallel = 1 // default: 16
-		// DO NOT change any settings while process is running! will produce race conditions!
-		bO := bolt.Options{
-			//ReadOnly: true,
-			Timeout:         9 * time.Second,
-			InitialMmapSize: InitialMmapSize * 1024 * 1024, // assign a high value if you expect a lot of load.
-			PageSize:        BoltDB_PageSize * 1024,
-			//FreelistType:    bolt.FreelistArrayType,
-			FreelistType:   bolt.FreelistMapType,
-			NoSync:         NoSync,
-			NoGrowSync:     NoGrowSync,
-			NoFreelistSync: NoFreelistSync,
-			//MaxBatchQueue:  1,
-			//MaxBatchDelay:  history.BoltDB_MaxBatchDelay,
-			//MaxBatchSize:   history.BoltDB_MaxBatchSize,
-			//FreelistType: "hashmap",
-			//FreelistType: "array",
-			//PreLoadFreelist: ?,
-			// If you want to read the entire database fast, you can set MmapFlag to
-			// syscall.MAP_POPULATE on Linux 2.6.23+ for sequential read-ahead.
-			// useless with zfs on ssds/nvme and enough ram?
-			//MmapFlags: syscall.MAP_POPULATE,
-		}
-		boltOpts = &bO
+		// ------
 	}
 	start := time.Now().Unix()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
@@ -249,7 +207,7 @@ func main() {
 
 	if RunTCPonly {
 		history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
-		history.History.Wait4HashDB()
+		//history.History.Wait4HashDB()
 		select {}
 
 	} else if history.BootHisCli {
@@ -344,14 +302,14 @@ func main() {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
 	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
-	history.History.Wait4HashDB()
+	//history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {
 		defer history.History.CLOSE_HISTORY()
-		err := history.History.RebuildHashDB()
-		if err != nil {
-			os.Exit(1)
-		}
+		//err := history.History.RebuildHashDB()
+		//if err != nil {
+		//	os.Exit(1)
+		//}
 		return
 	}
 	if offset >= 0 {
@@ -472,14 +430,14 @@ func main() {
 						// we locked the hash but IndexQuery replied with Duplicate
 						// set L1 cache to Dupe and expire
 						//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
-						history.History.DoCacheEvict(char, hash, 0, history.EmptyStr)
+						history.History.DoCacheEvict(char, hash, 0, "")
 						dupes++
 						continue fortodo
 					case history.CaseRetry:
 						// we locked the hash but IndexQuery replied with Retry
 						// set L1 cache to Retry and expire
 						//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
-						history.History.DoCacheEvict(char, hash, 0, history.EmptyStr)
+						history.History.DoCacheEvict(char, hash, 0, "")
 						retry++
 						continue fortodo
 					default:
@@ -572,7 +530,7 @@ func main() {
 	log.Printf("done=%d (took %d seconds) (closewait %d seconds)", todo*parallelTest, took, waited)
 
 	if total > 0 {
-		history.History.CrunchBatchLogs(true)
+		//history.History.CrunchBatchLogs(true)
 	}
 
 	tmax := 5

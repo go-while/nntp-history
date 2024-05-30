@@ -15,7 +15,13 @@ import (
 )
 
 const (
-	ALWAYS = true
+	HashShort               = 0x0B // 11
+	KeyIndex                = 0
+	MinKeyLen               = 6
+	NumBBoltDBs             = 256
+	CharBucketBatchSize int = 16
+	RootBUCKETSperDB        = 16
+	ALWAYS                  = true
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
 	CaseLock             = 0xFF         // internal cache state. reply with CaseRetry while CaseLock
@@ -31,29 +37,34 @@ const (
 )
 
 var (
-	BootVerbose = true
-	TESTHASH0   = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
-	TESTHASH1   = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
-	TESTHASH2   = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
-	TESTHASH    = TESTHASH2
-	TESTCACKEY  = "f0d784ae1"
-	TESTKEY     = "784ae1"
-	TESTBUK     = "0d"
-	TESTDB      = "f"
-	TESTOFFSET  = 123456
-	ROOTDBS     []string
-	ROOTBUCKETS []string
-	SUBBUCKETS  []string
-	BUFIOBUFFER = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
-	History     HISTORY
-	DEBUG       bool = true
-	DEBUG0      bool = false
-	DEBUG1      bool = false
-	DEBUG2      bool = false
-	DEBUG9      bool = false
-	LOCKHISTORY      = make(chan struct{}, 1)
-	HEXCHARS         = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash          = "EOF"
+	ForcedReplay         bool
+	NoReplayHisDat       bool
+	BatchFlushEvery      int64 = 5120                             // milliseconds
+	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)           // main lock
+	HISTORY_INDEX_LOCK16       = make(chan struct{}, NumBBoltDBs) // sub locks
+	BootVerbose                = true
+	TESTHASH0                  = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
+	TESTHASH1                  = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
+	TESTHASH2                  = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
+	TESTHASH                   = TESTHASH2
+	TESTCACKEY                 = "f0d784ae1"
+	TESTKEY                    = "784ae1"
+	TESTBUK                    = "0d"
+	TESTDB                     = "f"
+	TESTOFFSET                 = 123456
+	ROOTDBS              []string
+	ROOTBUCKETS          []string
+	SUBBUCKETS           []string
+	BUFIOBUFFER          = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
+	History              HISTORY
+	DEBUG                bool = true
+	DEBUG0               bool = false
+	DEBUG1               bool = false
+	DEBUG2               bool = false
+	DEBUG9               bool = false
+	LOCKHISTORY               = make(chan struct{}, 1)
+	HEXCHARS                  = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash                   = "EOF"
 )
 
 // BootHistory initializes the history component, configuring its settings and preparing it for operation.
@@ -93,9 +104,9 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		NumQueueWriteChan = 1
 	}
 
-	if BatchFlushEvery <= 0 { // milliseconds
-		BatchFlushEvery = 1
-	}
+	//if BatchFlushEvery <= 0 { // milliseconds
+	//	BatchFlushEvery = 1
+	//}
 
 	if DefaultCachePurge <= 0 { // seconds
 		DefaultCachePurge = 1
@@ -118,9 +129,10 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	}
 	his.indexPar = IndexParallel
 
-	if CharBucketBatchSize <= 0 {
-		CharBucketBatchSize = 1
-	}
+	//if CharBucketBatchSize <= 0 {
+	//	CharBucketBatchSize = 1
+	//}
+
 	his.wCBBS = CharBucketBatchSize
 	log.Printf("CharBucketBatchSize=%d his.wCBBS=%d", CharBucketBatchSize, his.wCBBS)
 
@@ -194,18 +206,20 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		log.Printf("ERROR BootHistory keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
-	if KeyIndex <= 0 {
-		KeyIndex = 0
-	} else if KeyIndex > 6 {
-		KeyIndex = 6
-	}
+	/*
+		if KeyIndex <= 0 {
+			KeyIndex = 0
+		} else if KeyIndex > 6 {
+			KeyIndex = 6
+		}
+	*/
 	his.keyIndex = KeyIndex
 
 	if his.keyIndex >= his.keylen-4 {
 		log.Printf("ERROR keyindex out of range. try keylen=%d or reduce keyindex value", his.keylen+4)
 		os.Exit(1)
 	}
-	his.rootBUCKETS = RootBUCKETSperDB
+	//his.rootBUCKETS = RootBUCKETSperDB
 	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.rootBUCKETS}
 	// opens history.dat
 	var fh *os.File
@@ -312,7 +326,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	log.Printf("L1Cache Booted")
 	if his.useHashDB {
 		log.Printf("Booting boltDB")
-		his.boltDB_Init(boltOpts)
+		//his.boltDB_Init(boltOpts)
 		log.Printf("boltDB init done")
 	}
 
@@ -356,6 +370,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	return -987
 } // end func AddHistory
 
+/*
 func (his *HISTORY) Wait4HashDB() {
 	if his.useHashDB {
 		now := time.Now().Unix()
@@ -374,6 +389,7 @@ func (his *HISTORY) Wait4HashDB() {
 		log.Printf("Wait4HashDB OK his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
 	}
 } // end func Wait4HashDB
+*/
 
 // history_Writer writes historical data to the specified file and manages the communication with the history database (HashDB).
 // It listens to incoming HistoryObject structs on th* WriterChan channel, processes them, and writes formatted data to the file.
@@ -390,8 +406,8 @@ func (his *HISTORY) history_Writer(fh *os.File, dw *bufio.Writer) {
 	}
 	defer fh.Close()
 	defer UNLOCKfunc(LOCKHISTORY, "history_Writer")
-	log.Printf("start history_Writer Wait4HashDB")
-	his.Wait4HashDB()
+	//log.Printf("start history_Writer Wait4HashDB")
+	//his.Wait4HashDB()
 	log.Printf("started history_Writer OK")
 	fileInfo, err := fh.Stat()
 	if err != nil {
@@ -725,7 +741,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		lock1, v1 := len(LOCKHISTORY) > 0, len(LOCKHISTORY)
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
-		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
+		//lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
 		lock5, v5 := false, 0
 		if his.useHashDB {
 			lock5, v5 = len(his.batchQueues.BootCh) > 0, len(his.batchQueues.BootCh)
@@ -742,12 +758,12 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		}
 		batchQueued := batchQ > 0
 		batchLocked := batchLOCKS > 0
-		if !lock1 && !lock2 && !lock2 && !lock3 && !lock4 && !lock5 && !batchQueued && !batchLocked {
+		if !lock1 && !lock2 && !lock2 && !lock3 && !lock5 && !batchQueued && !batchLocked {
 			break
 		}
 		// if batchQ < NumBBoltDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
 		// if v5 >= NumBBoltDBs*RootBuckets: all batchQueues are still running
-		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock4=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock4, v4, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
+		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
 		time.Sleep(time.Second)
 	}
 	his.WriterChan = nil

@@ -1,5 +1,6 @@
 package history
 
+/*
 import (
 	//	"arena"
 	"bufio"
@@ -229,31 +230,6 @@ replay: // backwards: from latest hash
 	if len(memhash.missing_hashes) > 0 || ForcedReplay {
 		log.Printf("WARN ReplayHisDat missing=%d", len(memhash.missing_hashes))
 		// needs investigation for possibly re-inserting bad offsets with hashes?
-		/*
-					 *
-					 ERROR HDBZW char=6 FseekHistoryMessageHash bucket=73 err='ERROR FseekHistoryMessageHash BAD line @offset=3060004197 result='
-			{673124ea3297b1aa18e6ed5f44c743a8705605d203cf9a15f58b29ddedcc691d}'' offset=3060004197
-			ERROR HDBZW his.DupeCheck err='ERROR FseekHistoryMessageHash BAD line @offset=3060004197 result='
-			{673124ea3297b1aa18e6ed5f44c743a8705605d203cf9a15f58b29ddedcc691d}'' close(hi.IndexRetChan)
-			ERROR HDBZW char=f FseekHistoryMessageHash bucket=57 err='ERROR FseekHistoryMessageHash BAD line @offset=3060004095 result='
-			{f572ac9ab215b2facdd92ebf3c5ee9bd7820c963d6acac013aac93067b08aef6}'' offset=3060004095
-			ERROR HDBZW his.DupeCheck err='ERROR FseekHistoryMessageHash BAD line @offset=3060004095 result='
-			{f572ac9ab215b2facdd92ebf3c5ee9bd7820c963d6acac013aac93067b08aef6}'' close(hi.IndexRetChan)
-
-					 *
-					 *
-					 *
-					if !ForcedReplay {
-						os.Exit(1)
-					}
-
-					// missing is ordered from latest backward
-					// reverse order to have oldestFirst
-					reverseStrings(memhash.missing_hashes)
-					/*
-					 * loop over missing and pass hash to indexQuery with offset
-					 *
-		*/
 		for _, hash := range memhash.missing_hashes {
 			offset := memhash.missingoffsets[hash]
 			isDup, err := his.IndexQuery(hash, indexRetChan, offset)
@@ -313,19 +289,6 @@ func (his *HISTORY) RebuildHashDB() error {
 	for scanner.Scan() {
 		line := scanner.Text()
 		ll := len(line) + 1 // +1 accounts for LF
-		/*
-			parts := strings.Split(line, "\t") // Split the line at the first tab character
-			if len(parts) < 3 || len(parts[0]) < 32+2 || parts[0][0] != '{' || parts[0][len(parts[0])-1] != '}' {
-				// Skip lines that don't have correct fields or not { } character in first
-				if offset > 0 { // ignores header line @ offset 0
-					log.Printf("skipped: line @offset=%d ll=%d", offset, ll)
-					skippedLines++
-				}
-				offset += int64(ll)
-				continue
-			}
-			hash := string(parts[0][1 : len(parts[0])-1])
-		*/
 		hash := extractHash(line)
 		if len(hash) < 32 { // at least md5
 			if offset > 0 { // ignores header line @ offset 0
@@ -629,3 +592,4 @@ func wantPrint(want bool, lastprint *int64, now int64, printEvery int64) bool {
 	}
 	return false
 } // end func wantPrint
+*/
