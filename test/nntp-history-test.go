@@ -70,8 +70,8 @@ func main() {
 	// these 4 make up the HistorySettings too and are constants once DBs are initialized!
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
-	flag.IntVar(&KeyLen, "keylen", 6, "min:8 | default:8")
-	flag.IntVar(&history.KeyIndex, "keyindex", 0, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
+	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
+	flag.IntVar(&history.KeyIndex, "keyindex", 1, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
 	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 16, "16, 256, 4096")
 	// experimental flags
 	flag.BoolVar(&history.BootHisCli, "BootHistoryClient", false, "experimental client/server")
@@ -86,7 +86,7 @@ func main() {
 	flag.BoolVar(&history.DBG_ABS2, "DBG_ABS2", false, "default: false (debugs adaptive batchsize/wCBBS)")
 	flag.BoolVar(&history.DBG_BS_LOG, "DBG_BS_LOG", false, "true | false (debug batchlogs)") // debug batchlogs
 	//flag.BoolVar(&history.AdaptBatch, "AdaptBatch", false, "true | false  (experimental)")   // adaptive batchsize
-	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 64, "1-... (default: 16) don't rise too much")
+	flag.IntVar(&history.CharBucketBatchSize, "wCBBS", 128, "1-... (default: 16) don't rise too much")
 
 	// lower value can produce heavy write loads (only tested on ZFS)
 	// detailed insert performance: DBG_ABS1 / DBG_ABS2
@@ -94,22 +94,20 @@ func main() {
 	// depends on your load. if you have low volume you can batchflush more frequently.
 	// but hiload (100k tx/sec) benefit from higher batchflush values 16k-64k ms.
 	// watch out for bboltDB option MaxBatchDelay. affects this somehow. how? do your tests with your load xD
-	// start of the app will be delayed by this timeframe to start workers within this timeframe
-	// to get a better flushing distribution over the timeframe.
 	// choose a pow2 number because buckets are pow2 too
-	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 4096, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
+	flag.Int64Var(&history.BatchFlushEvery, "BatchFlushEvery", 5120, "1-.... ms (choose a pow2 number because buckets are pow2 too)")
 
 	// bbolt options
-	// flag.IntVar(&history.NumBBoltDBs, "NumBBoltDBs", 256, "16, 256, 4096 ??") // hardcoded struct indexChans [256] !
+	// flag.IntVar(&history.NumBBoltDBs, "NumBBoltDBs", 256, "16, 256, 4096 ??") // hardcoded in struct indexChans [256] !
 
 	// a higher BoltDB_MaxBatchDelay than 10ms can boost performance and reduce write bandwidth to disk
 	// up to a point where performance degrades but write BW stays very low.
-	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 2048, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
+	flag.Int64Var(&BoltDB_MaxBatchDelay, "BoltDB_MaxBatchDelay", 128, "milliseconds (default: 10) [ BatchFlushEvery / RootBucketsPerDB * 8 or 16 ? ]")
 
 	// BoltDB_MaxBatchSize can change disk write behavior in positive and negative. needs testing.
 	// triggers not very often with our pre-batching, default is fine
 	// higher MaxBatchSize dont do much.
-	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 32, "0-... default: -1 = 1000 (should be less or equal to wCBBS, not higher)")
+	flag.IntVar(&history.BoltDB_MaxBatchSize, "BoltDB_MaxBatchSize", 128, "0-... default: -1 = 1000 (should be less or equal to wCBBS, not higher)")
 
 	// lower RootBucketFillPercent produces page splits early
 	// higher values produce pagesplits at a later time? choose your warrior!
@@ -117,7 +115,7 @@ func main() {
 	flag.Float64Var(&history.SubBucketFillPercent, "SubBucketFillPercent", 0.5, "0.1-0.9 default: 0.5")
 
 	// lower pagesize produces more pagesplits too
-	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 512, "KB (default: 4)")
+	flag.IntVar(&BoltDB_PageSize, "BoltDB_PageSize", 128, "KB (default: 4)")
 
 	// no need to grow before 1G of size per db
 	flag.IntVar(&InitialMmapSize, "BoltDB_InitialMmapSize", 1024, "MB (default: 1024)")
@@ -225,9 +223,9 @@ func main() {
 			NoSync:         NoSync,
 			NoGrowSync:     NoGrowSync,
 			NoFreelistSync: NoFreelistSync,
-			MaxBatchQueue:  0,
-			MaxBatchDelay:  history.BoltDB_MaxBatchDelay,
-			MaxBatchSize:   history.BoltDB_MaxBatchSize,
+			//MaxBatchQueue:  1,
+			//MaxBatchDelay:  history.BoltDB_MaxBatchDelay,
+			//MaxBatchSize:   history.BoltDB_MaxBatchSize,
 			//FreelistType: "hashmap",
 			//FreelistType: "array",
 			//PreLoadFreelist: ?,

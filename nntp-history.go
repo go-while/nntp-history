@@ -823,9 +823,10 @@ func generateCombinations(hexChars []string, length int, currentCombination []st
 }
 
 func (his *HISTORY) BatchTicker(char string, ticker chan struct{}) {
-	isleep := BatchFlushEvery / int64(RootBUCKETSperDB) / int64(NumBBoltDBs)
-	if isleep <= 0 {
-		isleep = 1
+	//isleep := 32
+	isleep := BatchFlushEvery / int64(RootBUCKETSperDB)
+	if isleep <= 4 {
+		isleep = 4
 	}
 	log.Printf("BatchTicker [%s] isleep=%d", char, isleep)
 	for {
