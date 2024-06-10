@@ -10,4 +10,6 @@ test $RET -eq 0 && ./fmt.sh && cp -v nntp-history-test test2/
 echo $(date)
 test $RET -gt 0 && echo "BUILD FAILED! RET=$RET" || echo "BUILD OK!"
 rsync -va clear.sh nntp-history-test GOtest.sh root@spool1:/home/nntp-history/
+#mkdir -p hashdb history
+#rm -f hashdb/* history/*
 exit $RET
