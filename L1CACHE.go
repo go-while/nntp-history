@@ -53,12 +53,13 @@ type L1MUXER struct {
 }
 
 type L1pqQ struct {
-	que *L1PQ
+	//que *L1PQ
+	que chan *L1PQItem
 	mux sync.Mutex
 	pqC chan struct{}
 }
 
-type L1PQ []L1PQItem
+//type L1PQ []L1PQItem
 
 type L1PQItem struct {
 	Key     string
@@ -88,7 +89,8 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l1.pqQueue[char] = &L1pqQ{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
+		//l1.pqQueue[char] = &L1pqQ{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
+		l1.pqQueue[char] = &L1pqQ{que: make(chan *L1PQItem, 65536), pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range ROOTDBS {
@@ -205,7 +207,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 
 				pq.mux.Lock()
 				for i := 0; i < pushcnt; i++ {
-					pq.Push(pushq[i])
+					pq.Push(&pushq[i])
 				}
 				pq.mux.Unlock()
 
@@ -239,7 +241,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool, hi
 
 	if flagexpires {
 		pq.mux.Lock()
-		pq.Push(L1PQItem{Key: hash, Expires: L1CacheExpires})
+		pq.Push(&L1PQItem{Key: hash, Expires: L1CacheExpires})
 		pq.mux.Unlock()
 	}
 	mux.mux.Lock()
@@ -291,24 +293,34 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	return
 } // end func L1Stats
 
-func (pq *L1pqQ) Push(item L1PQItem) {
+func (pq *L1pqQ) Push(item *L1PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	*pq.que = append(*pq.que, item)
+	pq.que <- item
+	//*pq.que = append(*pq.que, item)
 } // end func Push
 
 func (pq *L1pqQ) Pop() (*L1PQItem, int) {
-	pq.mux.Lock()
-	lenpq := len(*pq.que)
-	if lenpq == 0 {
-		pq.mux.Unlock()
-		return nil, 0
+	select {
+	case item := <-pq.que:
+		return item, len(pq.que)
+	default:
+		// pq empty
 	}
-	old := *pq.que
-	*pq.que = old[1:]
-	pq.mux.Unlock()
-	item := old[0]
-	old = nil
-	return &item, lenpq
+	return nil, 0
+	/*
+		pq.mux.Lock()
+		lenpq := len(*pq.que)
+		if lenpq == 0 {
+			pq.mux.Unlock()
+			return nil, 0
+		}
+		old := *pq.que
+		*pq.que = old[1:]
+		pq.mux.Unlock()
+		item := old[0]
+		old = nil
+		return &item, lenpq
+	*/
 } // end func Pop
 
 // Remove expired items from the cache
