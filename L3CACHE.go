@@ -145,7 +145,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 		if pushcnt >= pushmax || (timeout && pushcnt > 0) {
 
 			if DEBUGL3 {
-				logf(DEBUGL3, "DEBUGL1 ptr.cache Count_BatchD")
+				logf(DEBUGL3, "DEBUGL3 ptr.cache Count_BatchD")
 				mux.mux.Lock()
 				for i := 0; i < pushcnt; i++ {
 					if _, exists := ptr.cache[pushq[i].Key]; exists {
