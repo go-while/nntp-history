@@ -267,7 +267,7 @@ func main() {
 		//}
 		history.NoReplayHisDat = true
 		P_donechan := make(chan struct{}, parallelTest)
-		go Prof.MemoryProfile(time.Second*30, time.Second*15)
+		Prof.StartMemProfile(time.Second*30, time.Second*15)
 		for p := 1; p <= parallelTest; p++ {
 
 			go history.History.BootHistoryClient("")
@@ -391,7 +391,7 @@ func main() {
 	LOCKONLYTEST := false
 
 	P_donechan := make(chan struct{}, parallelTest)
-	go Prof.MemoryProfile(time.Second*30, time.Second*15)
+	Prof.StartMemProfile(time.Second*30, time.Second*15)
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int, testhashes []string) {
@@ -550,7 +550,7 @@ func main() {
 	// close history
 	closewait := time.Now().Unix()
 	history.History.CLOSE_HISTORY()
-	go Prof.MemoryProfile(time.Second*10, 0)
+	Prof.StartMemProfile(time.Second*10, 0)
 	waited := time.Now().Unix() - closewait
 
 	// get some numbers

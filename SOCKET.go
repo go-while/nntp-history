@@ -119,24 +119,23 @@ forever:
 		switch CMD {
 		case "MEM": // start/stop mem profiling
 			his.mux.Lock()
-			Prof.MemoryProfile(time.Duration(30*time.Second), 0)
+			Prof.StartMemProfile(time.Duration(30*time.Second), 0)
+			tp.PrintfLine("200 StartMemProfile")
 			his.mux.Unlock()
 		case "CPU": // start/stop cpu profiling
 			his.mux.Lock()
 			if his.CPUfile != nil {
-				//his.stopCPUProfile(his.CPUfile)
 				Prof.StopCPUProfile()
-				tp.PrintfLine("200 OK stopCPUProfile")
+				tp.PrintfLine("200 StopCPUProfile")
 				his.CPUfile = nil
 			} else {
-				//CPUfile, err := his.startCPUProfile()
 				CPUfile, err := Prof.StartCPUProfile()
 				if err != nil || CPUfile == nil {
-					log.Printf("ERROR SOCKET CMD startCPUProfile err='%v'", err)
-					tp.PrintfLine("400 ERR startCPUProfile")
+					log.Printf("ERROR SOCKET CMD StartCPUProfile err='%v'", err)
+					tp.PrintfLine("400 ERR StartCPUProfile")
 				} else {
 					his.CPUfile = CPUfile
-					tp.PrintfLine("200 OK startCPUProfile")
+					tp.PrintfLine("200 StartCPUProfile")
 				}
 			}
 			his.mux.Unlock()
