@@ -2,8 +2,8 @@
 echo "$0"
 PATH="$PATH:/usr/local/go/bin"
 export GOPATH=$(pwd)
-export GO111MODULE=auto
-export GOEXPERIMENT=arenas
+export GO111MODULE=off
+#export GOEXPERIMENT=arenas
 go build nntp-history-test.go
 RET=$?
 test $RET -eq 0 && ./fmt.sh && cp -v nntp-history-test test2/
