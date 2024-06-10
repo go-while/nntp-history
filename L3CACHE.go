@@ -25,6 +25,7 @@ var (
 	L3ExtendExpires int64 = DefaultCacheExtend
 	L3Purge         int64 = DefaultCachePurge
 	L3InitSize      int   = 64 * 1024
+	//L3pqSize        int   = 256 * 1024
 )
 
 type L3CACHE struct {
@@ -81,7 +82,7 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 	l3.Caches = make(map[string]*L3CACHEMAP, NumBBoltDBs)
 	l3.Extend = make(map[string]*L3ECH, NumBBoltDBs)
 	l3.Muxers = make(map[string]*L3MUXER, NumBBoltDBs)
-	l3.Counter = make(map[string]*CCC)
+	l3.Counter = make(map[string]*CCC, NumBBoltDBs)
 	l3.pqQueue = make(map[string]*L3pqQ, NumBBoltDBs)
 	for _, char := range ROOTDBS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
@@ -158,7 +159,6 @@ func (l3 *L3CACHE) pqExtend(char string) {
 			//pq.mux.Lock()
 			for i := 0; i < pushcnt; i++ {
 				pq.Push(pushq[i])
-				pushq[i] = nil
 			}
 			//pq.mux.Unlock()
 

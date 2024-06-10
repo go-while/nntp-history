@@ -22,6 +22,7 @@ var (
 	L2ExtendExpires int64 = DefaultCacheExtend
 	L2Purge         int64 = DefaultCachePurge
 	L2InitSize      int   = 64 * 1024
+	L2pqSize        int   = 256 * 1024
 )
 
 type L2CACHE struct {
@@ -52,7 +53,7 @@ type L2MUXER struct {
 
 type L2pqQ struct {
 	que chan *L2PQItem
-	//mux sync.Mutex // pq.mux.Lock()
+	mux sync.RWMutex // pq.mux.Lock()
 	pqC chan struct{}
 	char string
 }
@@ -74,17 +75,17 @@ func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 		log.Printf("ERROR L2CACHESetup already loaded!")
 		return
 	}
-	l2.Caches = make(map[string]*L2CACHEMAP, 16)
-	l2.Extend = make(map[string]*L2ECH, 16)
-	l2.Muxers = make(map[string]*L2MUXER, 16)
-	l2.Counter = make(map[string]*CCC)
+	l2.Caches = make(map[string]*L2CACHEMAP, NumBBoltDBs)
+	l2.Extend = make(map[string]*L2ECH, NumBBoltDBs)
+	l2.Muxers = make(map[string]*L2MUXER, NumBBoltDBs)
+	l2.Counter = make(map[string]*CCC, NumBBoltDBs)
 	l2.pqQueue = make(map[string]*L2pqQ, NumBBoltDBs)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}
 		l2.Muxers[char] = &L2MUXER{}
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l2.pqQueue[char] = &L2pqQ{que: make(chan *L2PQItem, L2InitSize), pqC: make(chan struct{}, 1), char: char}
+		l2.pqQueue[char] = &L2pqQ{que: make(chan *L2PQItem, L2pqSize), pqC: make(chan struct{}, 1), char: char}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
@@ -289,6 +290,65 @@ forever:
 			// channel full!
 			log.Printf("WARN L2pqQ char=%s Push channel is full!", pq.char)
 			time.Sleep(time.Millisecond)
+		}
+	}
+} // end func Push
+
+func (pq *L2pqQ) Push_TryNewCode(item *L2PQItem) {
+	 // everyone readLocks on entering the function
+	pq.mux.RLock()
+	rlocked := true
+forever:
+	for {
+		item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
+		select {
+		case pq.que <- item:
+			// pushed
+			if rlocked {
+				// release readLock
+				pq.mux.RUnlock()
+			}
+			break forever
+		default:
+			// channel full!
+			log.Printf("WARN L2pqQ char=%s Push channel is full! LOCKING", pq.char)
+			//pq.mux.Lock() // lock others out but not ourself
+			if !tryRWLockWithTimeout(&pq.mux, time.Second) {
+				log.Printf("WARN L2pqQ char=%s tryRWLockWithTimeout failed", pq.char)
+				rlocked = false
+				continue forever
+			}
+			//pq.mux.RUnlock() // release our readLock
+			rlocked = false
+
+			oldsize := cap(pq.que)
+			newsize := oldsize * 4
+			time.Sleep(time.Second)
+			// waited long enough for other lockers to replace the chan?
+			checkcap := cap(pq.que)
+			if checkcap != oldsize {
+				// channel capacity has been updated by someone else
+				// continue to try putting our item in pq.que
+				pq.mux.Unlock()
+				log.Printf("ERROR L2pqQ char=%s Push channel has changed!", pq.char)
+				continue forever
+			}
+
+			newchan := make(chan *L2PQItem, newsize)
+			suck:
+			for {
+				select {
+					case aitem := <- pq.que:
+						newchan <- aitem
+					default:
+						// sucked channel empty
+						break suck
+				}
+			}
+			// replace channel
+			pq.que = newchan
+			log.Printf("INFO L2pqQ char=%s Push channel replaced newcap=%d filled=%d", pq.char, newsize, len(pq.que))
+			pq.mux.Unlock()
 		}
 	}
 } // end func Push

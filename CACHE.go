@@ -2,6 +2,8 @@ package history
 
 import (
 	"log"
+	"sync"
+	"time"
 )
 
 const (
@@ -37,6 +39,29 @@ type CCC struct {
 type ClearCacheChan struct {
 	ch chan []*ClearCache
 }
+
+func tryRWLockWithTimeout(m *sync.RWMutex, timeout time.Duration) (gotlock bool) {
+	// returns gotlock=true if we got the lock
+	notifyLocked := make(chan struct{}, 1)
+	timeout_Chan := time.After(timeout)
+	// launch a go routine which trys to hard Lock
+	// and sends a notifyLocked back while we wait for timeout_Chan
+	go func(m *sync.RWMutex, notifyLocked chan struct{}) {
+		m.RUnlock() // release our readLock
+		m.Lock()
+		notifyLocked <- struct{}{}
+	}(m, notifyLocked)
+
+	select {
+		case <- notifyLocked:
+			gotlock = true
+		case <- timeout_Chan:
+			// pass
+			go m.Unlock() // fire an unlock for the timeouted Lock?
+	}
+
+	return
+} // end func tryRWLockWithTimeout
 
 // gets called in BBATCH.go:boltBucketPutBatch() after boltTX
 func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {

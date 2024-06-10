@@ -14,6 +14,7 @@ var (
 	L1ExtendExpires int64 = DefaultCacheExtend
 	L1Purge         int64 = DefaultCachePurge
 	L1InitSize      int   = 64 * 1024
+	//L1pqSize        int   = 256 * 1024
 
 	// L1LockDelay: delays L1 locking by N milliseconds
 	// L1 locking is most likely done per client-connection
@@ -184,7 +185,6 @@ func (l1 *L1CACHE) pqExtend(char string) {
 			if pqitem != nil {
 				//log.Printf("L1 pushq append pqitem=%#v", pqitem)
 				pushq[pushcnt] = pqitem
-				pqitem = nil
 				pushcnt++
 			} else {
 				log.Printf("ERROR L1 pqExtend extC.ch <- nil pointer")
