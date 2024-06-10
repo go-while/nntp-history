@@ -87,7 +87,7 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l3.pqQueue[char] = &L3pqQ{que: make(chan *L3PQItem, 65536), pqC: make(chan struct{}, 1)}
+		l3.pqQueue[char] = &L3pqQ{que: make(chan *L3PQItem, L3InitSize), pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range ROOTDBS {

@@ -88,8 +88,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{}
 		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		//l1.pqQueue[char] = &L1pqQ{que: &L1PQ{}, pqC: make(chan struct{}, 1)}
-		l1.pqQueue[char] = &L1pqQ{que: make(chan *L1PQItem, 65536), pqC: make(chan struct{}, 1)}
+		l1.pqQueue[char] = &L1pqQ{que: make(chan *L1PQItem, L1InitSize), pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range ROOTDBS {
@@ -315,20 +314,6 @@ func (pq *L1pqQ) Pop() (*L1PQItem, int) {
 		// pq empty
 	}
 	return nil, 0
-	/*
-		pq.mux.Lock()
-		lenpq := len(*pq.que)
-		if lenpq == 0 {
-			pq.mux.Unlock()
-			return nil, 0
-		}
-		old := *pq.que
-		*pq.que = old[1:]
-		pq.mux.Unlock()
-		item := old[0]
-		old = nil
-		return &item, lenpq
-	*/
 } // end func Pop
 
 // Remove expired items from the cache

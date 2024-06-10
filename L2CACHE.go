@@ -85,8 +85,7 @@ func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}
 		l2.Muxers[char] = &L2MUXER{}
 		l2.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		//l2.pqQueue[char] = &L2pqQ{que: &L2PQ{}, pqC: make(chan struct{}, 1)}
-		l2.pqQueue[char] = &L2pqQ{que: make(chan *L2PQItem, 65536), pqC: make(chan struct{}, 1)}
+		l2.pqQueue[char] = &L2pqQ{que: make(chan *L2PQItem, L2InitSize), pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range HEXCHARS {
