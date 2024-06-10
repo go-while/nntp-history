@@ -25,6 +25,8 @@ go.work
 bak/
 src/
 pkg
+pkg.off
+pkg.old
 test/src
 test/history
 test/hashdb
@@ -32,3 +34,6 @@ test/nntp-history-test
 test/test*
 test/bak*
 testARENAS
+test/pkg
+test/pkg.off
+test/pkg.old
