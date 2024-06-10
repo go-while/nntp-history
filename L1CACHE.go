@@ -53,7 +53,6 @@ type L1MUXER struct {
 }
 
 type L1pqQ struct {
-	//que *L1PQ
 	que chan *L1PQItem
 	mux sync.Mutex
 	pqC chan struct{}
@@ -207,7 +206,8 @@ func (l1 *L1CACHE) pqExtend(char string) {
 
 				pq.mux.Lock()
 				for i := 0; i < pushcnt; i++ {
-					pq.Push(&pushq[i])
+					item := pushq[i]
+					pq.Push(&item)
 				}
 				pq.mux.Unlock()
 
@@ -240,9 +240,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool, hi
 	pq := l1.pqQueue[char]
 
 	if flagexpires {
-		pq.mux.Lock()
 		pq.Push(&L1PQItem{Key: hash, Expires: L1CacheExpires})
-		pq.mux.Unlock()
 	}
 	mux.mux.Lock()
 	if _, exists := ptr.cache[hash]; !exists {
@@ -294,9 +292,19 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 } // end func L1Stats
 
 func (pq *L1pqQ) Push(item *L1PQItem) {
-	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	pq.que <- item
-	//*pq.que = append(*pq.que, item)
+forever:
+	for {
+		item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
+		select {
+		case pq.que <- item:
+			// pushed
+			break forever
+		default:
+			// channel full!
+			log.Printf("WARN L1pqQ Push channel is full!")
+			time.Sleep(time.Millisecond)
+		}
+	}
 } // end func Push
 
 func (pq *L1pqQ) Pop() (*L1PQItem, int) {

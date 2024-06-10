@@ -55,12 +55,10 @@ type L3MUXER struct {
 }
 
 type L3pqQ struct {
-	que *L3PQ
+	que chan *L3PQItem
 	mux sync.Mutex
 	pqC chan struct{}
 }
-
-type L3PQ []L3PQItem
 
 type L3PQItem struct {
 	Key     string
@@ -89,7 +87,7 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l3.pqQueue[char] = &L3pqQ{que: &L3PQ{}, pqC: make(chan struct{}, 1)}
+		l3.pqQueue[char] = &L3pqQ{que: make(chan *L3PQItem, 65536), pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range ROOTDBS {
@@ -157,7 +155,8 @@ func (l3 *L3CACHE) pqExtend(char string) {
 
 				pq.mux.Lock()
 				for i := 0; i < pushcnt; i++ {
-					pq.Push(pushq[i])
+					item := pushq[i]
+					pq.Push(&item)
 				}
 				pq.mux.Unlock()
 
@@ -196,11 +195,9 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 	pq := l3.pqQueue[char]
 
 	if flagexpires {
-		pq.mux.Lock()
-		pq.Push(L3PQItem{Key: key, Expires: L3CacheExpires})
-		pq.mux.Unlock()
-
+		pq.Push(&L3PQItem{Key: key, Expires: L3CacheExpires})
 	}
+
 	mux.mux.Lock()
 	switch flagexpires {
 	case true:
@@ -312,24 +309,30 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 	return false
 }
 
-func (pq *L3pqQ) Push(item L3PQItem) {
-	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
-	*pq.que = append(*pq.que, item)
+func (pq *L3pqQ) Push(item *L3PQItem) {
+forever:
+	for {
+		item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
+		select {
+		case pq.que <- item:
+			// pushed
+			break forever
+		default:
+			// channel full!
+			log.Printf("WARN L3pqQ Push channel is full!")
+			time.Sleep(time.Millisecond)
+		}
+	}
 } // end func Push
 
 func (pq *L3pqQ) Pop() (*L3PQItem, int) {
-	pq.mux.Lock()
-	lenpq := len(*pq.que)
-	if lenpq == 0 {
-		pq.mux.Unlock()
-		return nil, 0
+	select {
+	case item := <-pq.que:
+		return item, len(pq.que)
+	default:
+		// pq empty
 	}
-	old := *pq.que
-	*pq.que = old[1:]
-	pq.mux.Unlock()
-	item := old[0]
-	old = nil
-	return &item, lenpq
+	return nil, 0
 } // end func Pop
 
 // Remove expired items from the cache
