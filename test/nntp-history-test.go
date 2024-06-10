@@ -28,7 +28,7 @@ var TESTHASH = history.TESTHASH
 
 func main() {
 	numCPU := runtime.NumCPU()
-	debug.SetGCPercent(100)
+
 	var offset int64
 	var hexoff string
 	var todo int // todo x parallelTest
@@ -50,12 +50,14 @@ func main() {
 	var RunTCPonly bool
 	var BoltDB_PageSize int
 	var InitialMmapSize int
+	var SetGCPercent int
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
-	flag.IntVar(&numCPU, "numcpu", 4, "Limit your CPU cores to Threads/2 !")
+	flag.IntVar(&numCPU, "numcpu", 0, "Limit your CPU cores to Threads/2 !")
 	flag.IntVar(&todo, "todo", 1000000, "todo per test")
-	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel")
+	flag.IntVar(&parallelTest, "p", 4, "runs N tests in parallel * todo")
 	flag.IntVar(&debugs, "debugs", -1, "default:-1|stats:0|more:1|spam:2|batch:9")
+	flag.IntVar(&SetGCPercent, "gc", 100, "")
 
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.StringVar(&hexoff, "getHEX", "", "Hex 'f075322c83d4ea' Offset to seek in history")
@@ -136,6 +138,8 @@ func main() {
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
 
 	flag.Parse()
+
+	debug.SetGCPercent(SetGCPercent)
 	/*
 		if BoltDB_MaxBatchDelay == -1 {
 			var divider float64 = 1
