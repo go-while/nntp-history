@@ -140,13 +140,16 @@ func (l2 *L2CACHE) pqExtend(char string) {
 		} // end select
 		if pushcnt >= pushmax || (timeout && pushcnt > 0) {
 
-			mux.mux.Lock()
-			for i := 0; i < pushcnt; i++ {
-				if _, exists := ptr.cache[pushq[i].Key]; exists {
-					cnt.Counter["Count_BatchD"]++
+			if DEBUGL2 {
+				logf(DEBUGL2, "DEBUGL2 ptr.cache Count_BatchD")
+				mux.mux.Lock()
+				for i := 0; i < pushcnt; i++ {
+					if _, exists := ptr.cache[pushq[i].Key]; exists {
+						cnt.Counter["Count_BatchD"]++
+					}
 				}
+				mux.mux.Unlock()
 			}
-			mux.mux.Unlock()
 
 			//pq.mux.Lock()
 			for i := 0; i < pushcnt; i++ {
