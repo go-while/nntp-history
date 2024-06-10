@@ -71,8 +71,8 @@ type HistorySettings struct {
 	// constant values once DBs are initalized
 	Ka int // keyalgo
 	Kl int // keylen
-	Ki int // keyindex
-	Bp int // bucketsperdb
+	//Ki int // keyindex
+	//Bp int // bucketsperdb
 }
 
 type HistoryObject struct {
