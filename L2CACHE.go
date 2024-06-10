@@ -176,7 +176,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 	//if hash == TESTHASH {
 	//	log.Printf("L2CAC Set hash='%s' @offset=%d expires=%t", hash, offset, flagexpires)
 	//}
-	if offset <= 0 || len(hash) < 32 { // at least md5
+	if offset <= 0 || len(hash) < 64 { // sha256
 		log.Printf("ERROR L2CACHESet nil pointer")
 		return
 	}

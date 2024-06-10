@@ -225,7 +225,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool, hi
 	if !L1 {
 		return
 	}
-	if len(hash) < 32 { // at least md5
+	if len(hash) < 64 { // sha256
 		log.Printf("ERROR L1CACHESet hash=nil")
 		return
 	}

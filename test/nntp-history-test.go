@@ -6,8 +6,7 @@ import (
 	"github.com/go-while/nntp-history"
 	"github.com/gorilla/mux"
 	//"github.com/go-while/nntp-overview"
-	//"github.com/patrickmn/go-cache"
-	bolt "go.etcd.io/bbolt"
+	//bolt "go.etcd.io/bbolt"
 	"log"
 	"net/http"
 	hpprof "net/http/pprof"
@@ -34,7 +33,7 @@ func main() {
 	var todo int // todo x parallelTest
 	var parallelTest int
 	var useHashDB bool
-	var boltOpts *bolt.Options
+	//var boltOpts *bolt.Options
 	var BoltDB_MaxBatchDelay int64
 	var KeyAlgo int
 	var KeyLen int
@@ -195,7 +194,7 @@ func main() {
 		// ------
 	}
 	start := time.Now().Unix()
-	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
+	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, useHashDB)
 
 	history.DefaultACL = make(map[string]bool)
 	if history.DEBUG {
@@ -299,7 +298,7 @@ func main() {
 		history.BootVerbose = false
 	}
 	if useHashDB {
-		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
+		//fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
 	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, KeyAlgo, KeyLen)
 	//history.History.Wait4HashDB()

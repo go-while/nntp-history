@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"github.com/go-while/go-utils"
-	//bolt "go.etcd.io/bbolt"
 	"io"
 	"log"
 	"math/rand"
@@ -15,13 +14,13 @@ import (
 )
 
 const (
-	HashShort               = 0x0B // 11
-	KeyIndex                = 0
-	MinKeyLen               = 6
-	NumHashDBs              = 256
-	CharBucketBatchSize int = 16
-	RootBUCKETSperDB        = 16
-	ALWAYS                  = true
+	HashShort  = 0x0B // 11
+	//KeyIndex   = 0
+	MinKeyLen  = 6
+	NumHashDBs = 16
+	//CharBucketBatchSize int = 16
+	//RootBUCKETSperDB        = 16
+	ALWAYS = true
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
 	CaseLock             = 0xFF         // internal cache state. reply with CaseRetry while CaseLock
@@ -43,19 +42,20 @@ var (
 	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)          // main lock
 	HISTORY_INDEX_LOCK16       = make(chan struct{}, NumHashDBs) // sub locks
 	BootVerbose                = true
-	TESTHASH0                  = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
-	TESTHASH1                  = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
-	TESTHASH2                  = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
-	TESTHASH                   = TESTHASH2
-	TESTCACKEY                 = "f0d784ae1"
-	TESTKEY                    = "784ae1"
-	TESTBUK                    = "0d"
-	TESTDB                     = "f"
-	TESTOFFSET                 = 123456
+	//TESTHASH0                  = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
+	//TESTHASH1                  = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
+	//TESTHASH2                  = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
+	TESTHASH                     = ""
+	//TESTCACKEY                 = "f0d784ae1"
+	//TESTKEY                    = "784ae1"
+	//TESTBUK                    = "0d"
+	//TESTDB                     = "f"
+	//TESTOFFSET                 = 123456
 	ROOTDBS              []string
-	ROOTBUCKETS          []string
-	SUBBUCKETS           []string
-	BUFIOBUFFER          = 4 * 1024 // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
+	//ROOTBUCKETS          []string
+	//SUBBUCKETS           []string
+	BUFLINES             = 10
+	BUFIOBUFFER          = 102 * BUFLINES // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
 	History              HISTORY
 	DEBUG                bool = true
 	DEBUG0               bool = false
@@ -104,9 +104,9 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		NumQueueWriteChan = 1
 	}
 
-	//if BatchFlushEvery <= 0 { // milliseconds
-	//	BatchFlushEvery = 1
-	//}
+	if BatchFlushEvery <= 2500 { // milliseconds
+		BatchFlushEvery = 2500
+	}
 
 	if DefaultCachePurge <= 0 { // seconds
 		DefaultCachePurge = 1
@@ -128,13 +128,6 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		IndexParallel = NumHashDBs
 	}
 	his.indexPar = IndexParallel
-
-	//if CharBucketBatchSize <= 0 {
-	//	CharBucketBatchSize = 1
-	//}
-
-	his.wCBBS = CharBucketBatchSize
-	log.Printf("CharBucketBatchSize=%d his.wCBBS=%d", CharBucketBatchSize, his.wCBBS)
 
 	linSlashS := "/"
 	winSlashS := "\\" // escaped
@@ -185,18 +178,6 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	switch keyalgo {
 	case HashShort:
 		his.keyalgo = HashShort
-	/*
-		 *
-		case HashFNV32:
-			his.keyalgo = HashFNV32
-		case HashFNV32a:
-			his.keyalgo = HashFNV32a
-		case HashFNV64:
-			his.keyalgo = HashFNV64
-		case HashFNV64a:
-			his.keyalgo = HashFNV64a
-		*
-	*/
 	default:
 		log.Printf("ERROR BootHistory unknown keyalgo")
 		return
@@ -206,20 +187,6 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		log.Printf("ERROR BootHistory keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
 		os.Exit(1)
 	}
-	/*
-		if KeyIndex <= 0 {
-			KeyIndex = 0
-		} else if KeyIndex > 6 {
-			KeyIndex = 6
-		}
-	*/
-	his.keyIndex = KeyIndex
-
-	if his.keyIndex >= his.keylen-4 {
-		log.Printf("ERROR keyindex out of range. try keylen=%d or reduce keyindex value", his.keylen+4)
-		os.Exit(1)
-	}
-	//his.rootBUCKETS = RootBUCKETSperDB
 	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen, Ki: his.keyIndex, Bp: his.rootBUCKETS}
 	// opens history.dat
 	var fh *os.File
@@ -262,65 +229,24 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		switch history_settings.Ka { // KeyAlgo
 		case HashShort:
 			// pass
-		/*
-			 *
-			case HashFNV32:
-				// pass
-			case HashFNV32a:
-				// pass
-			case HashFNV64:
-				// pass
-			case HashFNV64a:
-				// pass
-			*
-		*/
 		default:
 			log.Printf("ERROR BootHistory gobDecodeHeader Unknown history_settings.KeyAlgo=%d'", history_settings.Ka)
 			os.Exit(1)
 		}
 		his.keyalgo = history_settings.Ka
 		his.keylen = history_settings.Kl
-		his.keyIndex = history_settings.Ki
-		his.rootBUCKETS = history_settings.Bp
 		//logf(DEBUG2, "Loaded History Settings: '%#v'", history_settings)
 	}
 
-	switch his.rootBUCKETS {
-	// his.rootBUCKETS defines startindex cutFirst for cutHashlen!
-	case 16:
-		his.cutFirst = 2
-		ROOTBUCKETS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
-	case 256:
-		his.cutFirst = 3
-		ROOTBUCKETS = generateCombinations(HEXCHARS, 2, []string{}, []string{})
-	case 4096:
-		his.cutFirst = 4
-		ROOTBUCKETS = generateCombinations(HEXCHARS, 3, []string{}, []string{})
-	default:
-		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
-		os.Exit(1)
-	}
 	switch NumHashDBs {
 	case 16:
 		his.cutChar = 1
 		ROOTDBS = generateCombinations(HEXCHARS, 1, []string{}, []string{})
-	case 256:
-		his.cutChar = 2
-		his.cutFirst += 1
-		ROOTDBS = generateCombinations(HEXCHARS, 2, []string{}, []string{})
-	case 4096:
-		his.cutChar = 3
-		his.cutFirst += 2
-		ROOTDBS = generateCombinations(HEXCHARS, 3, []string{}, []string{})
 	default:
 		log.Printf("ERROR BootHistory his.rootBUCKETS invalid=%d", his.rootBUCKETS)
 		os.Exit(1)
 	}
 	his.CutCharRO = his.cutChar
-	if his.keyIndex > 0 {
-		his.cutKey = his.keyIndex
-		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
-	}
 
 	his.L1Cache.BootL1Cache(his)
 	log.Printf("L1Cache Booted")
@@ -591,7 +517,7 @@ func writeHistoryHeader(dw *bufio.Writer, data []byte, offset *int64, flush bool
 // It reads characters from the file until a tab character ('\t') is encountered, extracting the hash enclosed in curly braces.
 // If a valid hash is found, it returns the hash as a string without curly braces.
 // If the end of the file (EOF) is reached, it returns a special EOF marker.
-func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char string, bucket string, rethash *string) error {
+func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char string, rethash *string) error {
 	if offset <= 0 || rethash == nil {
 		return fmt.Errorf("ERROR FseekHistoryMessageHash io nil")
 	}
@@ -641,7 +567,7 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		if result[0] != '{' || result[len(result)-1] != '}' {
 			return fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", offset, result)
 		}
-		if len(result[1:len(result)-1]) >= 32 { // at least md5
+		if len(result[1:len(result)-1]) == 64 { // sha256
 			//logf(hash == TESTHASH, "FSEEK [%s|%s] @offset=%d => hash='%s'", char, bucket, offset, hash)
 			*rethash = result[1 : len(result)-1]
 			his.L2Cache.SetOffsetHash(offset, *rethash, FlagExpires)
@@ -753,12 +679,14 @@ func (his *HISTORY) CLOSE_HISTORY() {
 
 		batchQ, batchLOCKS := 0, 0
 		if his.useHashDB {
+			/*
 			for _, char := range ROOTDBS {
 				for _, bucket := range ROOTBUCKETS {
 					batchQ += len(his.batchQueues.Maps[char][bucket])
 					batchLOCKS += len(his.BatchLocks[char].bl[bucket].ch)
 				}
 			}
+			*/
 		}
 		batchQueued := batchQ > 0
 		batchLocked := batchLOCKS > 0
@@ -844,7 +772,7 @@ func generateCombinations(hexChars []string, length int, currentCombination []st
 
 func (his *HISTORY) BatchTicker(char string, ticker chan struct{}) {
 	//isleep := 32
-	isleep := BatchFlushEvery / int64(RootBUCKETSperDB)
+	isleep := BatchFlushEvery // / int64(RootBUCKETSperDB)
 	if isleep <= 4 {
 		isleep = 4
 	}
