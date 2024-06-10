@@ -56,8 +56,9 @@ type L3MUXER struct {
 
 type L3pqQ struct {
 	que chan *L3PQItem
-	mux sync.Mutex
+	//mux sync.Mutex // pq.mux.Lock()
 	pqC chan struct{}
+	char string
 }
 
 type L3PQItem struct {
@@ -87,7 +88,7 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
 		l3.Counter[char] = &CCC{Counter: make(map[string]uint64)}
-		l3.pqQueue[char] = &L3pqQ{que: make(chan *L3PQItem, L3InitSize), pqC: make(chan struct{}, 1)}
+		l3.pqQueue[char] = &L3pqQ{que: make(chan *L3PQItem, L3InitSize), pqC: make(chan struct{}, 1), char: char}
 	}
 	time.Sleep(time.Millisecond)
 	for _, char := range ROOTDBS {
@@ -122,7 +123,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 	extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.pqQueue[char]
-	pushq, pushmax, pushcnt := make([]L3PQItem, clearEv), clearEv, 0
+	pushq, pushmax, pushcnt := make([]*L3PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 
@@ -134,8 +135,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
 				//log.Printf("L3 pushq append pqitem=%#v", pqitem)
-				pushq[pushcnt] = *pqitem
-				pqitem = nil
+				pushq[pushcnt] = pqitem
 				pushcnt++
 			} else {
 				log.Printf("ERROR L3 pqExtend extC.ch <- nil pointer")
@@ -143,25 +143,24 @@ func (l3 *L3CACHE) pqExtend(char string) {
 			}
 		} // end select
 		if pushcnt >= pushmax || (timeout && pushcnt > 0) {
-			if pushcnt > 0 {
 
-				mux.mux.Lock()
-				for i := 0; i < pushcnt; i++ {
-					if _, exists := ptr.cache[pushq[i].Key]; exists {
-						cnt.Counter["Count_BatchD"]++
-					}
+			mux.mux.Lock()
+			for i := 0; i < pushcnt; i++ {
+				if _, exists := ptr.cache[pushq[i].Key]; exists {
+					cnt.Counter["Count_BatchD"]++
 				}
-				mux.mux.Unlock()
-
-				pq.mux.Lock()
-				for i := 0; i < pushcnt; i++ {
-					item := pushq[i]
-					pq.Push(&item)
-				}
-				pq.mux.Unlock()
-
-				pushq, pushcnt = make([]L3PQItem, clearEv), 0
 			}
+			mux.mux.Unlock()
+
+			//pq.mux.Lock()
+			for i := 0; i < pushcnt; i++ {
+				pq.Push(pushq[i])
+				pushq[i] = nil
+			}
+			//pq.mux.Unlock()
+
+			pushq, pushcnt = make([]*L3PQItem, clearEv), 0
+
 		}
 		if timeout {
 			timeout = false
@@ -319,7 +318,7 @@ forever:
 			break forever
 		default:
 			// channel full!
-			log.Printf("WARN L3pqQ Push channel is full!")
+			log.Printf("WARN L3pqQ char=%s Push channel is full!", pq.char)
 			time.Sleep(time.Millisecond)
 		}
 	}
