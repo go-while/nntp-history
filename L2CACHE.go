@@ -313,7 +313,7 @@ forever:
 			// channel full!
 			log.Printf("WARN L2pqQ char=%s Push channel is full! LOCKING", pq.char)
 			//pq.mux.Lock() // lock others out but not ourself
-			if !tryRWLockWithTimeout(&pq.mux, time.Second) {
+			if !tryRWLockWithTimeout(&pq.mux, time.Second, rlocked) {
 				log.Printf("WARN L2pqQ char=%s tryRWLockWithTimeout failed", pq.char)
 				rlocked = false
 				continue forever

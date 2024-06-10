@@ -40,17 +40,19 @@ type ClearCacheChan struct {
 	ch chan []*ClearCache
 }
 
-func tryRWLockWithTimeout(m *sync.RWMutex, timeout time.Duration) (gotlock bool) {
+func tryRWLockWithTimeout(m *sync.RWMutex, timeout time.Duration, readLocked bool) (gotlock bool) {
 	// returns gotlock=true if we got the lock
 	notifyLocked := make(chan struct{}, 1)
 	timeout_Chan := time.After(timeout)
 	// launch a go routine which trys to hard Lock
 	// and sends a notifyLocked back while we wait for timeout_Chan
-	go func(m *sync.RWMutex, notifyLocked chan struct{}) {
-		m.RUnlock() // release our readLock
+	go func(m *sync.RWMutex, notifyLocked chan struct{}, readLocked bool) {
+		if readLocked {
+			m.RUnlock() // release our readLock
+		}
 		m.Lock()
 		notifyLocked <- struct{}{}
-	}(m, notifyLocked)
+	}(m, notifyLocked, readLocked)
 
 	select {
 		case <- notifyLocked:
