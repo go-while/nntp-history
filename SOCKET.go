@@ -119,11 +119,13 @@ forever:
 		case "CPU": // start/stop cpu profiling
 			his.mux.Lock()
 			if his.CPUfile != nil {
-				his.stopCPUProfile(his.CPUfile)
+				//his.stopCPUProfile(his.CPUfile)
+				Prof.StopCPUProfile()
 				tp.PrintfLine("200 OK stopCPUProfile")
 				his.CPUfile = nil
 			} else {
-				CPUfile, err := his.startCPUProfile()
+				//CPUfile, err := his.startCPUProfile()
+				CPUfile, err := Prof.StartCPUProfile()
 				if err != nil || CPUfile == nil {
 					log.Printf("ERROR SOCKET CMD startCPUProfile err='%v'", err)
 					tp.PrintfLine("400 ERR startCPUProfile")

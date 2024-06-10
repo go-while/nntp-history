@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"time"
+	"github.com/go-while/go-cpu-mem-profiler"
 )
 
 const (
@@ -31,6 +32,7 @@ const (
 )
 
 var (
+	Prof        *prof.Profiler
 	BootVerbose = true
 	TESTHASH0   = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
 	TESTHASH1   = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
@@ -70,8 +72,13 @@ var (
 func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
-	if CPUProfile { // PROFILE.go
-		CPUfile, err := his.startCPUProfile()
+	if Prof == nil {
+		log.Printf("BootHistory prof.NewProf()")
+		Prof = prof.NewProf()
+	}
+	if Prof.CPUProfile { // PROFILE.go
+		//CPUfile, err := his.startCPUProfile()
+		CPUfile, err := Prof.StartCPUProfile()
 		if err != nil {
 			os.Exit(1)
 		}
@@ -752,7 +759,8 @@ func (his *HISTORY) CLOSE_HISTORY() {
 	}
 	his.WriterChan = nil
 	if his.CPUfile != nil {
-		his.stopCPUProfile(his.CPUfile)
+		Prof.StopCPUProfile()
+		his.CPUfile = nil
 	}
 	/*
 		 *

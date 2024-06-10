@@ -4,31 +4,35 @@ import (
 	"fmt"
 	"github.com/go-while/go-utils"
 	"github.com/go-while/nntp-history"
-	"github.com/gorilla/mux"
+	//"github.com/gorilla/mux"
 	//"github.com/go-while/nntp-overview"
 	//"github.com/patrickmn/go-cache"
 	bolt "go.etcd.io/bbolt"
 	"log"
-	"net/http"
-	hpprof "net/http/pprof"
+	//"net/http"
+	//hpprof "net/http/pprof"
 	//"strings"
 	"flag"
 	"math/rand"
 	"os"
-	"os/signal"
+	//"os/signal"
 	"runtime"
 	"runtime/debug"
-	"runtime/pprof"
+	//"runtime/pprof"
 	"strconv"
-	"syscall"
+	//"syscall"
 	"time"
+	"github.com/go-while/go-cpu-mem-profiler"
 )
 
-var TESTHASH = history.TESTHASH
+var (
+	TESTHASH = history.TESTHASH
+	Prof = history.Prof
+)
 
 func main() {
+	history.Prof = prof.NewProf()
 	numCPU := runtime.NumCPU()
-
 	var offset int64
 	var hexoff string
 	var todo int // todo x parallelTest
@@ -80,7 +84,8 @@ func main() {
 	flag.BoolVar(&RunTCPonly, "RunTCPonly", false, "experimental client/server")
 
 	// profiling
-	flag.BoolVar(&history.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
+	//flag.BoolVar(&history.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
+	flag.BoolVar(&Prof.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
 	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
 
 	// options for our pre-batching
@@ -169,7 +174,7 @@ func main() {
 		os.Exit(1)
 	}
 	if PprofAddr != "" {
-		go debug_pprof(PprofAddr)
+		go Prof.PprofWeb(PprofAddr)
 		time.Sleep(time.Second)
 	}
 	history.History.SET_DEBUG(debugs)
@@ -263,7 +268,7 @@ func main() {
 		//}
 		history.NoReplayHisDat = true
 		P_donechan := make(chan struct{}, parallelTest)
-		go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
+		go Prof.MemoryProfile(time.Second*30, time.Second*15, pprofmem)
 		for p := 1; p <= parallelTest; p++ {
 
 			go history.History.BootHistoryClient("")
@@ -387,7 +392,7 @@ func main() {
 	LOCKONLYTEST := false
 
 	P_donechan := make(chan struct{}, parallelTest)
-	go MemoryProfile(time.Second*30, time.Second*15, pprofmem)
+	go Prof.MemoryProfile(time.Second*30, time.Second*15, pprofmem)
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int, testhashes []string) {
@@ -546,7 +551,7 @@ func main() {
 	// close history
 	closewait := time.Now().Unix()
 	history.History.CLOSE_HISTORY()
-	go MemoryProfile(time.Second*10, 0, pprofmem)
+	go Prof.MemoryProfile(time.Second*10, 0, pprofmem)
 	waited := time.Now().Unix() - closewait
 
 	// get some numbers
@@ -588,6 +593,7 @@ func main() {
 	}
 } // end func main
 
+/*
 func debug_pprof(addr string) {
 	router := mux.NewRouter()
 	router.Handle("/debug/pprof/", http.HandlerFunc(hpprof.Index))
@@ -628,7 +634,9 @@ func MemoryProfile(duration time.Duration, wait time.Duration, pprofmem bool) er
 	time.Sleep(duration)
 	return nil
 }
+*/
 
+/*
 func startCPUProfile() (*os.File, error) {
 	log.Printf("startCPUProfile")
 	cpuProfileFile, err := os.Create("cpu.pprof.out")
@@ -642,6 +650,7 @@ func startCPUProfile() (*os.File, error) {
 	}
 	return cpuProfileFile, nil
 }
+
 
 func stopCPUProfile(cpuProfileFile *os.File) {
 	log.Printf("stopCPUProfile")
@@ -658,6 +667,7 @@ func captureInterruptSignal(cpuProfileFile *os.File) {
 		os.Exit(1)
 	}()
 }
+*/
 
 func shuffleStrings(strings []string) {
 	n := len(strings)
