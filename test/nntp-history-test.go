@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	history.Prof = prof.NewProf()
+	Prof = prof.NewProf()
 	numCPU := runtime.NumCPU()
 	var offset int64
 	var hexoff string
@@ -50,7 +50,6 @@ func main() {
 	var NoSync bool
 	var NoGrowSync bool
 	var NoFreelistSync bool
-	var pprofmem bool
 	var RunTCPonly bool
 	var BoltDB_PageSize int
 	var InitialMmapSize int
@@ -85,8 +84,8 @@ func main() {
 
 	// profiling
 	//flag.BoolVar(&history.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
-	flag.BoolVar(&Prof.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.out'")
-	flag.BoolVar(&pprofmem, "pprofmem", false, "goes to file 'mem.pprof.out.unixtime()'")
+	flag.BoolVar(&Prof.CPUProfile, "pprofcpu", false, "goes to file 'cpu.pprof.*.out'")
+	flag.BoolVar(&Prof.MEMProfile, "pprofmem", false, "goes to file 'mem.pprof.*.out'")
 
 	// options for our pre-batching
 	flag.BoolVar(&history.DBG_ABS1, "DBG_ABS1", false, "default: false (debugs adaptive batchsize/wCBBS)")
@@ -268,7 +267,7 @@ func main() {
 		//}
 		history.NoReplayHisDat = true
 		P_donechan := make(chan struct{}, parallelTest)
-		go Prof.MemoryProfile(time.Second*30, time.Second*15, pprofmem)
+		go Prof.MemoryProfile(time.Second*30, time.Second*15)
 		for p := 1; p <= parallelTest; p++ {
 
 			go history.History.BootHistoryClient("")
@@ -392,7 +391,7 @@ func main() {
 	LOCKONLYTEST := false
 
 	P_donechan := make(chan struct{}, parallelTest)
-	go Prof.MemoryProfile(time.Second*30, time.Second*15, pprofmem)
+	go Prof.MemoryProfile(time.Second*30, time.Second*15)
 	for p := 1; p <= parallelTest; p++ {
 
 		go func(p int, testhashes []string) {
@@ -551,7 +550,7 @@ func main() {
 	// close history
 	closewait := time.Now().Unix()
 	history.History.CLOSE_HISTORY()
-	go Prof.MemoryProfile(time.Second*10, 0, pprofmem)
+	go Prof.MemoryProfile(time.Second*10, 0)
 	waited := time.Now().Unix() - closewait
 
 	// get some numbers

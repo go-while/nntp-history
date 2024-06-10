@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -116,6 +117,10 @@ forever:
 		//log.Printf("CONN '%#v' read CMD='%s' line='%s' parts=%d", conn, CMD, line, len(parts))
 		// Process the received message here.
 		switch CMD {
+		case "MEM": // start/stop mem profiling
+			his.mux.Lock()
+			Prof.MemoryProfile(time.Duration(30*time.Second), 0)
+			his.mux.Unlock()
 		case "CPU": // start/stop cpu profiling
 			his.mux.Lock()
 			if his.CPUfile != nil {
