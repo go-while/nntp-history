@@ -28,6 +28,7 @@ pkg
 pkg.off
 pkg.old
 test/src
+test/src.off
 test/history
 test/hashdb
 test/nntp-history-test
@@ -37,3 +38,4 @@ testARENAS
 test/pkg
 test/pkg.off
 test/pkg.old
+vendor/
