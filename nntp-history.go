@@ -69,7 +69,7 @@ var (
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
-func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
+func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltDB bool, useMYSQL bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if Prof == nil {
@@ -91,9 +91,9 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltD
 	rand.Seed(time.Now().UnixNano())
 	his.Counter = make(map[string]uint64)
 
-	if useBboltDB {
-		his.useBboltDB = true
-	}
+	his.useBboltDB = useBboltDB
+	his.useMYSQL = useMYSQL
+
 	go his.startServer(DefaultServerTCPAddr, DefaultSocketPath)
 
 	if NumQueueWriteChan <= 0 {

@@ -260,7 +260,7 @@ func main() {
 	}
 
 	if RunTCPonly {
-		history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, boltOpts, KeyAlgo, KeyLen)
+		history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, useMYSQL, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
 
@@ -355,7 +355,7 @@ func main() {
 	if useBboltDB {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
-	history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, boltOpts, KeyAlgo, KeyLen)
+	history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, useMYSQL, boltOpts, KeyAlgo, KeyLen)
 	history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {

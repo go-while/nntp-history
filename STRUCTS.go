@@ -40,6 +40,7 @@ type HISTORY struct {
 	BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
 	charsMap       map[string]int
 	useBboltDB     bool
+	useMYSQL       bool
 	keyalgo        int
 	keylen         int
 	win            bool

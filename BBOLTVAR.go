@@ -51,7 +51,7 @@ func (his *HISTORY) ReplayHisDat() {
 		log.Printf("NoReplayHisDat=%t", NoReplayHisDat)
 		return
 	}
-	if !his.useBboltDB {
+	if !his.useBboltDB && !his.useMYSQL {
 		return
 	}
 	if his.hisDat == "" {
@@ -286,7 +286,7 @@ func extractHash(line string) string {
 } // end func extractHash
 
 func (his *HISTORY) RebuildHashDB() error {
-	if !his.useBboltDB || his.hisDat == "" {
+	if !his.useBboltDB || !his.useMYSQL || his.hisDat == "" {
 		log.Printf("return RebuildHashDB !his.useBboltDB || his.hisDat empty")
 		return nil
 	}

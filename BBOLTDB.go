@@ -99,7 +99,7 @@ var (
 )
 
 func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64) (int, error) {
-	if !his.useBboltDB {
+	if !his.useBboltDB && !his.useMYSQL {
 		//log.Printf("INFO return IndexQuery !his.useBboltDB")
 		return CasePass, nil
 	}
@@ -111,7 +111,7 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 	if len(hash) < 32 {
 		return -999, fmt.Errorf("ERROR IndexQuery hash=nil")
 	}
-	if his.useBboltDB && his.IndexChan != nil {
+	if (his.useBboltDB || his.useMYSQL) && his.IndexChan != nil {
 		if indexRetChan == nil {
 			// for frequent access betters supply a indexRetChan
 			indexRetChan = make(chan int, 1)
