@@ -1,7 +1,6 @@
 package history
 
 import (
-	//bolt "go.etcd.io/bbolt"
 	"os"
 	"sync"
 )
@@ -11,8 +10,8 @@ const (
 )
 
 var (
-	IndexParallel     int = NumHashDBs
-	NumQueueWriteChan int = NumHashDBs
+	IndexParallel     int = NumCacheDBs
+	NumQueueWriteChan int = NumCacheDBs
 	HisDatWriteBuffer int = 4 * 1024
 )
 
@@ -21,44 +20,35 @@ type HISTORY struct {
 	 *   set, change, update values only inside (his *HISTORY) functions and
 	 *   don't forget mutex where needed or run into race conditions.
 	 */
-	mux          sync.Mutex // global history mutex used to boot
-	cmux         sync.Mutex // sync counter mutex
-	boltmux      sync.Mutex // locks boltdb to protect BoltDBsMap
-	L1Cache      L1CACHE
-	L2Cache      L2CACHE
-	L3Cache      L3CACHE
-	boltInitChan chan struct{}           // used to lock bolt booting to N in parallel
-	boltSyncChan chan struct{}           // used to lock bolt syncing to N in parallel
-	Offset       int64                   // the actual offset for history.dat
-	hisDat       string                  // = "history/history.dat"
-	hisDatDB     string                  // = "hashdb/history.dat.hash[0-9a-f]"
-	WriterChan   chan *HistoryObject     // history.dat writer channel
-	IndexChan    chan *HistoryIndex      // main index query channel
-	indexChans   [256]chan *HistoryIndex // sub-index channels
-	BatchLogs    BatchLOGGER
-	BatchLocks   map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
-	//BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
+	DIR            string     // path to folder: history/
+	mux            sync.Mutex // global history mutex used to boot
+	cmux           sync.Mutex // sync counter mutex
+	boltmux        sync.Mutex // locks boltdb to protect BoltDBsMap
+	L1Cache        L1CACHE
+	L2Cache        L2CACHE
+	L3Cache        L3CACHE
+	Offset         int64                   // the actual offset for history.dat
+	hisDat         string                  // = "history/history.dat"
+	cutChar        int
+	WriterChan     chan *HistoryObject     // history.dat writer channel
+	IndexChan      chan *HistoryIndex      // main index query channel
+	indexChans     [NumCacheDBs]chan *HistoryIndex // sub-index channels
+	//BatchLogs      BatchLOGGER
 	charsMap       map[string]int
-	useHashDB      bool
+	CutCharRO      int
 	keyalgo        int
 	keylen         int
-	win            bool
+	//win            bool
 	Counter        map[string]uint64
-	batchQueues    *BQ
 	cacheEvicts    map[string]chan *ClearCache
-	adaptBatch     bool // AdaptiveBatchSize
+	//adaptBatch     bool // AdaptiveBatchSize
 	WBR            bool // WatchBoltRunning
 	cEvCap         int  // cacheEvictsCapacity
-	wCBBS          int  // CharBucketBatchSize
 	indexPar       int  // IndexParallel
-	cutChar        int  // used to cut hash at index to divide into hashDBs
-	CutCharRO      int  // read-only value of cutChar
-	cutFirst       int  // used to set startindex for cutHashlen
-	cutKey         int  // keyIndex sets cutKey at this
+	//cutFirst       int  // used to set startindex for cutHashlen
 	reopenDBeveryN int  // reopens hashDB every N added key:vals (not batchins)
 	wantReOpen     map[string]chan struct{}
-	rootBUCKETS    int
-	keyIndex       int
+	//rootBUCKETS    int
 	CPUfile        *os.File // ptr to file for cpu profiling
 	MEMfile        *os.File // ptr to file for mem profiling
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
@@ -85,16 +75,6 @@ type HistoryObject struct {
 	ResponseChan  chan int // receives a 0,1,2 :: pass|duplicate|retrylater
 }
 
-//type BoltDBs struct {
-//	mux   sync.Mutex
-//	dbptr map[string]*BOLTDB_PTR
-//}
-
-//type BOLTDB_PTR struct {
-//	BoltDB *bolt.DB
-//	mux    sync.Mutex
-//}
-
 /* used to query the index */
 type HistoryIndex struct {
 	Hash         string
@@ -103,50 +83,20 @@ type HistoryIndex struct {
 	IndexRetChan chan int // receives a 0,1,2 :: pass|duplicate|retrylater
 }
 
-/* BatchQueue */
-type BQ struct {
-	mux    sync.Mutex
-	lock   chan struct{}
-	Maps   map[string]map[string]chan *BatchOffset
-	BootCh chan struct{}
-}
-
-/* used to batch write items to hashDB */
-type BatchOffset struct {
-	bucket         string
-	key            string
-	encodedOffsets []byte  // gob encoded offsets for this key
-	hash           string  // for cache eviction
-	char           string  // for cache eviction
-	offsets        []int64 // stored for this key
-}
-
-type BatchLOGGER struct {
-	mux sync.Mutex
-	dat []*BatchLOG
-	did uint64 // counter
-}
-
-type BatchLOG struct {
-	c string // char
-	b string // bucket
-	i uint64 // inserted
-	t int64  // took microseconds
-	w int    // workerCharBucketBatchSize
-}
-
-type BATCHLOCKS struct {
-	bl map[string]*BLCH
-}
-
-// BATCHLOCKCHAN
-type BLCH struct {
-	ch chan struct{}
-}
-
 type ClearCache struct {
 	char   string // db
 	hash   string // l1 key
 	offset int64  // l2 key
 	key    string // l3 key
+}
+
+type OffsetData struct {
+	Shorthash string // first N chars of hash
+	Offset int64
+}
+
+type SQLiteData struct {
+	table string // first N chars of hash
+	key string
+	offsets []int64
 }

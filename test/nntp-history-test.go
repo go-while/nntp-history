@@ -176,7 +176,6 @@ func main() {
 	//history.DBG_ABS2 = true // prints adaptive batchsize decr/incr
 	storageToken := "F" // storagetoken flatfile
 	HistoryDir := "history"
-	HashDBDir := "hashdb"
 	// the KeyLen defines length of hash we use as key in 'hashDB[a-f0-9][bucket][key]' minimum is 3
 	// KeyLen is only used with `HashShort`. FNV hashes have predefined length.
 	// a shorter hash stores more offsets per key
@@ -190,9 +189,7 @@ func main() {
 	// KeyLen max 128 with sha512
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
-	if useHashDB {
-		// ------
-	}
+
 	start := time.Now().Unix()
 	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, useHashDB)
 
@@ -205,7 +202,7 @@ func main() {
 	}
 
 	if RunTCPonly {
-		history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, KeyAlgo, KeyLen)
+		history.History.BootHistory(HistoryDir, KeyLen)
 		//history.History.Wait4HashDB()
 		select {}
 
@@ -300,7 +297,7 @@ func main() {
 	if useHashDB {
 		//fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
-	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, KeyAlgo, KeyLen)
+	history.History.BootHistory(HistoryDir, KeyLen)
 	//history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {
@@ -416,34 +413,34 @@ func main() {
 					}
 				}
 
-				if useHashDB {
-					isDup, err := history.History.IndexQuery(hash, IndexRetChan, history.FlagSearch)
-					if err != nil {
-						log.Printf("FALSE IndexQuery hash=%s", hash)
-						break fortodo
-					}
-					switch isDup {
-					case history.CasePass:
-						// pass
-					case history.CaseDupes:
-						// we locked the hash but IndexQuery replied with Duplicate
-						// set L1 cache to Dupe and expire
-						//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
-						history.History.DoCacheEvict(char, hash, 0, "")
-						dupes++
-						continue fortodo
-					case history.CaseRetry:
-						// we locked the hash but IndexQuery replied with Retry
-						// set L1 cache to Retry and expire
-						//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
-						history.History.DoCacheEvict(char, hash, 0, "")
-						retry++
-						continue fortodo
-					default:
-						log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
-						break fortodo
-					}
+
+				isDup, err := history.History.IndexQuery(hash, IndexRetChan, history.FlagSearch)
+				if err != nil {
+					log.Printf("FALSE IndexQuery hash=%s err='%#v'", hash, err)
+					break fortodo
 				}
+				switch isDup {
+				case history.CasePass:
+					// pass
+				case history.CaseDupes:
+					// we locked the hash but IndexQuery replied with Duplicate
+					// set L1 cache to Dupe and expire
+					//history.History.L1Cache.Set(hash, char, history.CaseDupes, history.FlagExpires)
+					history.History.DoCacheEvict(char, hash, 0, "")
+					dupes++
+					continue fortodo
+				case history.CaseRetry:
+					// we locked the hash but IndexQuery replied with Retry
+					// set L1 cache to Retry and expire
+					//history.History.L1Cache.Set(hash, char, history.CaseRetry, history.FlagExpires)
+					history.History.DoCacheEvict(char, hash, 0, "")
+					retry++
+					continue fortodo
+				default:
+					log.Printf("main: ERROR in response from IndexQuery unknown switch isDup=%d", isDup)
+					break fortodo
+				}
+
 
 				// if we are here, hash is not a duplicate in hashdb.
 				// place code here to add article to storage and overview
@@ -465,7 +462,7 @@ func main() {
 				}
 
 				//log.Printf("p=%d i=%d -> AddHistory", p, i)
-				isDup := history.History.AddHistory(hobj, useL1Cache)
+				isDup = history.History.AddHistory(hobj, useL1Cache)
 				switch isDup {
 				case history.CaseAdded:
 					added++

@@ -56,7 +56,7 @@ type L2pqQ struct {
 	pqC chan struct{}
 }
 
-type L2PQ []L2PQItem
+type L2PQ []*L2PQItem
 
 type L2PQItem struct {
 	Key     int64
@@ -78,8 +78,8 @@ func (l2 *L2CACHE) BootL2Cache(his *HISTORY) {
 	l2.Caches = make(map[string]*L2CACHEMAP, 16)
 	l2.Extend = make(map[string]*L2ECH, 16)
 	l2.Muxers = make(map[string]*L2MUXER, 16)
-	l2.Counter = make(map[string]*CCC)
-	l2.pqQueue = make(map[string]*L2pqQ, NumHashDBs)
+	l2.Counter = make(map[string]*CCC, 16)
+	l2.pqQueue = make(map[string]*L2pqQ, 16)
 	for _, char := range HEXCHARS {
 		l2.Caches[char] = &L2CACHEMAP{cache: make(map[int64]*L2ITEM, L2InitSize)}
 		l2.Extend[char] = &L2ECH{ch: make(chan *L2PQItem, his.cEvCap)}
@@ -120,7 +120,7 @@ func (l2 *L2CACHE) pqExtend(char string) {
 	extC := l2.Extend[char]
 	mux := l2.Muxers[char]
 	pq := l2.pqQueue[char]
-	pushq, pushmax, pushcnt := make([]L2PQItem, clearEv), clearEv, 0
+	pushq, pushmax, pushcnt := make([]*L2PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l2purge) * time.Second)
 
@@ -132,8 +132,7 @@ func (l2 *L2CACHE) pqExtend(char string) {
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
 				//log.Printf("L2 pushq append pqitem=%#v", pqitem)
-				pushq[pushcnt] = *pqitem
-				pqitem = nil
+				pushq[pushcnt] = pqitem
 				pushcnt++
 			} else {
 				log.Printf("ERROR L2 pqExtend extC.ch <- nil pointer")
@@ -157,7 +156,7 @@ func (l2 *L2CACHE) pqExtend(char string) {
 				}
 				pq.mux.Unlock()
 
-				pushq, pushcnt = make([]L2PQItem, clearEv), 0
+				pushq, pushcnt = make([]*L2PQItem, clearEv), 0
 			}
 		}
 		if timeout {
@@ -189,7 +188,7 @@ func (l2 *L2CACHE) SetOffsetHash(offset int64, hash string, flagexpires bool) {
 
 	if flagexpires {
 		pq.mux.Lock()
-		pq.Push(L2PQItem{Key: offset, Expires: L2CacheExpires})
+		pq.Push(&L2PQItem{Key: offset, Expires: L2CacheExpires})
 		pq.mux.Unlock()
 	}
 
@@ -280,7 +279,7 @@ func (l2 *L2CACHE) L2Stats(statskey string) (retval uint64, retmap map[string]ui
 	return
 } // end func L2Stats
 
-func (pq *L2pqQ) Push(item L2PQItem) {
+func (pq *L2pqQ) Push(item *L2PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	*pq.que = append(*pq.que, item)
 } // end func Push
@@ -297,7 +296,7 @@ func (pq *L2pqQ) Pop() (*L2PQItem, int) {
 	pq.mux.Unlock()
 	item := old[0]
 	old = nil
-	return &item, lenpq
+	return item, lenpq
 } // end func Pop
 
 // Remove expired items from the cache
