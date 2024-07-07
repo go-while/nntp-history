@@ -39,7 +39,7 @@ type HISTORY struct {
 	BatchLocks     map[string]*BATCHLOCKS // used to lock char:bucket in BoltSync and boltBucketPutBatch
 	BoltDBsMap     *BoltDBs               // using a ptr to a struct in the map allows updating the struct values without updating the map
 	charsMap       map[string]int
-	useHashDB      bool
+	useBboltDB     bool
 	keyalgo        int
 	keylen         int
 	win            bool

@@ -37,7 +37,7 @@ func main() {
 	var hexoff string
 	var todo int // todo x parallelTest
 	var parallelTest int
-	var useHashDB bool
+	var useBboltDB bool
 	var boltOpts *bolt.Options
 	var BoltDB_MaxBatchDelay int64
 	var KeyAlgo int
@@ -54,6 +54,7 @@ func main() {
 	var BoltDB_PageSize int
 	var InitialMmapSize int
 	var SetGCPercent int
+	var useMYSQL bool
 	flag.IntVar(&isleep, "isleep", 0, "sleeps N ms in main fortodo")
 	flag.StringVar(&PprofAddr, "pprof", "", " listen address:port")
 	flag.IntVar(&numCPU, "numcpu", 0, "Limit your CPU cores to Threads/2 !")
@@ -65,10 +66,11 @@ func main() {
 	flag.Int64Var(&offset, "getHL", -1, "Offset to seek in history")
 	flag.StringVar(&hexoff, "getHEX", "", "Hex 'f075322c83d4ea' Offset to seek in history")
 
-	flag.BoolVar(&useHashDB, "useHashDB", true, "true | false (no dupe check, only history.dat writing)")
+	flag.BoolVar(&useBboltDB, "useBboltDB", true, "true | false (no dupe check, only history.dat writing)")
+	flag.BoolVar(&useMYSQL, "useMYSQL", true, "true | false")
 	flag.BoolVar(&RebuildHashDB, "RebuildHashDB", false, "rebuild hashDB from history.dat file")
 
-	flag.BoolVar(&useL1Cache, "useL1Cache", true, "[true | false] (works only with useHashDB=false)")
+	flag.BoolVar(&useL1Cache, "useL1Cache", true, "[true | false] (works only with useBboltDB=false)")
 
 	// keylen & keyalgo are constants once hashdb is initalized!
 	// change needs a RebuildHashDB and updating history.dat settings header. but latter func does not exist yet!
@@ -142,7 +144,9 @@ func main() {
 	flag.BoolVar(&history.NoReplayHisDat, "NoReplayHisDat", false, "default: false")
 
 	flag.Parse()
-
+	if useBboltDB && useMYSQL {
+		log.Fatalf("cannot useBboltDB && useMYSQL")
+	}
 	debug.SetGCPercent(SetGCPercent)
 	/*
 		if BoltDB_MaxBatchDelay == -1 {
@@ -199,7 +203,7 @@ func main() {
 	// KeyLen max 128 with sha512
 	// KeyLen can be set longer than the hash is, there is a check `cutHashlen` anyways
 	// so it should be possible to have variable hashalgos passed in an `HistoryObject` but code tested only with sha256.
-	if useHashDB {
+	if useBboltDB {
 		//history.BoltDB_MaxBatchSize = 256                    // = history.his.rootBUCKETS // 0 disables boltdb internal batching. default: 1000
 		history.BoltDB_MaxBatchDelay = time.Duration(BoltDB_MaxBatchDelay) * time.Millisecond // default: 10 * time.Millisecond
 
@@ -245,7 +249,7 @@ func main() {
 		boltOpts = &bO
 	}
 	start := time.Now().Unix()
-	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useHashDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useHashDB)
+	fmt.Printf("ARGS: CPU=%d/%d | jobs=%d | todo=%d | total=%d | keyalgo=%d | keylen=%d | BatchSize=%d | useBboltDB: %t\n", numCPU, runtime.NumCPU(), parallelTest, todo, todo*parallelTest, KeyAlgo, KeyLen, history.CharBucketBatchSize, useBboltDB)
 
 	history.DefaultACL = make(map[string]bool)
 	if history.DEBUG {
@@ -256,7 +260,7 @@ func main() {
 	}
 
 	if RunTCPonly {
-		history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+		history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, boltOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
 
@@ -348,10 +352,10 @@ func main() {
 		history.NoReplayHisDat = true
 		history.BootVerbose = false
 	}
-	if useHashDB {
+	if useBboltDB {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
-	history.History.BootHistory(HistoryDir, HashDBDir, useHashDB, boltOpts, KeyAlgo, KeyLen)
+	history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, boltOpts, KeyAlgo, KeyLen)
 	history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {
@@ -372,7 +376,7 @@ func main() {
 		fmt.Printf("History @offset=%d line='%s'\n", offset, result)
 		os.Exit(0)
 	}
-	if useHashDB {
+	if useBboltDB {
 		go history.History.WatchBolt()
 	}
 	//go history.PrintMemoryStatsEvery(30 * time.Second)
@@ -403,7 +407,7 @@ func main() {
 			log.Printf("Launch p=%d", p)
 			responseChan := make(chan int, 1)
 			var IndexRetChan chan int
-			if useHashDB {
+			if useBboltDB {
 				IndexRetChan = make(chan int, 1)
 			}
 			var spam, spammer, dupes, added, cLock, addretry, retry, adddupes, cdupes, cretry1, cretry2, errors, locked uint64
@@ -437,7 +441,7 @@ func main() {
 				//	log.Printf("p=%d processing TESTHASH=%s i=%d", p, hash, i)
 				//}
 
-				if useHashDB || useL1Cache {
+				if useBboltDB || useL1Cache {
 					retval := history.History.L1Cache.LockL1Cache(hash, history.CaseLock, &history.History) // checks and locks hash for processing
 					switch retval {
 					case history.CasePass:
@@ -467,7 +471,7 @@ func main() {
 					}
 				}
 
-				if useHashDB {
+				if useBboltDB {
 					isDup, err := history.History.IndexQuery(hash, IndexRetChan, history.FlagSearch)
 					if err != nil {
 						log.Printf("FALSE IndexQuery hash=%s", hash)

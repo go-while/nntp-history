@@ -208,7 +208,7 @@ This code is provided under the MIT License. See the [LICENSE](LICENSE) file for
 ## Benchmark pure writes (no dupe check via hashdb) to history file with 4K bufio.
 - not using L1Cache results in 4mio lines written as there are 4 jobs running
 ```sh
-./nntp-history-test -useHashDB=false -useL1Cache=true -todo=1000000
+./nntp-history-test -useBboltDB=false -useL1Cache=true -todo=1000000
 ```
 
 ## Inserting 4.000.000 `i` hashes (75% duplicates) to history and hashdb

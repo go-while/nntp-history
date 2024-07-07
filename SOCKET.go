@@ -30,7 +30,7 @@ func (his *HISTORY) startServer(tcpListen string, socketPath string) {
 	if BootHisCli {
 		return
 	}
-	if his.useHashDB {
+	if his.useBboltDB {
 		his.Wait4HashDB()
 	}
 	// socket listener
@@ -186,7 +186,7 @@ forever:
 				continue forever
 			}
 
-			if his.useHashDB {
+			if his.useBboltDB {
 				isDup, err := his.IndexQuery(hobj.MessageIDHash, indexRetChan, FlagSearch)
 				if err != nil {
 					log.Printf("FALSE IndexQuery hash=%s", hobj.MessageIDHash)

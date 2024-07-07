@@ -61,15 +61,15 @@ var (
 // BootHistory initializes the history component, configuring its settings and preparing it for operation.
 // It sets up the necessary directories for history and hash databases, and opens the history data file.
 // The function also manages the communication channels for reading and writing historical data.
-// If the `useHashDB` parameter is set to true, it initializes the history database (HashDB) and starts worker routines.
+// If the `useBboltDB` parameter is set to true, it initializes the history database (HashDB) and starts worker routines.
 // Parameters:
 //   - history_dir: The directory where history data will be stored.
 //   - hashdb_dir: The directory where the history database (HashDB) will be stored.
-//   - useHashDB: If true, enables the use of the history database (HashDB).
+//   - useBboltDB: If true, enables the use of the history database (HashDB).
 //   - boltOpts: Bolt database options for configuring the HashDB.
 //   - keyalgo: The hash algorithm used for indexing historical data.
 //   - keylen: The length of the hash values used for indexing.
-func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
+func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltDB bool, boltOpts *bolt.Options, keyalgo int, keylen int) {
 	his.mux.Lock()
 	defer his.mux.Unlock()
 	if Prof == nil {
@@ -91,8 +91,8 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 	rand.Seed(time.Now().UnixNano())
 	his.Counter = make(map[string]uint64)
 
-	if useHashDB {
-		his.useHashDB = true
+	if useBboltDB {
+		his.useBboltDB = true
 	}
 	go his.startServer(DefaultServerTCPAddr, DefaultSocketPath)
 
@@ -171,7 +171,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 		log.Printf("ERROR creating history_dir='%s'", history_dir)
 		os.Exit(1)
 	}
-	if useHashDB && !utils.DirExists(hashdb_dir) && !utils.Mkdir(hashdb_dir) {
+	if useBboltDB && !utils.DirExists(hashdb_dir) && !utils.Mkdir(hashdb_dir) {
 		log.Printf("ERROR creating hashdb_dir='%s'", hashdb_dir)
 		os.Exit(1)
 	}
@@ -317,7 +317,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 
 	his.L1Cache.BootL1Cache(his)
 	log.Printf("L1Cache Booted")
-	if his.useHashDB {
+	if his.useBboltDB {
 		log.Printf("Booting boltDB")
 		his.boltDB_Init(boltOpts)
 		log.Printf("boltDB init done")
@@ -325,7 +325,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useHashDB
 
 	//his.CacheEvictThread(NumCacheEvictThreads) // hardcoded
 
-	logf(BootVerbose, "\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useHashDB)
+	logf(BootVerbose, "\n--> BootHistory: new=%t\n hisDat='%s'\n NumQueueWriteChan=%d DefaultCacheExpires=%d\n settings='%#v' hashdb=%t", new, his.hisDat, NumQueueWriteChan, DefaultCacheExpires, history_settings, his.useBboltDB)
 	his.WriterChan = make(chan *HistoryObject, NumQueueWriteChan)
 	go his.history_Writer(fh, dw)
 } // end func BootHistory
@@ -346,7 +346,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	// blocks if channel is full
 	his.WriterChan <- hobj
 
-	//if (his.useHashDB || useL1Cache) && hobj.ResponseChan != nil {
+	//if (his.useBboltDB || useL1Cache) && hobj.ResponseChan != nil {
 	//if hobj.ResponseChan != nil {
 	// wait for reponse from ResponseChan
 	select {
@@ -364,7 +364,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 } // end func AddHistory
 
 func (his *HISTORY) Wait4HashDB() {
-	if his.useHashDB {
+	if his.useBboltDB {
 		now := time.Now().Unix()
 		for {
 			time.Sleep(10 * time.Millisecond)
@@ -442,7 +442,7 @@ forever:
 				hobj.Arrival = time.Now().Unix()
 			}
 
-			if his.useHashDB {
+			if his.useBboltDB {
 				his.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
 				select {
 				case isDup, ok := <-indexRetChan:
@@ -482,7 +482,7 @@ forever:
 				log.Printf("ERROR history_Writer writeHistoryLine err='%v'", err)
 				break forever
 			}
-			if !his.useHashDB {
+			if !his.useBboltDB {
 				if hobj.ResponseChan != nil {
 					hobj.ResponseChan <- CaseAdded
 				}
@@ -734,12 +734,12 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
 		lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
 		lock5, v5 := false, 0
-		if his.useHashDB {
+		if his.useBboltDB {
 			lock5, v5 = len(his.batchQueues.BootCh) > 0, len(his.batchQueues.BootCh)
 		}
 
 		batchQ, batchLOCKS := 0, 0
-		if his.useHashDB {
+		if his.useBboltDB {
 			for _, char := range ROOTDBS {
 				for _, bucket := range ROOTBUCKETS {
 					batchQ += len(his.batchQueues.Maps[char][bucket])

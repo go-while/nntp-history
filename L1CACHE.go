@@ -131,7 +131,7 @@ func (l1 *L1CACHE) LockL1Cache(hash string, value int, his *HISTORY) int {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
 		cnt.Counter["Count_Locked"]++
-		if !his.useHashDB {
+		if !his.useBboltDB {
 			value = CaseDupes
 		}
 		ptr.cache[hash] = &L1ITEM{value: value}

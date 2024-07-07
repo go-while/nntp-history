@@ -102,7 +102,7 @@ func (his *HISTORY) PrintBoltPerformance() {
 } // end func PrintBoltPerformance
 
 func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) {
-	if !his.useHashDB || char == "" {
+	if !his.useBboltDB || char == "" {
 		return
 	}
 	his.BoltDBsMap.dbptr[char].mux.Lock()
@@ -124,7 +124,7 @@ func (his *HISTORY) GetBoltStat(char string, print bool) (OpenTxN int, TxN int) 
 } // end func GetBoltStat
 
 func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int) {
-	if !his.useHashDB {
+	if !his.useBboltDB {
 		return
 	}
 	if char != "" {
@@ -142,7 +142,7 @@ func (his *HISTORY) GetBoltStats(char string, print bool) (OpenTxN int, TxN int)
 } // end func GetBoltStats
 
 func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
-	if !his.useHashDB {
+	if !his.useBboltDB {
 		return
 	}
 	if char != "" {
@@ -169,7 +169,7 @@ func (his *HISTORY) GetBoltBucketStats(char string, print bool) {
 
 func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
 	var stats bolt.Stats
-	if !his.useHashDB {
+	if !his.useBboltDB {
 		return stats, nil
 	}
 	if db == nil {
@@ -184,7 +184,7 @@ func (his *HISTORY) getDBStats(db *bolt.DB) (bolt.Stats, error) {
 
 func (his *HISTORY) getBucketStats(db *bolt.DB, bucket string) (bolt.BucketStats, error) {
 	var stats bolt.BucketStats
-	if !his.useHashDB {
+	if !his.useBboltDB {
 		return stats, nil
 	}
 	if db == nil {
