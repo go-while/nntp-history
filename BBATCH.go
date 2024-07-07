@@ -162,12 +162,12 @@ fetchbatch:
 			shdb = ashdb
 			break
 		}
-		defer his.shdbpool.ReturnDB(shdb)
 		for _, bo := range batch1 {
 			for _, offset := range bo.offsets {
 				his.shdbpool.InsertOffset(bo.hash, offset, shdb)
 			}
 		}
+		his.shdbpool.ReturnDB(shdb)
 	} // end if len(batch1)
 
 
