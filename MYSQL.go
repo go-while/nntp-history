@@ -18,58 +18,58 @@ type SQL struct {
 	dsn     string
 	maxOpen int
 	isOpen  int
-	timeout int64
+	Timeout int64
 } // end func SQLhandler
 
 type DBopts struct {
-	username string
-	password string
-	hostname string
-	dbname   string
+	Username string
+	Password string
+	Hostname string
+	DBname   string
 	params   string
-	maxopen  int
-	initopen int
-	tcpmode  string
-	timeout  int64
+	MaxOpen  int
+	InitOpen int
+	TCPmode  string
+	Timeout  int64
 }
 
 type DBconn struct {
 	db      *sql.DB
-	timeout int64
+	Timeout int64
 }
 
 /*
-createTables := true
-
+	createTables := true
 	shortHashDBpool, err := history.NewSQLpool(&history.DBopts{
-	    username: "xxx",
-	    password: "xxx",
-	    hostname: "xxx",
-	    dbname: "xxx",
-	    maxopen: "128",
-	    initopen: "16",
-	    tcpmode: "tcp4",
-	    timeout: 55,
+	    Username: "xxx",
+	    Password: "xxx",
+	    Hostname: "xxx",
+	    DBname: "xxx",
+	    MaxOpen: 128,
+	    InitOpen: 16,
+	    TCPmode: "tcp4",
+	    Timeout: 55,
 	}, createTables)
 */
+
 func NewSQLpool(opts *DBopts, createTables bool) (*SQL, error) {
-	if opts.maxopen <= 0 {
-		opts.maxopen = 1
+	if opts.MaxOpen <= 0 {
+		opts.MaxOpen = 1
 	}
-	if createTables && opts.initopen <= 0 {
-		opts.initopen = 1
+	if createTables && opts.InitOpen <= 0 {
+		opts.InitOpen = 1
 	}
 	s := &SQL{}
-	if opts.timeout < 5 {
-		opts.timeout = 5
+	if opts.Timeout < 5 {
+		opts.Timeout = 5
 		if opts.params == "" {
-			opts.params = fmt.Sprintf("?timeout=%ds", opts.timeout+5)
+			opts.params = fmt.Sprintf("?Timeout=%ds", opts.Timeout+5)
 		} else {
-			opts.params = opts.params + fmt.Sprintf("&timeout=%ds", opts.timeout+5)
+			opts.params = opts.params + fmt.Sprintf("&Timeout=%ds", opts.Timeout+5)
 		}
 	}
-	s.timeout = opts.timeout
-	switch opts.tcpmode {
+	s.Timeout = opts.Timeout
+	switch opts.TCPmode {
 	case "tcp":
 		// pass
 	case "tcp4":
@@ -77,12 +77,12 @@ func NewSQLpool(opts *DBopts, createTables bool) (*SQL, error) {
 	case "tcp6":
 		// pass
 	default:
-		opts.tcpmode = "tcp"
+		opts.TCPmode = "tcp"
 	}
-	s.maxOpen = opts.maxopen
+	s.maxOpen = opts.MaxOpen
 	s.DBs = make(chan *DBconn, s.maxOpen)
-	s.dsn = fmt.Sprintf("%s:%s@%s(%s)/%s%s", opts.username, opts.password, opts.tcpmode, opts.hostname, opts.dbname, opts.params)
-	for i := 0; i < opts.initopen; i++ {
+	s.dsn = fmt.Sprintf("%s:%s@%s(%s)/%s%s", opts.Username, opts.Password, opts.TCPmode, opts.Hostname, opts.DBname, opts.params)
+	for i := 0; i < opts.InitOpen; i++ {
 		db, err := s.GetDB(false)
 		if err != nil {
 			return nil, err
@@ -152,7 +152,7 @@ func (s *SQL) GetOffsets(key string, db *sql.DB) ([]int64, error) {
 } // end func GetOffsets
 
 func (s *SQL) NewConn() (*sql.DB, error) {
-	// [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
+	// [Username[:Password]@][protocol[(address)]]/DBname[?param1=value1&...&paramN=valueN]
 	db, err := sql.Open("mysql", s.dsn)
 	if err != nil {
 		log.Printf("ERROR history NewConn 'open' failed err='%v'", err)
@@ -194,11 +194,11 @@ func (s *SQL) GetDB(wait bool) (db *sql.DB, err error) {
 		if s.isOpen > 0 {
 			s.ctr.RUnlock()
 			dbconn := <-s.DBs
-			if dbconn.timeout > utils.UnixTimeSec() {
+			if dbconn.Timeout > utils.UnixTimeSec() {
 				db = dbconn.db
 				return
 			}
-			// dbconn is timeout
+			// dbconn is Timeout
 			if dbconn.db != nil {
 				err = dbconn.db.Ping()
 				if err != nil {
@@ -241,7 +241,7 @@ func (s *SQL) GetDB(wait bool) (db *sql.DB, err error) {
 } // end func GetDB
 
 func (s *SQL) ReturnDB(db *sql.DB) {
-	s.DBs <- &DBconn{db: db, timeout: utils.UnixTimeSec() + s.timeout}
+	s.DBs <- &DBconn{db: db, Timeout: utils.UnixTimeSec() + s.Timeout}
 } // end func ReturnDB
 
 func (s *SQL) CloseDB(db *sql.DB) {
@@ -272,14 +272,14 @@ func (s *SQL) ClosePool() {
 	} // end for
 } // end func ClosePool
 
-func (s *SQL) SetMaxOpen(maxopen int) {
-	if maxopen < 0 {
-		maxopen = 0
+func (s *SQL) SetMaxOpen(MaxOpen int) {
+	if MaxOpen < 0 {
+		MaxOpen = 0
 	}
 	s.ctr.Lock()
-	s.maxOpen = maxopen
+	s.maxOpen = MaxOpen
 	s.ctr.Unlock()
-	log.Printf("sql.SetMaxOpen=%d", maxopen)
+	log.Printf("sql.SetMaxOpen=%d", MaxOpen)
 } // end func SetMaxOpen
 
 func (s *SQL) GetIsOpen() int {

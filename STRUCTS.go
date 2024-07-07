@@ -65,6 +65,7 @@ type HISTORY struct {
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
 	TCPchan chan *HistoryObject
 	ticker  map[string]chan struct{}
+	shdbpool      *SQL //shorthash db pool
 }
 
 /* builds the history.dat header */

@@ -147,6 +147,16 @@ func main() {
 	if useBboltDB && useMYSQL {
 		log.Fatalf("cannot useBboltDB && useMYSQL")
 	}
+	dbOpts := &history.DBopts{
+			Username: "root",
+			Password: "",
+			Hostname: "localhost",
+			DBname: "shdb",
+			MaxOpen: 128,
+			InitOpen: 16,
+			TCPmode: "tcp4",
+			Timeout: 55,
+	}
 	debug.SetGCPercent(SetGCPercent)
 	/*
 		if BoltDB_MaxBatchDelay == -1 {
@@ -260,7 +270,7 @@ func main() {
 	}
 
 	if RunTCPonly {
-		history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, useMYSQL, boltOpts, KeyAlgo, KeyLen)
+		history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, useMYSQL, boltOpts, dbOpts, KeyAlgo, KeyLen)
 		history.History.Wait4HashDB()
 		select {}
 
@@ -355,7 +365,7 @@ func main() {
 	if useBboltDB {
 		fmt.Printf(" boltOpts='%#v'\n", boltOpts)
 	}
-	history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, useMYSQL, boltOpts, KeyAlgo, KeyLen)
+	history.History.BootHistory(HistoryDir, HashDBDir, useBboltDB, useMYSQL, boltOpts, dbOpts, KeyAlgo, KeyLen)
 	history.History.Wait4HashDB()
 	// check command line arguments to execute commands
 	if RebuildHashDB {
