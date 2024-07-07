@@ -93,7 +93,15 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltD
 
 	his.useBboltDB = useBboltDB
 	his.useMYSQL = useMYSQL
-
+	if his.useMYSQL {
+		// connect shorthash db
+		createTables := true
+		shdbpool, err := NewSQLpool(dbopts, createTables)
+		if err != nil {
+			log.Fatalf("ERROR Boot History shdb NewSQLpool err='%#v'", err)
+		}
+		his.shdbpool = shdbpool
+	}
 	go his.startServer(DefaultServerTCPAddr, DefaultSocketPath)
 
 	if NumQueueWriteChan <= 0 {
