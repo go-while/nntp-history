@@ -3,6 +3,7 @@ package history
 import (
 	"bufio"
 	"fmt"
+	"github.com/go-while/go-cpu-mem-profiler"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
 	"io"
@@ -12,7 +13,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-	"github.com/go-while/go-cpu-mem-profiler"
 )
 
 const (

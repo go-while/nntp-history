@@ -52,9 +52,9 @@ type L2MUXER struct {
 }
 
 type L2pqQ struct {
-	que chan *L2PQItem
-	mux sync.RWMutex // pq.mux.Lock()
-	pqC chan struct{}
+	que  chan *L2PQItem
+	mux  sync.RWMutex // pq.mux.Lock()
+	pqC  chan struct{}
 	char string
 }
 
@@ -295,7 +295,7 @@ forever:
 } // end func Push
 
 func (pq *L2pqQ) Push_TryNewCode(item *L2PQItem) {
-	 // everyone readLocks on entering the function
+	// everyone readLocks on entering the function
 	pq.mux.RLock()
 	rlocked := true
 forever:
@@ -335,14 +335,14 @@ forever:
 			}
 
 			newchan := make(chan *L2PQItem, newsize)
-			suck:
+		suck:
 			for {
 				select {
-					case aitem := <- pq.que:
-						newchan <- aitem
-					default:
-						// sucked channel empty
-						break suck
+				case aitem := <-pq.que:
+					newchan <- aitem
+				default:
+					// sucked channel empty
+					break suck
 				}
 			}
 			// replace channel

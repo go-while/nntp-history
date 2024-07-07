@@ -21,13 +21,13 @@ import (
 	//"runtime/pprof"
 	"strconv"
 	//"syscall"
-	"time"
 	"github.com/go-while/go-cpu-mem-profiler"
+	"time"
 )
 
 var (
 	TESTHASH = history.TESTHASH
-	Prof = history.Prof
+	Prof     = history.Prof
 )
 
 func main() {

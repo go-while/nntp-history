@@ -56,7 +56,7 @@ type L1MUXER struct {
 type L1pqQ struct {
 	que chan *L1PQItem
 	//mux sync.Mutex // pq.mux.Lock()
-	pqC chan struct{}
+	pqC  chan struct{}
 	char string
 }
 

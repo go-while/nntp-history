@@ -55,11 +55,11 @@ func tryRWLockWithTimeout(m *sync.RWMutex, timeout time.Duration, readLocked boo
 	}(m, notifyLocked, readLocked)
 
 	select {
-		case <- notifyLocked:
-			gotlock = true
-		case <- timeout_Chan:
-			// pass
-			go m.Unlock() // fire an unlock for the timeouted Lock?
+	case <-notifyLocked:
+		gotlock = true
+	case <-timeout_Chan:
+		// pass
+		go m.Unlock() // fire an unlock for the timeouted Lock?
 	}
 
 	return
