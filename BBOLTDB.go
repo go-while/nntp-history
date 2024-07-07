@@ -2,7 +2,6 @@ package history
 
 import (
 	//"bytes"
-	"encoding/gob"
 	"fmt"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
@@ -141,7 +140,6 @@ func (his *HISTORY) boltDB_Init(boltOpts *bolt.Options) {
 		return
 	}
 
-	gob.Register(HistorySettings{})
 	his.L2Cache.BootL2Cache(his)
 	his.L3Cache.BootL3Cache(his)
 
