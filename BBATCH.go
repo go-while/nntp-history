@@ -1,6 +1,7 @@
 package history
 
 import (
+	"database/sql"
 	"fmt"
 	bolt "go.etcd.io/bbolt"
 	"log"
@@ -106,8 +107,9 @@ fetchbatch:
 	<-his.ticker[char]
 
 	var inserted uint64
-	if len(batch1) > 0 {
-		start1 := UnixTimeMicroSec()
+	start1 := UnixTimeMicroSec()
+
+	if len(batch1) > 0 && his.useBboltDB {
 		if err := db.Batch(func(tx *bolt.Tx) error {
 			var err error
 			root := tx.Bucket([]byte(bucket))
@@ -146,27 +148,50 @@ fetchbatch:
 			return 0, inserted, err, true // closed
 		}
 
-		// batch insert to boltDB done, pass to CacheEvict
+	} else
+	if len(batch1) > 0 && his.useMYSQL {
+		// TODO!
+		var shdb *sql.DB
+		for {
+			ashdb, shdberr := his.shdbpool.GetDB(true)
+			if shdberr != nil || shdb == nil {
+				log.Printf("ERROR boltBucketPutBatch shdberr='%#v'", shdberr)
+				time.Sleep(time.Second)
+				continue
+			}
+			shdb = ashdb
+			break
+		}
+		defer his.shdbpool.ReturnDB(shdb)
 		for _, bo := range batch1 {
-			//if bo.offsets == nil || len(*bo.offsets) == 0 {
-			//	log.Printf("ERROR boltBucketPutBatch pre DoCacheEvict bo.offsets nil or empty")
-			//	continue
-			//}
-			//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
-			cachekey := bo.char + bo.bucket + bo.key
-			his.DoCacheEvict(bo.char, bo.hash, 0, cachekey)
 			for _, offset := range bo.offsets {
-				// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
-				his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
+				his.shdbpool.InsertOffset(bo.hash, offset, shdb)
 			}
 		}
-		insert1_took := UnixTimeMicroSec() - start1
-		if DBG_BS_LOG {
-			his.batchLog(&BatchLOG{c: char, b: bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
+	} // end if len(batch1)
+
+
+	// batch insert to boltDB done, pass to CacheEvict
+	for _, bo := range batch1 {
+		//if bo.offsets == nil || len(*bo.offsets) == 0 {
+		//	log.Printf("ERROR boltBucketPutBatch pre DoCacheEvict bo.offsets nil or empty")
+		//	continue
+		//}
+		//logf(DEBUG2, "INFO boltBucketPutBatch pre DoCacheEvict char=%s hash=%s offsets='%#v' key=%s", *bo.char, *bo.hash, *bo.offsets, *bo.key)
+		cachekey := bo.char + bo.bucket + bo.key
+		his.DoCacheEvict(bo.char, bo.hash, 0, cachekey)
+		for _, offset := range bo.offsets {
+			// dont pass the hash down with these offsets as the hash does NOT identify the offsets, but the key!
+			his.DoCacheEvict(his.L2Cache.OffsetToChar(offset), EmptyStr, offset, EmptyStr)
 		}
-		// debugs adaptive batchsize
-		//logf(DBG_ABS1, "INFO bboltPutBatch: [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
 	}
+	insert1_took := UnixTimeMicroSec() - start1
+	if DBG_BS_LOG {
+		his.batchLog(&BatchLOG{c: char, b: bucket, i: inserted, t: insert1_took, w: workerCharBucketBatchSize})
+	}
+	// debugs adaptive batchsize
+	//logf(DBG_ABS1, "INFO bboltPutBatch: [%s|%s] DBG_ABS1 Batch=%05d Ins=%05d wCBBS=%05d lft=%04d f=%d ( took %d micros ) ", char, bucket, len(batch1), inserted, workerCharBucketBatchSize, lastflush, bool2int(forced), insert1_took)
+
 	if inserted > 0 {
 		go his.Sync_upcounterN("inserted", inserted) // +N
 		go his.Sync_upcounter("batchins")            // ++

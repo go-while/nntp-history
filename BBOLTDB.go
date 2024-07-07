@@ -297,8 +297,10 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		return
 	}
 	defer UNLOCKfunc(HISTORY_INDEX_LOCK16, "boltDB_Worker "+char)
+	var db *bolt.DB
 	dbpath := his.hisDatDB + "." + char
-	if boltOpts == nil {
+
+	if his.useBboltDB && boltOpts == nil {
 		defboltOpts := bolt.Options{
 			Timeout:         9 * time.Second,
 			InitialMmapSize: 1024 * 1024 * 1024, // yes 128gb! avoids fragmentation on growing?
@@ -310,55 +312,59 @@ func (his *HISTORY) boltDB_Worker(char string, i int, indexchan chan *HistoryInd
 		}
 		boltOpts = &defboltOpts
 	}
-	db, err := bolt.Open(dbpath, 0600, boltOpts)
-	if err != nil {
-		log.Printf("ERROR HashDB dbpath='%s' err='%v'", dbpath, err)
-		return
-	}
-	if BoltDB_MaxBatchSize > 0xFFFF {
-		BoltDB_MaxBatchSize = 0xFFFF
-	}
-	if BoltDB_MaxBatchSize >= 0 {
-		db.MaxBatchSize = BoltDB_MaxBatchSize
-	}
-
-	if BoltDB_MaxBatchDelay >= 0 {
-		//if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
-		db.MaxBatchDelay = BoltDB_MaxBatchDelay
-	}
-	if BoltDB_AllocSize > 0xFFFFF {
-		db.AllocSize = BoltDB_AllocSize
-	}
-	//logf(DEBUG2, "boltDB_Worker: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
-	his.BoltDBsMap.dbptr[char].mux.Lock()
-	his.BoltDBsMap.dbptr[char].BoltDB = db
-	his.BoltDBsMap.dbptr[char].mux.Unlock()
-	tocheck, checked, created := his.rootBUCKETS, 0, 0
-
-	his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
-	logf(DEBUG2, "boltDB_Worker [%s] ROOTBUCKETS=%d * SUBBUCKETS=%d", char, len(ROOTBUCKETS), len(SUBBUCKETS))
-	for _, bucket := range ROOTBUCKETS {
-		retbool, err := his.boltCreateBucket(db, char, bucket)
-		if err != nil || !retbool {
-			if err == bolt.ErrBucketExists {
-				checked++
-			} else {
-				log.Printf("ERROR boltDB_Worker INIT HashDB boltCreateBucket [%s|%s] err='%v' retbool=%t", char, bucket, err, retbool)
-				return
-			}
-		} else if retbool {
-			created++ // <= bucket has been created
-			checked++
+	if his.useBboltDB {
+		bdb, berr := bolt.Open(dbpath, 0600, boltOpts)
+		if berr != nil {
+			log.Printf("ERROR bolt.Open dbpath='%s' err='%v'", dbpath, berr)
+			return
 		}
-		//log.Printf("boltDB_Worker char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tcheck)
-	}
-	<-his.boltInitChan
+		db = bdb
+		if BoltDB_MaxBatchSize > 0xFFFF {
+			BoltDB_MaxBatchSize = 0xFFFF
+		}
+		if BoltDB_MaxBatchSize >= 0 {
+			db.MaxBatchSize = BoltDB_MaxBatchSize
+		}
 
-	logf(DEBUG1, "boltDB_Worker [%s] ROOTBUCKETS checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
-	if checked != tocheck || (created > 0 && created != tocheck) {
-		log.Printf("ERROR boltDB_Worker INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
-		return
-	}
+		if BoltDB_MaxBatchDelay >= 0 {
+			//if BoltDB_MaxBatchDelay > 0 && BoltDB_MaxBatchDelay <= 1000 {
+			db.MaxBatchDelay = BoltDB_MaxBatchDelay
+		}
+		if BoltDB_AllocSize > 0xFFFFF {
+			db.AllocSize = BoltDB_AllocSize
+		}
+		//logf(DEBUG2, "boltDB_Worker: INIT HashDB [%s] db='%#v' db.MaxBatchSize=%d db.MaxBatchDelay=%d db.AllocSize=%d", char, db, db.MaxBatchSize, db.MaxBatchDelay, db.AllocSize)
+		his.BoltDBsMap.dbptr[char].mux.Lock()
+		his.BoltDBsMap.dbptr[char].BoltDB = db
+		his.BoltDBsMap.dbptr[char].mux.Unlock()
+		tocheck, checked, created := his.rootBUCKETS, 0, 0
+
+		his.boltInitChan <- struct{}{} // locks parallel intializing of boltDBs
+		logf(DEBUG2, "boltDB_Worker [%s] ROOTBUCKETS=%d * SUBBUCKETS=%d", char, len(ROOTBUCKETS), len(SUBBUCKETS))
+		for _, bucket := range ROOTBUCKETS {
+			retbool, err := his.boltCreateBucket(db, char, bucket)
+			if err != nil || !retbool {
+				if err == bolt.ErrBucketExists {
+					checked++
+				} else {
+					log.Printf("ERROR boltDB_Worker INIT HashDB boltCreateBucket [%s|%s] err='%v' retbool=%t", char, bucket, err, retbool)
+					return
+				}
+			} else if retbool {
+				created++ // <= bucket has been created
+				checked++
+			}
+			//log.Printf("boltDB_Worker char=%s checked %d/%d created=%d/%d", char, checked, tocheck, created, tcheck)
+		}
+		<-his.boltInitChan
+
+		logf(DEBUG1, "boltDB_Worker [%s] ROOTBUCKETS checked=%d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+		if checked != tocheck || (created > 0 && created != tocheck) {
+			log.Printf("ERROR boltDB_Worker INIT [%s] checked %d/%d created=%d/%d", char, checked, tocheck, created, tocheck)
+			return
+		}
+	} // end if his.useBboltDB
+
 	his.setBoltHashOpen()
 
 	timeout := 90                // waits 90sec for the history.dat file to be created
@@ -839,6 +845,8 @@ func (his *HISTORY) boltBucketKeyPutOffsets(db *bolt.DB, char string, bucket str
 	}
 
 	// puts offset into batchQ
+
+	log.Printf("batchQueue <- BatchOffset hash='%s'=%d char='%s'=%d", hash, len(hash), char, len(char))
 	batchQueue <- &BatchOffset{bucket: bucket, key: key, encodedOffsets: encodedOffsets, hash: hash, char: char, offsets: offsets}
 	return
 } // end func boltBucketKeyPutOffsets
