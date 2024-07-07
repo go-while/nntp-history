@@ -75,7 +75,7 @@ func main() {
 	// these 4 make up the HistorySettings too and are constants once DBs are initialized!
 
 	flag.IntVar(&KeyAlgo, "keyalgo", history.HashShort, "11=HashShort (default, no other option)")
-	flag.IntVar(&KeyLen, "keylen", 8, "min:8 | default:8")
+	flag.IntVar(&KeyLen, "keylen", 10, "min:8 | default:8")
 	flag.IntVar(&history.KeyIndex, "keyindex", 1, "0-... (creates 16^N sub buckets per root bucket per db!") // use n chars of key for sub buckets. cuts KeyLen by this.
 	flag.IntVar(&history.RootBUCKETSperDB, "RootBUCKETSperDB", 16, "16, 256, 4096")
 	// experimental flags
