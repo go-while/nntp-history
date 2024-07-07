@@ -3,6 +3,7 @@ package history
 import (
 	"bufio"
 	"fmt"
+	"encoding/gob"
 	"github.com/go-while/go-cpu-mem-profiler"
 	"github.com/go-while/go-utils"
 	bolt "go.etcd.io/bbolt"
@@ -94,6 +95,7 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltD
 	his.useBboltDB = useBboltDB
 	his.useMYSQL = useMYSQL
 	if his.useMYSQL {
+		NumBBoltDBs = 4096
 		// connect shorthash db
 		createTables := true
 		shdbpool, err := NewSQLpool(dbopts, createTables)
@@ -322,11 +324,12 @@ func (his *HISTORY) BootHistory(history_dir string, hashdb_dir string, useBboltD
 		his.cutKey = his.keyIndex
 		SUBBUCKETS = generateCombinations(HEXCHARS, his.keyIndex, []string{}, []string{})
 	}
+	gob.Register(HistorySettings{})
 
 	his.L1Cache.BootL1Cache(his)
 	log.Printf("L1Cache Booted")
-	if his.useBboltDB {
-		log.Printf("Booting boltDB")
+	if his.useBboltDB || his.useMYSQL {
+		log.Printf("Booting useBboltDB=%t useMYSQL=%t", his.useBboltDB, his.useMYSQL)
 		his.boltDB_Init(boltOpts)
 		log.Printf("boltDB init done")
 	}
