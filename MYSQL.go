@@ -76,7 +76,7 @@ func NewSQLpool(opts *DBopts, createTables bool) (*SQL, error) {
 	if opts.maxopen <= 0 {
 		opts.maxopen = 1
 	}
-	if create && opts.initopen <= 0 {
+	if createTables && opts.initopen <= 0 {
 		opts.initopen = 1
 	}
 	s := &SQL{}
@@ -184,7 +184,7 @@ func (s *SQL) NewConn() (*sql.DB, error) {
 		return nil, err
 	}
 	return db, nil
-} // end func connSQL
+} // end func NewConn
 
 func (s *SQL) ShortHashDB_CreateTables() (error) {
 	db, err := s.GetDB(true)
