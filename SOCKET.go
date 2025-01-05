@@ -180,40 +180,38 @@ forever:
 				continue forever
 			}
 
-			if his.useHashDB {
-				isDup, err := his.IndexQuery(hobj.MessageIDHash, indexRetChan, FlagSearch)
-				if err != nil {
-					log.Printf("FALSE IndexQuery hash=%s", hobj.MessageIDHash)
-					break forever
+			isDup, err := his.IndexQuery(hobj.MessageIDHash, indexRetChan, FlagSearch)
+			if err != nil {
+				log.Printf("FALSE IndexQuery hash=%s err='%#v'", hobj.MessageIDHash, err)
+				break forever
+			}
+			switch isDup {
+			case CasePass:
+				// pass
+			case CaseDupes:
+				// we locked the hash but IndexQuery replied with Duplicate
+				// set L1 cache to Dupe and expire
+				his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
+				//dupes++
+				if hobj.ResponseChan != nil {
+					hobj.ResponseChan <- isDup
 				}
-				switch isDup {
-				case CasePass:
-					// pass
-				case CaseDupes:
-					// we locked the hash but IndexQuery replied with Duplicate
-					// set L1 cache to Dupe and expire
-					his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
-					//dupes++
-					if hobj.ResponseChan != nil {
-						hobj.ResponseChan <- isDup
-					}
-					continue forever
-				case CaseRetry:
-					// we locked the hash but IndexQuery replied with Retry
-					// set L1 cache to Retry and expire
-					his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
-					//retry++
-					if hobj.ResponseChan != nil {
-						hobj.ResponseChan <- isDup
-					}
-					continue forever
-				default:
-					log.Printf("ERROR handleSocketConn in response from IndexQuery unknown switch isDup=%d", isDup)
-					break forever
+				continue forever
+			case CaseRetry:
+				// we locked the hash but IndexQuery replied with Retry
+				// set L1 cache to Retry and expire
+				his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
+				//retry++
+				if hobj.ResponseChan != nil {
+					hobj.ResponseChan <- isDup
 				}
+				continue forever
+			default:
+				log.Printf("ERROR handleSocketConn in response from IndexQuery unknown switch isDup=%d", isDup)
+				break forever
 			}
 
-			isDup := his.AddHistory(hobj, true)
+			isDup = his.AddHistory(hobj, true)
 			if hobj.ResponseChan != nil {
 				hobj.ResponseChan <- isDup
 			}

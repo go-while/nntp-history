@@ -60,7 +60,7 @@ type L3pqQ struct {
 	pqC chan struct{}
 }
 
-type L3PQ []L3PQItem
+type L3PQ []*L3PQItem
 
 type L3PQItem struct {
 	Key     string
@@ -79,12 +79,12 @@ func (l3 *L3CACHE) BootL3Cache(his *HISTORY) {
 		log.Printf("ERROR L3CACHESetup already loaded!")
 		return
 	}
-	l3.Caches = make(map[string]*L3CACHEMAP, NumHashDBs)
-	l3.Extend = make(map[string]*L3ECH, NumHashDBs)
-	l3.Muxers = make(map[string]*L3MUXER, NumHashDBs)
-	l3.Counter = make(map[string]*CCC)
-	l3.pqQueue = make(map[string]*L3pqQ, NumHashDBs)
-	for _, char := range ROOTDBS {
+	l3.Caches = make(map[string]*L3CACHEMAP, 16)
+	l3.Extend = make(map[string]*L3ECH, 16)
+	l3.Muxers = make(map[string]*L3MUXER, 16)
+	l3.Counter = make(map[string]*CCC, 16)
+	l3.pqQueue = make(map[string]*L3pqQ, 16)
+	for _, char := range HEXCHARS {
 		l3.Caches[char] = &L3CACHEMAP{cache: make(map[string]*L3ITEM, L3InitSize)}
 		l3.Extend[char] = &L3ECH{ch: make(chan *L3PQItem, his.cEvCap)}
 		l3.Muxers[char] = &L3MUXER{}
@@ -124,7 +124,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 	extC := l3.Extend[char]
 	mux := l3.Muxers[char]
 	pq := l3.pqQueue[char]
-	pushq, pushmax, pushcnt := make([]L3PQItem, clearEv), clearEv, 0
+	pushq, pushmax, pushcnt := make([]*L3PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l3purge) * time.Second)
 
@@ -136,8 +136,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
 				//log.Printf("L3 pushq append pqitem=%#v", pqitem)
-				pushq[pushcnt] = *pqitem
-				pqitem = nil
+				pushq[pushcnt] = pqitem
 				pushcnt++
 			} else {
 				log.Printf("ERROR L3 pqExtend extC.ch <- nil pointer")
@@ -161,7 +160,7 @@ func (l3 *L3CACHE) pqExtend(char string) {
 				}
 				pq.mux.Unlock()
 
-				pushq, pushcnt = make([]L3PQItem, clearEv), 0
+				pushq, pushcnt = make([]*L3PQItem, clearEv), 0
 			}
 		}
 		if timeout {
@@ -184,7 +183,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 		return
 	}
 	if char == "" {
-		char = string(key[:his.cutKey])
+		char = string(key[:his.cutChar])
 	}
 	if offsets == nil {
 		return
@@ -197,7 +196,7 @@ func (l3 *L3CACHE) SetOffsets(key string, char string, offsets []int64, flagexpi
 
 	if flagexpires {
 		pq.mux.Lock()
-		pq.Push(L3PQItem{Key: key, Expires: L3CacheExpires})
+		pq.Push(&L3PQItem{Key: key, Expires: L3CacheExpires})
 		pq.mux.Unlock()
 
 	}
@@ -257,7 +256,7 @@ func (l3 *L3CACHE) GetOffsets(key string, char string, offsets *[]int64, his *HI
 		return 0
 	}
 	if char == "" {
-		char = string(key[:his.cutKey])
+		char = string(key[:his.cutChar])
 	}
 	ptr := l3.Caches[char]
 	//cnt := l3.Counter[char]
@@ -312,7 +311,7 @@ func valueExistsInSliceReverseOrder(value int64, slice []int64) bool {
 	return false
 }
 
-func (pq *L3pqQ) Push(item L3PQItem) {
+func (pq *L3pqQ) Push(item *L3PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	*pq.que = append(*pq.que, item)
 } // end func Push
@@ -329,7 +328,7 @@ func (pq *L3pqQ) Pop() (*L3PQItem, int) {
 	pq.mux.Unlock()
 	item := old[0]
 	old = nil
-	return &item, lenpq
+	return item, lenpq
 } // end func Pop
 
 // Remove expired items from the cache

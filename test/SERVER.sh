@@ -1,1 +1,0 @@
-./nntp-history-test -RunTCPonly

@@ -58,7 +58,7 @@ type L1pqQ struct {
 	pqC chan struct{}
 }
 
-type L1PQ []L1PQItem
+type L1PQ []*L1PQItem
 
 type L1PQItem struct {
 	Key     string
@@ -77,12 +77,12 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		log.Printf("ERROR L1CACHESetup already loaded!")
 		return
 	}
-	l1.Caches = make(map[string]*L1CACHEMAP, NumHashDBs)
-	l1.Extend = make(map[string]*L1ECH, NumHashDBs)
-	l1.Muxers = make(map[string]*L1MUXER, NumHashDBs)
-	l1.Counter = make(map[string]*CCC, NumHashDBs)
-	l1.pqQueue = make(map[string]*L1pqQ, NumHashDBs)
-	for _, char := range ROOTDBS {
+	l1.Caches = make(map[string]*L1CACHEMAP, 16)
+	l1.Extend = make(map[string]*L1ECH, 16)
+	l1.Muxers = make(map[string]*L1MUXER, 16)
+	l1.Counter = make(map[string]*CCC, 16)
+	l1.pqQueue = make(map[string]*L1pqQ, 16)
+	for _, char := range HEXCHARS {
 		//log.Printf("L1 Boot [%s]", char)
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
@@ -131,9 +131,6 @@ func (l1 *L1CACHE) LockL1Cache(hash string, value int, his *HISTORY) int {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
 		cnt.Counter["Count_Locked"]++
-		if !his.useHashDB {
-			value = CaseDupes
-		}
 		ptr.cache[hash] = &L1ITEM{value: value}
 		mux.mux.Unlock()
 		if L1LockDelay > 0 {
@@ -172,7 +169,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	extC := l1.Extend[char]
 	mux := l1.Muxers[char]
 	pq := l1.pqQueue[char]
-	pushq, pushmax, pushcnt := make([]L1PQItem, clearEv), clearEv, 0
+	pushq, pushmax, pushcnt := make([]*L1PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
 
@@ -184,8 +181,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 		case pqitem := <-extC.ch: // receives stuff from DoCacheEvict
 			if pqitem != nil {
 				//log.Printf("L1 pushq append pqitem=%#v", pqitem)
-				pushq[pushcnt] = *pqitem
-				pqitem = nil
+				pushq[pushcnt] = pqitem
 				pushcnt++
 			} else {
 				log.Printf("ERROR L1 pqExtend extC.ch <- nil pointer")
@@ -209,7 +205,7 @@ func (l1 *L1CACHE) pqExtend(char string) {
 				}
 				pq.mux.Unlock()
 
-				pushq, pushcnt = make([]L1PQItem, clearEv), 0
+				pushq, pushcnt = make([]*L1PQItem, clearEv), 0
 			}
 		}
 		if timeout {
@@ -239,7 +235,7 @@ func (l1 *L1CACHE) Set(hash string, char string, value int, flagexpires bool, hi
 
 	if flagexpires {
 		pq.mux.Lock()
-		pq.Push(L1PQItem{Key: hash, Expires: L1CacheExpires})
+		pq.Push(&L1PQItem{Key: hash, Expires: L1CacheExpires})
 		pq.mux.Unlock()
 	}
 	mux.mux.Lock()
@@ -291,7 +287,7 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	return
 } // end func L1Stats
 
-func (pq *L1pqQ) Push(item L1PQItem) {
+func (pq *L1pqQ) Push(item *L1PQItem) {
 	item.Expires = time.Now().UnixNano() + item.Expires*int64(time.Second)
 	*pq.que = append(*pq.que, item)
 } // end func Push
@@ -308,7 +304,7 @@ func (pq *L1pqQ) Pop() (*L1PQItem, int) {
 	pq.mux.Unlock()
 	item := old[0]
 	old = nil
-	return &item, lenpq
+	return item, lenpq
 } // end func Pop
 
 // Remove expired items from the cache
