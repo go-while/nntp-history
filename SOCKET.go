@@ -167,19 +167,7 @@ forever:
 				tadded = 0
 			}
 
-			retval := his.L1Cache.LockL1Cache(hobj.MessageIDHash, CaseLock, his) // checks and locks hash for processing
-			switch retval {
-			case CasePass:
-				//history.History.Sync_upcounter("L1CACHE_Lock")
-				//locked++
-				// pass
-			default:
-				if hobj.ResponseChan != nil {
-					hobj.ResponseChan <- retval
-				}
-				continue forever
-			}
-
+			// Since we removed L1Cache, we proceed directly to IndexQuery
 			isDup, err := his.IndexQuery(hobj.MessageIDHash, indexRetChan, FlagSearch)
 			if err != nil {
 				log.Printf("FALSE IndexQuery hash=%s err='%#v'", hobj.MessageIDHash, err)
@@ -189,18 +177,14 @@ forever:
 			case CasePass:
 				// pass
 			case CaseDupes:
-				// we locked the hash but IndexQuery replied with Duplicate
-				// set L1 cache to Dupe and expire
-				his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
+				// Hash is a duplicate
 				//dupes++
 				if hobj.ResponseChan != nil {
 					hobj.ResponseChan <- isDup
 				}
 				continue forever
 			case CaseRetry:
-				// we locked the hash but IndexQuery replied with Retry
-				// set L1 cache to Retry and expire
-				his.DoCacheEvict(hobj.Char, hobj.MessageIDHash, 0, "")
+				// IndexQuery replied with Retry
 				//retry++
 				if hobj.ResponseChan != nil {
 					hobj.ResponseChan <- isDup

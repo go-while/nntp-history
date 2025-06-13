@@ -24,36 +24,30 @@ type HISTORY struct {
 	mux            sync.Mutex // global history mutex used to boot
 	cmux           sync.Mutex // sync counter mutex
 	boltmux        sync.Mutex // locks boltdb to protect BoltDBsMap
-	L1Cache        L1CACHE
-	L2Cache        L2CACHE
-	L3Cache        L3CACHE
-	Offset         int64                   // the actual offset for history.dat
-	hisDat         string                  // = "history/history.dat"
+	Offset         int64      // the actual offset for history.dat
+	hisDat         string     // = "history/history.dat"
 	cutChar        int
-	WriterChan     chan *HistoryObject     // history.dat writer channel
-	IndexChan      chan *HistoryIndex      // main index query channel
-	indexChans     [NumCacheDBs]chan *HistoryIndex // sub-index channels
-	//BatchLogs      BatchLOGGER
+	WriterChan     chan *HistoryObject  // history.dat writer channel
+	IndexChan      chan *HistoryIndex   // main index query channel
+	indexChans     []chan *HistoryIndex // sub-index channels (dynamic based on NumCacheDBs)
 	charsMap       map[string]int
 	CutCharRO      int
 	keyalgo        int
 	keylen         int
-	//win            bool
 	Counter        map[string]uint64
 	cacheEvicts    map[string]chan *ClearCache
-	//adaptBatch     bool // AdaptiveBatchSize
 	WBR            bool // WatchBoltRunning
 	cEvCap         int  // cacheEvictsCapacity
 	indexPar       int  // IndexParallel
-	//cutFirst       int  // used to set startindex for cutHashlen
 	reopenDBeveryN int  // reopens hashDB every N added key:vals (not batchins)
 	wantReOpen     map[string]chan struct{}
-	//rootBUCKETS    int
 	CPUfile        *os.File // ptr to file for cpu profiling
 	MEMfile        *os.File // ptr to file for mem profiling
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
 	TCPchan chan *HistoryObject
 	ticker  map[string]chan struct{}
+	// MySQL RocksDB connection pool
+	MySQLPool *SQL
 }
 
 /* builds the history.dat header */
@@ -92,11 +86,11 @@ type ClearCache struct {
 
 type OffsetData struct {
 	Shorthash string // first N chars of hash
-	Offset int64
+	Offset    int64
 }
 
 type SQLiteData struct {
-	table string // first N chars of hash
-	key string
+	table   string // first N chars of hash
+	key     string
 	offsets []int64
 }

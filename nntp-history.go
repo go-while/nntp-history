@@ -3,7 +3,6 @@ package history
 import (
 	"bufio"
 	"fmt"
-	"github.com/go-while/go-utils"
 	"io"
 	"log"
 	"math/rand"
@@ -11,14 +10,16 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/go-while/go-utils"
 )
 
 const (
-	HashShort  = 0x0B // 11
+	HashShort = 0x0B // 11
 	//KeyIndex   = 0
-	MinKeyLen  = 8
-	NumCacheDBs = 16
-	ALWAYS = true
+	KeyLen      = 7    // Fixed key length for MySQL 3-level hex structure (7 chars after 3-char table prefix)
+	NumCacheDBs = 4096 // Changed from 16 to 4096 for 3-level hex (16^3 = 4096)
+	ALWAYS      = true
 	// DefExpiresStr use 10 digits as spare so we can update it later without breaking offsets
 	DefExpiresStr string = "----------" // never expires
 	CaseLock             = 0xFF         // internal cache state. reply with CaseRetry while CaseLock
@@ -36,33 +37,33 @@ const (
 var (
 	ForcedReplay         bool
 	NoReplayHisDat       bool
-	BatchFlushEvery      int64 = 5120                            // milliseconds
-	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)          // main lock
+	BatchFlushEvery      int64 = 5120                             // milliseconds
+	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)           // main lock
 	HISTORY_INDEX_LOCK16       = make(chan struct{}, NumCacheDBs) // sub locks
 	BootVerbose                = true
 	//TESTHASH0                  = "0f05e27ca579892a63a256dacd657f5615fab04bf81e85f53ee52103e3a4fae8"
 	//TESTHASH1                  = "f0d784ae13ce7cf1f3ab076027a6265861eb003ad80069cdfb1549dd1b8032e8"
 	//TESTHASH2                  = "f0d784ae1747092974d02bd3359f044a91ed4fd0a39dc9a1feffe646e6c7ce09"
-	TESTHASH                     = ""
+	TESTHASH = ""
 	//TESTCACKEY                 = "f0d784ae1"
 	//TESTKEY                    = "784ae1"
 	//TESTBUK                    = "0d"
 	//TESTDB                     = "f"
 	//TESTOFFSET                 = 123456
-	ROOTDBS              []string
+	ROOTDBS []string
 	//ROOTBUCKETS          []string
 	//SUBBUCKETS           []string
-	BUFLINES             = 10
-	BUFIOBUFFER          = 102 * BUFLINES // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
-	History              HISTORY
-	DEBUG                bool = true
-	DEBUG0               bool = false
-	DEBUG1               bool = false
-	DEBUG2               bool = false
-	DEBUG9               bool = false
-	LOCKHISTORY               = make(chan struct{}, 1)
-	HEXCHARS                  = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
-	eofhash                   = "EOF"
+	BUFLINES    = 10
+	BUFIOBUFFER = 102 * BUFLINES // a history line with sha256 is 102 bytes long including LF or 38 bytes of payload + hashLen
+	History     HISTORY
+	DEBUG       bool = true
+	DEBUG0      bool = false
+	DEBUG1      bool = false
+	DEBUG2      bool = false
+	DEBUG9      bool = false
+	LOCKHISTORY      = make(chan struct{}, 1)
+	HEXCHARS         = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	eofhash          = "EOF"
 )
 
 // BootHistory initializes the history component, configuring its settings and preparing it for operation.
@@ -137,8 +138,8 @@ func (his *HISTORY) BootHistory(history_dir string, keylen int) {
 	// default history settings
 	his.keyalgo = HashShort
 	his.keylen = keylen
-	if his.keylen < MinKeyLen {
-		log.Printf("ERROR BootHistory keylen=%d < MinKeyLen=%d", keylen, MinKeyLen)
+	if his.keylen != KeyLen {
+		log.Printf("ERROR BootHistory keylen=%d != KeyLen=%d (fixed for MySQL 3-level hex structure)", keylen, KeyLen)
 		os.Exit(1)
 	}
 	history_settings := &HistorySettings{Ka: his.keyalgo, Kl: his.keylen}
@@ -215,12 +216,7 @@ func (his *HISTORY) BootHistory(history_dir string, keylen int) {
 	}
 	//his.CutCharRO = his.cutChar
 
-	his.L1Cache.BootL1Cache(his)
-	his.L2Cache.BootL2Cache(his)
-	his.L3Cache.BootL3Cache(his)
-	log.Printf("Caches Booted")
-
-	his.hashDB_Init("")
+	his.hashDB_Init("mysql")
 	log.Printf("hashDB init done")
 
 	//his.CacheEvictThread(NumCacheEvictThreads) // hardcoded
@@ -246,9 +242,7 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	// blocks if channel is full
 	his.WriterChan <- hobj
 
-	//if (his.useHashDB || useL1Cache) && hobj.ResponseChan != nil {
-	//if hobj.ResponseChan != nil {
-	// wait for reponse from ResponseChan
+	// wait for response from ResponseChan
 	select {
 	case isDup, ok := <-hobj.ResponseChan:
 		if !ok {
@@ -259,8 +253,6 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 			return isDup
 		}
 	} // end select
-	//} // end responseChan
-	return -987
 } // end func AddHistory
 
 /*
@@ -375,7 +367,7 @@ forever:
 				case CaseAdded:
 					// pass
 				default:
-					log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x", err, isDup, isDup)
+					log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x", isDup, isDup)
 					break forever
 				} // end switch isDup
 			} // end select
@@ -468,9 +460,7 @@ func writeHistoryHeader(dw *bufio.Writer, data []byte, offset *int64, flush bool
 				return err
 			}
 		}
-		if offset != nil {
-			*offset += int64(wb)
-		}
+		*offset += int64(wb)
 	}
 	return nil
 } // end func writeHistoryHeader
@@ -491,13 +481,6 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		}
 		defer file.Close()
 	}
-	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] check L2 offset=%d", char, bucket, offset)
-	his.L2Cache.GetHashFromOffset(offset, rethash)
-	if *rethash != "" {
-		return nil
-	}
-	//logf(hash == TESTHASH0, "FSEEK [%s|%s] L2Cache.GetHashFromOffset=%d => hash='%s' return hash", char, bucket, offset, hash)
-	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] TEST L2 offset=%d", char, bucket, offset)
 
 	// Seek to the specified offset
 	_, seekErr := file.Seek(offset, 0)
@@ -505,10 +488,8 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 		log.Printf("ERROR FseekHistoryMessageHash seekErr='%v' fp='%s'", seekErr, his.hisDat)
 		return seekErr
 	}
-	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] seeking offset=%d", char, bucket, offset)
 
 	reader := bufio.NewReaderSize(file, 67) // {sha256}\t
-	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] reading offset=%d", char, bucket, offset)
 
 	// Read until the first tab character
 	result, err := reader.ReadString('\t')
@@ -523,16 +504,13 @@ func (his *HISTORY) FseekHistoryMessageHash(file *os.File, offset int64, char st
 	}
 	go his.Sync_upcounter("FSEEK")
 	result = strings.TrimSuffix(result, "\t")
-	//logf(offset == TESTOFFSET, "FSEEK [%s|%s] result=%d='%s' offset=%d", char, bucket, len(result), result, offset)
 
 	if len(result) > 0 {
 		if result[0] != '{' || result[len(result)-1] != '}' {
 			return fmt.Errorf("ERROR FseekHistoryMessageHash BAD line @offset=%d result='%s'", offset, result)
 		}
 		if len(result[1:len(result)-1]) == 64 { // sha256
-			//logf(hash == TESTHASH, "FSEEK [%s|%s] @offset=%d => hash='%s'", char, bucket, offset, hash)
 			*rethash = result[1 : len(result)-1]
-			his.L2Cache.SetOffsetHash(offset, *rethash, FlagExpires)
 			return nil
 		}
 	}
@@ -690,6 +668,106 @@ func (his *HISTORY) hashDB_Worker(char string, i int, indexchan chan *HistoryInd
 	}
 	defer UNLOCKfunc(HISTORY_INDEX_LOCK16, "hashDB_Worker "+char)
 
+	logf(DEBUG2, "Boot hashDB_Worker [%s]", char)
+	defer logf(DEBUG2, "Quit hashDB_Worker [%s]", char)
+
+forever:
+	for {
+		select {
+		case hi, ok := <-indexchan:
+			if !ok {
+				logf(DEBUG2, "hashDB_Worker [%s] indexchan closed", char)
+				break forever
+			}
+			if hi == nil {
+				logf(DEBUG2, "hashDB_Worker [%s] received nil pointer", char)
+				break forever
+			}
+			if hi.IndexRetChan == nil {
+				log.Printf("ERROR hashDB_Worker [%s] hi.IndexRetChan=nil", char)
+				continue forever
+			}
+
+			// Extract the key from the hash (first 3 chars for table, next 7 chars for key)
+			if len(hi.Hash) < 10 { // need at least 10 chars: 3 for table + 7 for key
+				log.Printf("ERROR hashDB_Worker [%s] hash too short: %s", char, hi.Hash)
+				hi.IndexRetChan <- CaseError
+				continue forever
+			}
+
+			// Use first 10 chars: first 3 for table selection, next 7 as key
+			fullKey := hi.Hash[:10]
+
+			if hi.Offset == -1 {
+				// Query mode: check if hash exists
+				offsets, err := his.MySQLPool.GetOffsets(fullKey, nil)
+				if err != nil {
+					log.Printf("ERROR hashDB_Worker [%s] GetOffsets fullKey='%s' err='%v'", char, fullKey, err)
+					hi.IndexRetChan <- CaseRetry
+					continue forever
+				}
+
+				if len(offsets) > 1 {
+					// Multiple offsets: need to check history.dat file at each offset to find exact match
+					found := false
+					for _, offset := range offsets {
+						var hashFromFile string
+						err := his.FseekHistoryMessageHash(nil, offset, char, &hashFromFile)
+						if err != nil {
+							log.Printf("ERROR hashDB_Worker [%s] FseekHistoryMessageHash offset=%d err='%v'", char, offset, err)
+							continue
+						}
+						if hashFromFile == hi.Hash {
+							// Found exact match in history.dat
+							found = true
+							break
+						}
+					}
+					if found {
+						hi.IndexRetChan <- CaseDupes
+						go his.Sync_upcounter("duplicates")
+					} else {
+						// Full hash not found, it's new
+						hi.IndexRetChan <- CasePass
+					}
+				} else if len(offsets) == 1 {
+					// Single offset: need to verify it's the same full hash
+					var hashFromFile string
+					err := his.FseekHistoryMessageHash(nil, offsets[0], char, &hashFromFile)
+					if err != nil {
+						log.Printf("ERROR hashDB_Worker [%s] FseekHistoryMessageHash offset=%d err='%v'", char, offsets[0], err)
+						hi.IndexRetChan <- CaseRetry
+						continue forever
+					}
+					if hashFromFile == hi.Hash {
+						// Exact match found
+						hi.IndexRetChan <- CaseDupes
+						go his.Sync_upcounter("duplicates")
+					} else {
+						// Different full hash, it's new
+						hi.IndexRetChan <- CasePass
+					}
+				} else {
+					// Hash doesn't exist, it's new
+					hi.IndexRetChan <- CasePass
+				}
+			} else if hi.Offset > 0 {
+				// Insert mode: add hash with offset
+				err := his.MySQLPool.InsertOffset(fullKey, hi.Offset, nil)
+				if err != nil {
+					log.Printf("ERROR hashDB_Worker [%s] InsertOffset fullKey='%s' offset=%d err='%v'", char, fullKey, hi.Offset, err)
+					hi.IndexRetChan <- CaseRetry
+					continue forever
+				}
+
+				hi.IndexRetChan <- CaseAdded
+				go his.Sync_upcounter("inserted")
+			} else {
+				log.Printf("ERROR hashDB_Worker [%s] invalid offset: %d", char, hi.Offset)
+				hi.IndexRetChan <- CaseError
+			}
+		}
+	}
 } // end func boltDB_Worker
 
 func (his *HISTORY) SET_DEBUG(debug int) {
@@ -737,18 +815,18 @@ func (his *HISTORY) CLOSE_HISTORY() {
 
 		batchQ, batchLOCKS := 0, 0
 		//if his.useHashDB {
-			/*
+		/*
 			for _, char := range ROOTDBS {
 				for _, bucket := range ROOTBUCKETS {
 					batchQ += len(his.batchQueues.Maps[char][bucket])
 					batchLOCKS += len(his.BatchLocks[char].bl[bucket].ch)
 				}
 			}
-			*/
+		*/
 		//}
 		batchQueued := batchQ > 0
 		batchLocked := batchLOCKS > 0
-		if !lock1 && !lock2 && !lock2 && !lock3 && !lock5 && !batchQueued && !batchLocked {
+		if !lock1 && !lock2 && !lock3 && !lock5 && !batchQueued && !batchLocked {
 			break
 		}
 		// if batchQ < NumCacheDBs*RootBuckets: it's most likely remaining 'nil' pointers which should be returned on next BatchFlushEvery
