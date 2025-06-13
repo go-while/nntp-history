@@ -34,7 +34,7 @@ type HISTORY struct {
 	keyalgo    int
 	keylen     int
 	Counter    map[string]uint64
-	WBR        bool     // WatchBoltRunning
+	WBR        bool     // WatchDBRunning
 	cEvCap     int      // cacheEvictsCapacity
 	indexPar   int      // IndexParallel
 	CPUfile    *os.File // ptr to file for cpu profiling

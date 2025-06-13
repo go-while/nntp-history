@@ -1,9 +1,6 @@
 package history
 
 import (
-	//"fmt"
-	//"github.com/go-while/go-utils"
-	//bolt "go.etcd.io/bbolt"
 	"log"
 	"time"
 )
@@ -33,48 +30,36 @@ func (his *HISTORY) GetCounter(k string) uint64 {
 	return retval
 } // end func GetCounter
 
-func (his *HISTORY) WatchBolt() { // unused, but kept for reference
-	// this function was used to watch the performance of the BoltDB
+func (his *HISTORY) WatchDB() { // MySQL database performance monitoring
+	// this function watches the performance of the MySQL RocksDB
 	his.mux.Lock()
 	if his.WBR {
 		his.mux.Unlock()
 		return
 	}
 	his.WBR = true
-	//go his.PrintBoltPerformance()
 	his.mux.Unlock()
 
-	WatchBoltTimer := 10 // every N seconds
-	uWatchBoltTimer := uint64(WatchBoltTimer)
+	WatchDBTimer := 10 // every N seconds
+	uWatchDBTimer := uint64(WatchDBTimer)
 	var inserted uint64
-	var batchins uint64
 	var searches uint64
-	ticker := time.NewTicker(time.Duration(WatchBoltTimer) * time.Second)
+	ticker := time.NewTicker(time.Duration(WatchDBTimer) * time.Second)
 	for range ticker.C {
 		insertednow := his.GetCounter("inserted")
-		batchinsnow := his.GetCounter("batchins")
 		searchesnow := his.GetCounter("searches")
 		if insertednow > inserted {
 			diff := insertednow - inserted
-			pps := float64(diff) / float64(uWatchBoltTimer)
-			log.Printf("WatchBolt: (inserted %.2f/s) (+%d inserted in %ds)", pps, diff, WatchBoltTimer)
+			pps := float64(diff) / float64(uWatchDBTimer)
+			log.Printf("WatchDB: (inserted %.2f/s) (+%d inserted in %ds)", pps, diff, WatchDBTimer)
 			inserted = insertednow
-		}
-		if batchinsnow > batchins {
-			if insertednow > 0 {
-				diff := batchinsnow - batchins
-				pps := float64(diff) / float64(uWatchBoltTimer)
-				medbatchsize := uint64(insertednow / batchinsnow)
-				log.Printf("WatchBolt: (batchins %.2f/s) (+%d batchins in %ds) medBS=~%d", pps, diff, WatchBoltTimer, medbatchsize)
-			}
-			batchins = batchinsnow
 		}
 		if searchesnow > searches {
 			diff := searchesnow - searches
-			pps := float64(diff) / float64(uWatchBoltTimer)
-			log.Printf("WatchBolt: (searches %.2f/s) (+%d searches in %ds)", pps, diff, WatchBoltTimer)
+			pps := float64(diff) / float64(uWatchDBTimer)
+			log.Printf("WatchDB: (searches %.2f/s) (+%d searches in %ds)", pps, diff, WatchDBTimer)
 			searches = searchesnow
 		}
 	}
-	log.Printf("ERROR WatchBolt returned!")
-} // end func WatchBolt
+	log.Printf("ERROR WatchDB returned!")
+} // end func WatchDB

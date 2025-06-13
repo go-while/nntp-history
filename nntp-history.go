@@ -255,27 +255,6 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 	} // end select
 } // end func AddHistory
 
-/*
-func (his *HISTORY) Wait4HashDB() {
-	if his.useHashDB {
-		now := time.Now().Unix()
-		for {
-			time.Sleep(10 * time.Millisecond)
-			if len(BoltHashOpen) == NumCacheDBs {
-				//logf(DEBUG2, "Booted HashDB")
-				return
-			}
-			took := time.Now().Unix() - now
-			if took >= 15 {
-				log.Printf("Wait booting HashDB")
-				now = time.Now().Unix()
-			}
-		}
-		log.Printf("Wait4HashDB OK his.batchQueues.BootCh=%d", len(his.batchQueues.BootCh))
-	}
-} // end func Wait4HashDB
-*/
-
 // history_Writer writes historical data to the specified file and manages the communication with the history database (HashDB).
 // It listens to incoming HistoryObject structs on th* WriterChan channel, processes them, and writes formatted data to the file.
 // If an index channel (IndexChan) is provided, it also interacts with the history database for duplicate checks.
@@ -588,7 +567,7 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 		select {
 		case isDup, ok := <-indexRetChan:
 			if !ok {
-				return -999, fmt.Errorf("ERROR IndexQuery indexRetChan closed! error in boltDB_Worker")
+				return -999, fmt.Errorf("ERROR IndexQuery indexRetChan closed! error in hashDB_Worker")
 			}
 			return isDup, nil
 		} // end select
@@ -604,7 +583,7 @@ func (his *HISTORY) hashDB_Index() {
 	}
 	defer UNLOCKfunc(HISTORY_INDEX_LOCK, "hashDB_Index")
 	//his.Wait4HashDB()
-	//logf(DEBUG2, "Boot boltDB_Index")
+	//logf(DEBUG2, "Boot hashDB_Index")
 	if DEBUG2 {
 		defer log.Printf("Quit hashDB_Index")
 	}
@@ -618,7 +597,7 @@ func (his *HISTORY) hashDB_Index() {
 				select {
 				case hi, ok := <-his.IndexChan: // receives a HistoryIndex struct and passes it down to '0-9a-f' workers
 					if !ok {
-						//logf(DEBUG2, "Stopping boltDB_Index IndexChan closed")
+						//logf(DEBUG2, "Stopping hashDB_Index IndexChan closed")
 						break forever
 					}
 					if hi == nil || len(hi.Hash) < 64 { // allow at least sha256
@@ -628,11 +607,11 @@ func (his *HISTORY) hashDB_Index() {
 						default:
 							his.IndexChan <- nil
 						}
-						logf(DEBUG2, "Stopping boltDB_Index IndexChan p=%d/%d received nil pointer", p, his.indexPar)
+						logf(DEBUG2, "Stopping hashDB_Index IndexChan p=%d/%d received nil pointer", p, his.indexPar)
 						break forever
 					}
 					if hi.Offset == 0 {
-						log.Printf("ERROR boltDB_Index offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
+						log.Printf("ERROR hashDB_Index offset=0") // must: Offset -1 to checkonly OR Offset > 0 adds to hashDB
 						break forever
 					}
 
@@ -640,10 +619,10 @@ func (his *HISTORY) hashDB_Index() {
 					// hex.EncodeToString returns a lowercased string of a hashsum
 					char = strings.ToLower(string(hi.Hash[:his.cutChar]))
 
-					//logf(hi.Hash == TESTHASH0, "boltDB_Index hash='%s' hi.Offset=%d C1=%s chan=%d/%d",
+					//logf(hi.Hash == TESTHASH0, "hashDB_Index hash='%s' hi.Offset=%d C1=%s chan=%d/%d",
 					//	hi.Hash, hi.Offset, C1, len(his.indexChans[his.charsMap[C1]]), cap(his.indexChans[his.charsMap[C1]]))
 
-					// sends object to hash boltDB_Worker char
+					// sends object to hashDB_Worker char
 					his.indexChans[his.charsMap[char]] <- hi
 				} // end select
 			} // end for
@@ -657,10 +636,10 @@ func (his *HISTORY) hashDB_Index() {
 		}
 	}
 	for _, achan := range his.indexChans {
-		// passing nils to indexChans will stop boltDB_Worker
+		// passing nils to indexChans will stop hashDB_Worker
 		achan <- nil
 	}
-} // end func boltDB_Index
+} // end func hashDB_Index
 
 func (his *HISTORY) hashDB_Worker(char string, i int, indexchan chan *HistoryIndex) {
 	if !LOCKfunc(HISTORY_INDEX_LOCK16, "hashDB_Worker "+char) {
@@ -768,7 +747,7 @@ forever:
 			}
 		}
 	}
-} // end func boltDB_Worker
+} // end func hashDB_Worker
 
 func (his *HISTORY) SET_DEBUG(debug int) {
 	if debug < 0 {
@@ -807,7 +786,6 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		lock1, v1 := len(LOCKHISTORY) > 0, len(LOCKHISTORY)
 		lock2, v2 := len(HISTORY_INDEX_LOCK) > 0, len(HISTORY_INDEX_LOCK)
 		lock3, v3 := len(HISTORY_INDEX_LOCK16) > 0, len(HISTORY_INDEX_LOCK16)
-		//lock4, v4 := his.GetBoltHashOpen() > 0, his.GetBoltHashOpen()
 		lock5, v5 := false, 0
 		//if his.useHashDB {
 		//	lock5, v5 = len(his.batchQueues.BootCh) > 0, len(his.batchQueues.BootCh)
