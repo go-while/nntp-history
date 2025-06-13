@@ -303,20 +303,18 @@ func (s *SQL) ClosePool() {
 	log.Printf("sql.ClosePool")
 	defer log.Printf("sql.ClosePool returned")
 	for {
-		select {
-		case dbconn := <-s.DBs:
-			if dbconn.db != nil {
-				dbconn.db.Close()
-			}
-			s.ctr.Lock()
-			s.isOpen--
-			isopen := s.isOpen
-			s.ctr.Unlock()
-			log.Printf("sql.ClosePool: open %d/%d", isopen, s.maxOpen)
-			if isopen == 0 {
-				return
-			}
-		} // end select
+		dbconn := <-s.DBs
+		if dbconn.db != nil {
+			dbconn.db.Close()
+		}
+		s.ctr.Lock()
+		s.isOpen--
+		isopen := s.isOpen
+		s.ctr.Unlock()
+		log.Printf("sql.ClosePool: open %d/%d", isopen, s.maxOpen)
+		if isopen == 0 {
+			return
+		}
 	} // end for
 } // end func ClosePool
 

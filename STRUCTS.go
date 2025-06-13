@@ -20,32 +20,27 @@ type HISTORY struct {
 	 *   set, change, update values only inside (his *HISTORY) functions and
 	 *   don't forget mutex where needed or run into race conditions.
 	 */
-	DIR            string     // path to folder: history/
-	mux            sync.Mutex // global history mutex used to boot
-	cmux           sync.Mutex // sync counter mutex
-	boltmux        sync.Mutex // locks boltdb to protect BoltDBsMap
-	Offset         int64      // the actual offset for history.dat
-	hisDat         string     // = "history/history.dat"
-	cutChar        int
-	WriterChan     chan *HistoryObject  // history.dat writer channel
-	IndexChan      chan *HistoryIndex   // main index query channel
-	indexChans     []chan *HistoryIndex // sub-index channels (dynamic based on NumCacheDBs)
-	charsMap       map[string]int
-	CutCharRO      int
-	keyalgo        int
-	keylen         int
-	Counter        map[string]uint64
-	cacheEvicts    map[string]chan *ClearCache
-	WBR            bool // WatchBoltRunning
-	cEvCap         int  // cacheEvictsCapacity
-	indexPar       int  // IndexParallel
-	reopenDBeveryN int  // reopens hashDB every N added key:vals (not batchins)
-	wantReOpen     map[string]chan struct{}
-	CPUfile        *os.File // ptr to file for cpu profiling
-	MEMfile        *os.File // ptr to file for mem profiling
+	DIR        string     // path to folder: history/
+	mux        sync.Mutex // global history mutex used to boot
+	cmux       sync.Mutex // sync counter mutex
+	Offset     int64      // the actual offset for history.dat
+	hisDat     string     // = "history/history.dat"
+	cutChar    int
+	WriterChan chan *HistoryObject  // history.dat writer channel
+	IndexChan  chan *HistoryIndex   // main index query channel
+	indexChans []chan *HistoryIndex // sub-index channels (dynamic based on NumCacheDBs)
+	charsMap   map[string]int
+	CutCharRO  int
+	keyalgo    int
+	keylen     int
+	Counter    map[string]uint64
+	WBR        bool     // WatchBoltRunning
+	cEvCap     int      // cacheEvictsCapacity
+	indexPar   int      // IndexParallel
+	CPUfile    *os.File // ptr to file for cpu profiling
+	MEMfile    *os.File // ptr to file for mem profiling
 	// TCPchan: used to send hobj via handleRConn to a remote historyServer
 	TCPchan chan *HistoryObject
-	ticker  map[string]chan struct{}
 	// MySQL RocksDB connection pool
 	MySQLPool *SQL
 }
@@ -75,13 +70,6 @@ type HistoryIndex struct {
 	Char         string   // first N chars of hash
 	Offset       int64    // used to search: -1 or add: > 0 a hash
 	IndexRetChan chan int // receives a 0,1,2 :: pass|duplicate|retrylater
-}
-
-type ClearCache struct {
-	char   string // db
-	hash   string // l1 key
-	offset int64  // l2 key
-	key    string // l3 key
 }
 
 type OffsetData struct {

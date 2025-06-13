@@ -97,28 +97,26 @@ func (his *HISTORY) handleRConn(dead chan struct{}, conn net.Conn, tp *textproto
 	defer conn.Close()
 forever:
 	for {
-		select {
-		case hobj := <-his.TCPchan: // receives a HistoryObject from another world
-			//log.Printf("handleRConn TCPchan received hobj='%#v'", hobj)
-			if hobj == nil {
-				// received nil pointer, closing rconn
-				break forever
-			}
-			// send add command to HistoryServer
-			hobjStr := ConvertHistoryObjectToString(hobj)
-			err := tp.PrintfLine("ADD %s %s", CRC(hobjStr), hobjStr)
-			if err != nil {
-				break forever
-			}
-			// reads reply
-			isDup, message, err := tp.Reader.ReadCodeLine(CaseAdded)
-			if err != nil && isDup <= 0 {
-				log.Printf("ERROR handleRConn ReadCodeLine err='%v' code=%d msg=%s", err, isDup, message)
-			}
-			// returns reply up to ResponseChan
-			if hobj.ResponseChan != nil {
-				hobj.ResponseChan <- isDup
-			}
+		hobj := <-his.TCPchan // receives a HistoryObject from another world
+		//log.Printf("handleRConn TCPchan received hobj='%#v'", hobj)
+		if hobj == nil {
+			// received nil pointer, closing rconn
+			break forever
+		}
+		// send add command to HistoryServer
+		hobjStr := ConvertHistoryObjectToString(hobj)
+		err := tp.PrintfLine("ADD %s %s", CRC(hobjStr), hobjStr)
+		if err != nil {
+			break forever
+		}
+		// reads reply
+		isDup, message, err := tp.Reader.ReadCodeLine(CaseAdded)
+		if err != nil && isDup <= 0 {
+			log.Printf("ERROR handleRConn ReadCodeLine err='%v' code=%d msg=%s", err, isDup, message)
+		}
+		// returns reply up to ResponseChan
+		if hobj.ResponseChan != nil {
+			hobj.ResponseChan <- isDup
 		}
 	}
 	dead <- struct{}{}

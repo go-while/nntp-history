@@ -33,8 +33,8 @@ func (his *HISTORY) GetCounter(k string) uint64 {
 	return retval
 } // end func GetCounter
 
-func (his *HISTORY) WatchBolt() {
-	return
+func (his *HISTORY) WatchBolt() { // unused, but kept for reference
+	// this function was used to watch the performance of the BoltDB
 	his.mux.Lock()
 	if his.WBR {
 		his.mux.Unlock()

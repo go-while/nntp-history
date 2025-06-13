@@ -208,7 +208,7 @@ forever:
 func ConvertStringToHistoryObject(parts []string) (*HistoryObject, error) {
 	//log.Printf("ConvertStringToHistoryObject parts='%#v'=%d", parts, len(parts))
 	if len(parts) != 5 {
-		return nil, fmt.Errorf("Invalid input string format")
+		return nil, fmt.Errorf("invalid input string format")
 	}
 
 	arrival, err := strconv.ParseInt(parts[2], 10, 64)
@@ -236,7 +236,7 @@ func ConvertStringToHistoryObject(parts []string) (*HistoryObject, error) {
 func getRemoteIP(conn net.Conn) string {
 	remoteAddr := conn.RemoteAddr()
 	if tcpAddr, ok := remoteAddr.(*net.TCPAddr); ok {
-		return fmt.Sprintf("%s", tcpAddr.IP)
+		return string(tcpAddr.IP)
 	}
 	return "x"
 }

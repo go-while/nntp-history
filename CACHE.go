@@ -19,15 +19,6 @@ var (
 	ClearEveryN                 = 16
 )
 
-// CharCacheCounter
-type CCC struct {
-	Counter map[string]uint64 // counter key: value
-}
-
-type ClearCacheChan struct {
-	ch chan []*ClearCache
-}
-
 // DoCacheEvict - stub function (cache layers removed)
 func (his *HISTORY) DoCacheEvict(char string, hash string, offset int64, key string) {
 	// Cache functionality removed - this is now a no-op stub
