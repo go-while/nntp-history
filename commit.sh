@@ -19,7 +19,7 @@ test -z "$DESCRIPTION" && DESCRIPTION="patch-$now"
 git add .
 
 # Commit with subject and description
-git commit -m "$SUBJECT" -m "$DESCRIPTION"
+COMMIT=$(git commit -m "$SUBJECT" -m "$DESCRIPTION")
 
 # Check if commit was successful
 if [ $? -eq 0 ]; then
@@ -27,6 +27,9 @@ if [ $? -eq 0 ]; then
     git push
     if [ $? -eq 0 ]; then
         echo "Push successful!"
+	echo "$COMMIT"
+	HASH=$(echo "$COMMIT"|head -1|cut -d"[" -f2|cut -d"]" -f1)
+	cd ../nntp-history_test && ./go-get.sh "$HASH"
     else
         echo "Push failed!"
         exit 1
