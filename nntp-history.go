@@ -37,6 +37,7 @@ const (
 var (
 	ForcedReplay         bool
 	NoReplayHisDat       bool
+	UseHashDB            bool = true                              // controls whether to use hash database for duplicate detection
 	BatchFlushEvery      int64 = 5120                             // milliseconds
 	HISTORY_INDEX_LOCK         = make(chan struct{}, 1)           // main lock
 	HISTORY_INDEX_LOCK16       = make(chan struct{}, NumCacheDBs) // sub locks
@@ -216,8 +217,12 @@ func (his *HISTORY) BootHistory(history_dir string, keylen int) {
 	}
 	//his.CutCharRO = his.cutChar
 
-	his.hashDB_Init("mysql")
-	log.Printf("hashDB init done")
+	if UseHashDB {
+		his.hashDB_Init("mysql")
+		log.Printf("hashDB init done")
+	} else {
+		log.Printf("hashDB disabled - running without duplicate detection")
+	}
 
 	//his.CacheEvictThread(NumCacheEvictThreads) // hardcoded
 
