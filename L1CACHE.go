@@ -352,7 +352,7 @@ cleanup:
 		*/
 		//logf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
 		if pq == nil {
-			//logf(DEBUGL1, "L1 pqExpire [%s] pq is nil, sleeping", char)
+			logf(true, "L1 pqExpire [%s] pq is nil, sleeping", char)
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
 		}
@@ -364,10 +364,10 @@ cleanup:
 		if item.Expires > time.Now().UnixNano() {
 			isleep = item.Expires - time.Now().UnixNano()
 			if isleep >= int64(1*time.Millisecond) {
-				logf(DEBUGL1, "L1 pqExpire [%s] POS sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
+				//logf(DEBUGL1, "L1 pqExpire [%s] POS sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 				time.Sleep(time.Duration(isleep))
 			} else {
-				logf(DEBUGL1, "L1 pqExpire [%s] NEG sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
+				//logf(DEBUGL1, "L1 pqExpire [%s] NEG sleep=(%d ms) nanos=(%d) lenpq=%d", char, isleep/1e6, isleep, lenpq)
 			}
 		}
 
