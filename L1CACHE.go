@@ -346,7 +346,7 @@ cleanup:
 				dq, lf, dqcnt = make([]string, ClearEveryN), now, 0
 			}
 		*/
-		dlogf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
+		logf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
 		item, lenpq = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
