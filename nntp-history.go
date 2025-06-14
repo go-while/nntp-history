@@ -861,7 +861,7 @@ func (his *HISTORY) CLOSE_HISTORY() {
 		log.Printf("WAIT CLOSE_HISTORY: lock1=%t=%d lock2=%t=%d lock3=%t=%d lock5=%t=%d batchQueued=%t=%d batchLocked=%t=%d", lock1, v1, lock2, v2, lock3, v3, lock5, v5, batchQueued, batchQ, batchLocked, batchLOCKS)
 		time.Sleep(time.Second)
 	}
-	his.WriterChan = nil
+	//his.WriterChan = nil
 	if his.CPUfile != nil {
 		his.stopCPUProfile(his.CPUfile)
 	}
