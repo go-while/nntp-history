@@ -3,6 +3,7 @@ package history
 import (
 	//"container/heap"
 	"log"
+	"os"
 	"sync"
 	"time"
 )
@@ -174,7 +175,10 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	pushq, pushmax, pushcnt := make([]*L1PQItem, clearEv), clearEv, 0
 	timeout := false
 	timer := time.NewTimer(time.Duration(l1purge) * time.Second)
-
+	if extC == nil {
+		log.Printf("ERROR L1 pqExtend extC is nil for char='%s'", char)
+		os.Exit(1)
+	}
 	//forever:
 	for {
 		select {
@@ -348,7 +352,7 @@ cleanup:
 		*/
 		logf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
 		if pq == nil {
-			logf(DEBUGL1, "L1 pqExpire [%s] pq is nil, exiting", char)
+			logf(DEBUGL1, "L1 pqExpire [%s] pq is nil, sleeping", char)
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
 		}
