@@ -359,23 +359,22 @@ forever:
 				hobj.ResponseChan <- isDup
 			}
 			switch isDup {
-				case CaseDupes:
-					continue forever
-				case CaseRetry:
-					// got EOF retry from dupecheck. flush history file so next check may hit
-					if err := dw.Flush(); err != nil {
-						log.Printf("ERROR history_Writer dw.Flush err='%v'", err)
-						break forever
-					}
-					log.Printf("INFO history_Writer CaseRetry EOF flushed hisDat hash='%s' offset=%d", hobj.MessageIDHash, his.Offset)
-					continue forever
-				case CaseAdded:
-					// pass
-				default:
-					log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x", isDup, isDup)
+			case CaseDupes:
+				continue forever
+			case CaseRetry:
+				// got EOF retry from dupecheck. flush history file so next check may hit
+				if err := dw.Flush(); err != nil {
+					log.Printf("ERROR history_Writer dw.Flush err='%v'", err)
 					break forever
-				} // end switch isDup
-			} // end select
+				}
+				log.Printf("INFO history_Writer CaseRetry EOF flushed hisDat hash='%s' offset=%d", hobj.MessageIDHash, his.Offset)
+				continue forever
+			case CaseAdded:
+				// pass
+			default:
+				log.Printf("ERROR history_Writer unknown Switch after indexRetChan: isDup=%d=%x", isDup, isDup)
+				break forever
+			} // end switch isDup
 
 			if err := his.writeHistoryLine(dw, hobj, flush, &wbt, &buffered); err != nil {
 				log.Printf("ERROR history_Writer writeHistoryLine err='%v'", err)
