@@ -327,7 +327,7 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
 	pq := l1.pqQueue[char]
-	lenpq := 0
+	//lenpq := 0
 	var item *L1PQItem
 	var isleep int64
 	l1purge := L1Purge
@@ -356,7 +356,7 @@ cleanup:
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
 		}
-		item, lenpq = pq.Pop()
+		item, _ = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
