@@ -28,7 +28,7 @@ if [ $? -eq 0 ]; then
     if [ $? -eq 0 ]; then
         echo "Push successful!"
 	echo "$COMMIT"
-	HASH=$(echo "$COMMIT"|head -1|cut -d"[" -f2|cut -d"]" -f1)
+	HASH=$(echo "$COMMIT"|head -1|cut -d"[" -f2|cut -d"]" -f1|cut -d" " -f2)
 	cd ../nntp-history_test && ./go-get.sh "$HASH"
     else
         echo "Push failed!"

@@ -945,3 +945,86 @@ func (his *HISTORY) BatchTicker(char string, ticker chan struct{}) {
 		time.Sleep(time.Duration(isleep) * time.Millisecond)
 	}
 }
+
+// InitializeDatabase initializes either MySQL or SQLite3 database backend
+func (his *HISTORY) InitializeDatabase(useMySQL bool) error {
+	return his.InitializeDatabaseWithSharding(useMySQL, SHARD_SINGLE_DB)
+}
+
+// InitializeDatabaseWithSharding initializes database backend with specific sharding mode
+func (his *HISTORY) InitializeDatabaseWithSharding(useMySQL bool, shardMode int) error {
+	if useMySQL {
+		// Initialize MySQL RocksDB
+		his.hashDB_Init("mysql")
+		log.Printf("Initialized MySQL RocksDB backend")
+	} else {
+		// Initialize SQLite3 with specified sharding mode
+		err := his.InitSQLite3WithSharding(shardMode)
+		if err != nil {
+			return fmt.Errorf("failed to initialize SQLite3 with sharding mode %d: %v", shardMode, err)
+		}
+
+		// Set sharding configuration in HISTORY struct
+		numDBs, tablesPerDB, description := GetShardConfig(shardMode)
+		his.ShardMode = shardMode
+		his.ShardDBs = numDBs
+		his.ShardTables = tablesPerDB
+
+		log.Printf("Initialized SQLite3 backend: %s", description)
+	}
+	return nil
+}
+
+// UsingSQLite3 returns true if SQLite3 backend is being used
+func (his *HISTORY) UsingSQLite3() bool {
+	return his.SQLite3Pool != nil
+}
+
+// GetShardedDB returns the underlying SQLite3ShardedDB if available
+func (his *HISTORY) GetShardedDB() (*SQLite3ShardedDB, bool) {
+	if his.SQLite3Pool == nil {
+		return nil, false
+	}
+	if shardedDB, ok := his.SQLite3Pool.(*SQLite3ShardedDB); ok {
+		return shardedDB, true
+	}
+	return nil, false
+}
+
+// Convenience functions for initializing specific sharding modes
+
+// InitializeSingleDB initializes with 1 database and 4096 tables
+func (his *HISTORY) InitializeSingleDB() error {
+	return his.InitializeDatabaseWithSharding(false, SHARD_SINGLE_DB)
+}
+
+// InitializeFullSplit initializes with 4096 separate databases
+func (his *HISTORY) InitializeFullSplit() error {
+	return his.InitializeDatabaseWithSharding(false, SHARD_FULL_SPLIT)
+}
+
+// Initialize16DB256Tables initializes with 16 databases, 256 tables each
+func (his *HISTORY) Initialize16DB256Tables() error {
+	return his.InitializeDatabaseWithSharding(false, SHARD_16_256)
+}
+
+// Initialize64DB64Tables initializes with 64 databases, 64 tables each
+func (his *HISTORY) Initialize64DB64Tables() error {
+	return his.InitializeDatabaseWithSharding(false, SHARD_64_64)
+}
+
+// Initialize128DB32Tables initializes with 128 databases, 32 tables each
+func (his *HISTORY) Initialize128DB32Tables() error {
+	return his.InitializeDatabaseWithSharding(false, SHARD_128_32)
+}
+
+// Initialize512DB8Tables initializes with 512 databases, 8 tables each
+func (his *HISTORY) Initialize512DB8Tables() error {
+	return his.InitializeDatabaseWithSharding(false, SHARD_512_8)
+}
+
+// GetShardingInfo returns current sharding configuration
+func (his *HISTORY) GetShardingInfo() (mode, numDBs, tablesPerDB int, description string) {
+	numDBs, tablesPerDB, description = GetShardConfig(his.ShardMode)
+	return his.ShardMode, numDBs, tablesPerDB, description
+}

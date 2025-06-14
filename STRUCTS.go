@@ -43,6 +43,12 @@ type HISTORY struct {
 	TCPchan chan *HistoryObject
 	// MySQL RocksDB connection pool
 	MySQLPool *SQL
+	// SQLite3 RocksDB-optimized connection pool (interface{} to avoid import issues)
+	SQLite3Pool interface{}
+	// SQLite3 sharding configuration
+	ShardMode   int // 0=1DB/4096tables, 1=4096DBs, 2=16DB/256tables, 3=64DB/64tables, 4=128DB/32tables, 5=512DB/8tables
+	ShardDBs    int // number of database files
+	ShardTables int // number of tables per database
 	// L1 cache for lightweight duplicate detection when hash DB is disabled
 	L1 L1CACHE
 }
