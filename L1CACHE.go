@@ -150,7 +150,9 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	if !L1 {
 		return
 	}
+	log.Printf("L1 pqExtend [%s] wait l1 lock", char)
 	l1.mux.Lock() // waits for BootL1Cache to unlock
+	log.Printf()"L1 pqExtend [%s] got l1 lock", char)
 	l1.mux.Unlock()
 	//logf(DEBUGL1, "Boot L1pqExtend [%s]", char)
 	//defer log.Printf("LEFT L1 [%s] pqExtend", char)
