@@ -221,7 +221,9 @@ func (his *HISTORY) BootHistory(history_dir string, keylen int) {
 		his.hashDB_Init("mysql")
 		log.Printf("hashDB init done")
 	} else {
-		log.Printf("hashDB disabled - running without duplicate detection")
+		log.Printf("hashDB disabled - initializing L1 cache for lightweight duplicate detection")
+		his.L1.BootL1Cache(his)
+		log.Printf("L1 cache init done")
 	}
 
 	//his.CacheEvictThread(NumCacheEvictThreads) // hardcoded
@@ -320,24 +322,43 @@ forever:
 				hobj.Arrival = time.Now().Unix()
 			}
 
-			// to hashdb
-			his.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
-			select {
-			case isDup, ok := <-indexRetChan:
-				if !ok {
-					log.Printf("ERROR history_Writer indexRetChan closed! error in hashDB_Worker")
-					if hobj.ResponseChan != nil {
-						close(hobj.ResponseChan) // close responseChan to client
+			// Check for duplicates using available method (hashDB or L1 cache)
+			var isDup int
+			if UseHashDB && his.IndexChan != nil {
+				// Use hash database for duplicate detection
+				his.IndexChan <- &HistoryIndex{Hash: hobj.MessageIDHash, Char: hobj.Char, Offset: his.Offset, IndexRetChan: indexRetChan}
+				select {
+				case isDup_result, ok := <-indexRetChan:
+					if !ok {
+						log.Printf("ERROR history_Writer indexRetChan closed! error in hashDB_Worker")
+						if hobj.ResponseChan != nil {
+							close(hobj.ResponseChan) // close responseChan to client
+						}
+						if his.IndexChan != nil {
+							his.IndexChan <- nil // stops history_dbz // dont close IndexChan as clients may still send requests
+						}
+						break forever
 					}
-					if his.IndexChan != nil {
-						his.IndexChan <- nil // stops history_dbz // dont close IndexChan as clients may still send requests
+					isDup = isDup_result
+				} // end select
+			} else {
+				// Use L1 cache for lightweight duplicate detection
+				result, err := his.IndexQuery(hobj.MessageIDHash, nil, his.Offset)
+				if err != nil {
+					log.Printf("ERROR history_Writer IndexQuery err='%v'", err)
+					if hobj.ResponseChan != nil {
+						hobj.ResponseChan <- CaseError
+						close(hobj.ResponseChan)
 					}
 					break forever
 				}
-				if hobj.ResponseChan != nil {
-					hobj.ResponseChan <- isDup
-				}
-				switch isDup {
+				isDup = result
+			}
+
+			if hobj.ResponseChan != nil {
+				hobj.ResponseChan <- isDup
+			}
+			switch isDup {
 				case CaseDupes:
 					continue forever
 				case CaseRetry:
@@ -558,6 +579,8 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 	if len(hash) < 64 {
 		return -999, fmt.Errorf("ERROR IndexQuery hash=nil")
 	}
+
+	// If hash database is available, use it
 	if his.IndexChan != nil {
 		if indexRetChan == nil {
 			// for frequent access betters supply a indexRetChan
@@ -577,7 +600,27 @@ func (his *HISTORY) IndexQuery(hash string, indexRetChan chan int, offset int64)
 			return isDup, nil
 		} // end select
 	}
-	return -999, fmt.Errorf("ERROR IndexQuery")
+
+	// Fallback to L1 cache when hash database is not available
+	if !UseHashDB {
+		if offset > 0 {
+			// Insert mode: add hash to L1 cache
+			his.L1.Set(hash, "", CaseAdded, true, his)
+			return CaseAdded, nil
+		} else {
+			// Query mode: check L1 cache for duplicates
+			result := his.L1.LockL1Cache(hash, CaseDupes, his)
+			if result == CasePass {
+				// Not found in cache, it's new
+				return CasePass, nil
+			} else {
+				// Found in cache, it's a duplicate
+				return CaseDupes, nil
+			}
+		}
+	}
+
+	return -999, fmt.Errorf("ERROR IndexQuery - no hash database or L1 cache available")
 } // end func IndexQuery
 
 // hashDB_Index listens to incoming HistoryIndex structs on the IndexChan channel

@@ -43,6 +43,8 @@ type HISTORY struct {
 	TCPchan chan *HistoryObject
 	// MySQL RocksDB connection pool
 	MySQLPool *SQL
+	// L1 cache for lightweight duplicate detection when hash DB is disabled
+	L1 L1CACHE
 }
 
 /* builds the history.dat header */
@@ -81,4 +83,9 @@ type SQLiteData struct {
 	table   string // first N chars of hash
 	key     string
 	offsets []int64
+}
+
+// CCC is a counter structure for cache statistics
+type CCC struct {
+	Counter map[string]uint64
 }
