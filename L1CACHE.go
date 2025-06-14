@@ -108,7 +108,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 //	CaseWrite == already in processing
 //	CaseDupes == is a duplicate
 //	CasePass == not a duplicate == locked article for processing
-func (l1 *L1CACHE) LockL1Cache(hash string, value int, his *HISTORY) int {
+func (l1 *L1CACHE) LockL1Cache(hash string, value int, his *HISTORY) (retcase int) {
 	if !L1 {
 		return CasePass
 	}
@@ -125,25 +125,26 @@ func (l1 *L1CACHE) LockL1Cache(hash string, value int, his *HISTORY) int {
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
 	mux := l1.Muxers[char]
-
+	//retcase = CaseError
 	mux.mux.Lock()
+	defer mux.mux.Unlock()
 	if _, exists := ptr.cache[hash]; !exists {
 		//if hash == TESTHASH {
 		//	log.Printf("L1CAC [%s|  ] LockL1Cache TESTHASH='%s' v=%d isLocked", char, hash, value)
 		//}
 		cnt.Counter["Count_Locked"]++
 		ptr.cache[hash] = &L1ITEM{value: value}
-		mux.mux.Unlock()
-		if L1LockDelay > 0 {
-			time.Sleep(time.Duration(L1LockDelay) * time.Millisecond)
-		}
-		return CasePass
+		retcase = CasePass
 	} else {
-		retval := ptr.cache[hash].value
-		mux.mux.Unlock()
-		return retval
+		if ptr.cache[hash] != nil {
+			retval := ptr.cache[hash].value
+			retcase = retval
+		} else {
+			log.Printf("ERROR LockL1Cache ptr.cache[%s] is nil for hash='%s'", char, hash)
+			retcase = CaseError
+		}
 	}
-	return CaseError
+	return retcase
 } // end func LockL1Cache
 
 // The L1pqExtend function runs as a goroutine for each character.
