@@ -347,6 +347,11 @@ cleanup:
 			}
 		*/
 		logf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
+		if pq == nil {
+			logf(DEBUGL1, "L1 pqExpire [%s] pq is nil, exiting", char)
+			time.Sleep(time.Duration(l1purge) * time.Second)
+			continue cleanup
+		}
 		item, lenpq = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
