@@ -316,8 +316,8 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	}
 	//log.Printf("L1 pqExpire [%s] wait l1 lock", char)
 	l1.mux.Lock() // waits for boot to finish
-	l1.mux.Unlock()
 	logf(DEBUGL1, "L1 pqExpire [%s] booted", char)
+	l1.mux.Unlock()
 
 	ptr := l1.Caches[char]
 	cnt := l1.Counter[char]
