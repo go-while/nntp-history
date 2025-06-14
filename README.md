@@ -60,7 +60,11 @@ if err != nil {
 
 The `nntp-history` module supports multiple SQLite3 sharding strategies to optimize for different workloads. Detailed benchmarks with 1 million hash insertions show:
 
-| Sharding Mode | Insertion Rate (1M) | Go Heap RAM (Post GC) | SQLite Cache (Est. Max Potential) | Initialization Time | Key Characteristics |\n|-----------------|-----------------------|-------------------------|-----------------------------------|---------------------|-----------------------|\n| **Mode 0** (1 DB, 4096 tables) | ~333K/sec | ~0-1 MB | ~400 MB (Shared) | 8.55s | Simplicity, best for read-heavy (large shared cache) |\n| **Mode 2** (16 DBs, 256 tables) | ~332K/sec | ~0-1 MB | ~112 MB (Adaptive) | **2.42s** | **Recommended Default**: Fast init, balanced R/W, good concurrency |\n| **Mode 3** (64 DBs, 64 tables) | ~322K/sec | ~0-1 MB | ~192 MB (Adaptive) | 3.05s | Write-focused, higher concurrency needs |\n
+| Sharding Mode                 | Insertion Rate (1M) | Go Heap RAM (Post GC) | SQLite Cache (Est. Max Potential) | Initialization Time | Key Characteristics                                  |
+|-------------------------------|-----------------------|-------------------------|-----------------------------------|---------------------|------------------------------------------------------|
+| **Mode 0** (1 DB, 4096 tables)  | ~333K/sec             | ~0-1 MB                 | ~400 MB (Shared)                  | 8.55s               | Simplicity, best for read-heavy (large shared cache) |
+| **Mode 2** (16 DBs, 256 tables) | ~332K/sec             | ~0-1 MB                 | ~112 MB (Adaptive)                | **2.42s**           | **Recommended Default**: Fast init, balanced R/W, good concurrency |
+| **Mode 3** (64 DBs, 64 tables)  | ~322K/sec             | ~0-1 MB                 | ~192 MB (Adaptive)                | 3.05s               | Write-focused, higher concurrency needs              |
 
 **Key Takeaways from 1M Hash Tests:**
 - **High Write Performance**: All tested modes exceed 320,000 inserts/second.
@@ -140,7 +144,7 @@ Each record in history.dat has a fixed format:
 **Table Structure:**
 - 4096 tables (s000 to sfff) using 3-character hex prefixes
 - Each table stores: 7-char key + comma-separated offsets
-- Distribution: ~244 records per table (1M ÷ 4096)
+- Distribution: ~256 records per table (1M ÷ 4096)
 
 **Storage Components:**
 - Keys storage: ~7 bytes per record
@@ -282,7 +286,7 @@ Suppose you have a Message-ID hash of "1a2b3c4d5e6f0...":
 
 - We use the first 3 characters "1a2" to select the SQLite3 table "s1a2"
 - The next 7 characters "b3c4d5e" (based on `KeyLen=7`) are used as the key within that table
-- The remaining hash is stored as comma-separated offsets for that key
+- The full hash is stored in history.dat file and database holds the offsets as comma-separated for that key
 
 By following this approach, you can efficiently organize and retrieve data based on Message-ID hashes while benefiting from the performance and storage optimizations provided by SQLite3 with RocksDB-style optimizations.
 
@@ -361,71 +365,3 @@ If you have suggestions for improvements or find issues, please feel free to ope
 ## License
 
 This code is provided under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-
-
-## Benchmark pure writes (no dupe check via database) to history file with 4K bufio.
-- Not using L1Cache results in 4M lines written as there are 4 jobs running
-```sh
-./nntp-history-test -useHashDB=false -useL1Cache=true -todo=1000000
-```
-
-## Inserting 4,000,000 hashes (75% duplicates) to history and database
-```sh
-./nntp-history-test -todo=1000000 -DBG_BS_LOG=true
-...
-```
-
-## Checking 4,000,000 hashes (75% duplicates) vs database
-```sh
-./nntp-history-test -todo=1000000 -DBG_BS_LOG=false
-...
-```
-
-## Inserting 400,000,000 hashes (75% duplicates) to history and database (adaptive batchsize)
-```sh
-# history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
-# history.DBG_GOB_TEST = true // costly check: test decodes gob encoded data
-#
-./nntp-history-test -todo 100000000
-...
-```
-
-## Inserting 400,000,000 hashes (75% duplicates) to history and database (NO adaptive batchsize)
-```sh
-# history.DBG_BS_LOG = false // debugs BatchLOG for every batch insert!
-# history.DBG_GOB_TEST = false // costly check: test decodes gob encoded data
-#
-./nntp-history-test -todo=100000000
-...
-...
-...
-```
-
-## Checking 400,000,000 hashes (75% duplicates) vs database
-```sh
-# history.DBG_BS_LOG = true // debugs BatchLOG for every batch insert!
-#
-./nntp-history-test -todo=100000000
-...
-```
-
-## Database sizes with 25M hashes inserted
-- Filesystem: ZFS@linux
-- ZFS compression: lz4
-- ZFS blocksize=128K
-
-**SQLite3 Backend:**
-```sh
-# Database file sizes (compressed)
-du -h hashdb.sqlite3     # ~2.1GB
-du -h hashdb.sqlite3-wal # ~15MB
-```
-
-**MySQL RocksDB Backend:**
-```sh
-# Database and index sizes
-SELECT table_name, data_length, index_length
-FROM information_schema.tables
-WHERE table_schema = 'nntp_history';
-```
