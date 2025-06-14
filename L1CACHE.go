@@ -87,7 +87,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
 		l1.Muxers[char] = &L1MUXER{mux: sync.Mutex{}}
-		l1.Counter[char] = &CCC{Counter: make(map[string]uint64)}
+		l1.Counter[char] = &CCC{Counter: make(map[string./go-g]uint64)}
 		l1.pqQueue[char] = &L1pqQ{mux: sync.Mutex{}, que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
@@ -346,6 +346,7 @@ cleanup:
 				dq, lf, dqcnt = make([]string, ClearEveryN), now, 0
 			}
 		*/
+		dlogf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
 		item, lenpq = pq.Pop()
 		if item == nil {
 			time.Sleep(time.Duration(l1purge) * time.Second)
