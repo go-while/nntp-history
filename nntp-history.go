@@ -243,11 +243,13 @@ func (his *HISTORY) AddHistory(hobj *HistoryObject, useL1Cache bool) int {
 		return -999
 	}
 
-	//logf(DEBUG, "AddHistory hobj='%#v' CHlen=%d CHcap=%d", hobj, len(his.WriterChan), cap(his.WriterChan))
+	logf(DEBUG, "AddHistory hobj='%#v' before chan CHlen=%d CHcap=%d", hobj, len(his.WriterChan), cap(his.WriterChan))
 
 	// sends it to history_Writer()
 	// blocks if channel is full
 	his.WriterChan <- hobj
+
+	logf(DEBUG, "AddHistory hobj='%#v' in chan CHlen=%d CHcap=%d", hobj, len(his.WriterChan), cap(his.WriterChan))
 
 	// wait for response from ResponseChan
 	select {
