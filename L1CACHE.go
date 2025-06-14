@@ -151,9 +151,9 @@ func (l1 *L1CACHE) pqExtend(char string) {
 	if !L1 {
 		return
 	}
-	logf(DEBUGL1, "L1 pqExtend [%s] wait l1 lock", char)
+	//logf(DEBUGL1, "L1 pqExtend [%s] wait l1 lock", char)
 	l1.mux.Lock() // waits for BootL1Cache to unlock
-	logf(DEBUGL1, "L1 pqExtend [%s] booted", char)
+	logf(false, "L1 pqExtend [%s] booted", char)
 	l1.mux.Unlock()
 	//logf(DEBUGL1, "Boot L1pqExtend [%s]", char)
 	//defer log.Printf("LEFT L1 [%s] pqExtend", char)
@@ -318,9 +318,9 @@ func (l1 *L1CACHE) pqExpire(char string) {
 	if !L1 {
 		return
 	}
-	logf(DEBUGL1, "L1 pqExpire [%s] wait l1 lock", char)
+	//logf(DEBUGL1, "L1 pqExpire [%s] wait l1 lock", char)
 	l1.mux.Lock() // waits for BootL1Cache to unlock
-	logf(DEBUGL1, "L1 pqExpire [%s] booted", char)
+	logf(false, "L1 pqExpire [%s] booted", char)
 	l1.mux.Unlock()
 
 	ptr := l1.Caches[char]
@@ -350,9 +350,9 @@ cleanup:
 				dq, lf, dqcnt = make([]string, ClearEveryN), now, 0
 			}
 		*/
-		logf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
+		//logf(DEBUGL1, "L1 pqExpire [%s] pq.Pop item='%v'", char, item)
 		if pq == nil {
-			logf(DEBUGL1, "L1 pqExpire [%s] pq is nil, sleeping", char)
+			//logf(DEBUGL1, "L1 pqExpire [%s] pq is nil, sleeping", char)
 			time.Sleep(time.Duration(l1purge) * time.Second)
 			continue cleanup
 		}
