@@ -13,7 +13,7 @@ var (
 	L1CacheExpires  int64 = DefaultCacheExpires
 	L1ExtendExpires int64 = DefaultCacheExtend
 	L1Purge         int64 = DefaultCachePurge
-	L1InitSize      int   = 64 * 1024
+	L1InitSize      int   = 128
 
 	// L1LockDelay: delays L1 locking by N milliseconds
 	// L1 locking is most likely done per client-connection
@@ -82,7 +82,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 	l1.Muxers = make(map[string]*L1MUXER, 16)
 	l1.Counter = make(map[string]*CCC, 16)
 	l1.pqQueue = make(map[string]*L1pqQ, 16)
-	for _, char := range ROOTDBS {
+	for _, char := range HEXCHARS {
 		//log.Printf("L1 Boot [%s]", char)
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
 		l1.Extend[char] = &L1ECH{ch: make(chan *L1PQItem, his.cEvCap)}
