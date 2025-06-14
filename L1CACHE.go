@@ -78,11 +78,11 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		log.Printf("ERROR L1CACHESetup already loaded!")
 		return
 	}
-	l1.Caches = make(map[string]*L1CACHEMAP, 16)
-	l1.Extend = make(map[string]*L1ECH, 16)
-	l1.Muxers = make(map[string]*L1MUXER, 16)
-	l1.Counter = make(map[string]*CCC, 16)
-	l1.pqQueue = make(map[string]*L1pqQ, 16)
+	l1.Caches = make(map[string]*L1CACHEMAP, len(HEXCHARS))
+	l1.Extend = make(map[string]*L1ECH, len(HEXCHARS))
+	l1.Muxers = make(map[string]*L1MUXER, len(HEXCHARS))
+	l1.Counter = make(map[string]*CCC, len(HEXCHARS))
+	l1.pqQueue = make(map[string]*L1pqQ, len(HEXCHARS))
 	for _, char := range HEXCHARS {
 		//log.Printf("L1 Boot [%s]", char)
 		l1.Caches[char] = &L1CACHEMAP{cache: make(map[string]*L1ITEM, L1InitSize)}
@@ -92,7 +92,7 @@ func (l1 *L1CACHE) BootL1Cache(his *HISTORY) {
 		l1.pqQueue[char] = &L1pqQ{mux: sync.Mutex{}, que: &L1PQ{}, pqC: make(chan struct{}, 1)}
 	}
 	time.Sleep(time.Millisecond)
-	for _, char := range ROOTDBS {
+	for _, char := range HEXCHARS {
 		// stupid race condition on boot when placed in loop before
 		go l1.pqExpire(char)
 		go l1.pqExtend(char)
@@ -272,7 +272,7 @@ func (l1 *L1CACHE) L1Stats(statskey string) (retval uint64, retmap map[string]ui
 	if l1 == nil || l1.Muxers == nil {
 		return
 	}
-	for _, char := range ROOTDBS {
+	for _, char := range HEXCHARS {
 		cnt := l1.Counter[char]
 		mux := l1.Muxers[char]
 		mux.mux.Lock()
