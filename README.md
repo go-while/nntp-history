@@ -56,16 +56,24 @@ if err != nil {
 }
 ```
 
-## 📊 Performance Comparison
+## 📊 Performance Comparison & Sharding
 
-| Feature | MySQL RocksDB | SQLite3 Optimized |
-|---------|---------------|-------------------|
-| Setup Complexity | Complex | Simple |
-| Concurrent Connections | 64 | 8 |
-| Storage | Server-based | File-based |
-| Memory Usage | Higher | Lower |
-| Backup Method | mysqldump | File copy |
-| Deployment | Complex | Single binary |
+The `nntp-history` module supports multiple SQLite3 sharding strategies to optimize for different workloads. Detailed benchmarks with 1 million hash insertions show:
+
+| Sharding Mode | Insertion Rate (1M) | Go Heap RAM (Post GC) | SQLite Cache (Est. Max Potential) | Initialization Time | Key Characteristics |\n|-----------------|-----------------------|-------------------------|-----------------------------------|---------------------|-----------------------|\n| **Mode 0** (1 DB, 4096 tables) | ~333K/sec | ~0-1 MB | ~400 MB (Shared) | 8.55s | Simplicity, best for read-heavy (large shared cache) |\n| **Mode 2** (16 DBs, 256 tables) | ~332K/sec | ~0-1 MB | ~112 MB (Adaptive) | **2.42s** | **Recommended Default**: Fast init, balanced R/W, good concurrency |\n| **Mode 3** (64 DBs, 64 tables) | ~322K/sec | ~0-1 MB | ~192 MB (Adaptive) | 3.05s | Write-focused, higher concurrency needs |\n
+
+**Key Takeaways from 1M Hash Tests:**
+- **High Write Performance**: All tested modes exceed 320,000 inserts/second.
+- **Low Go Application RAM**: Go's heap usage is minimal (~1MB after GC) due to SQLite's memory management.
+- **Adaptive SQLite Cache**: SQLite's page cache is managed efficiently. Multi-DB modes use adaptive sizing (e.g., Mode 2 estimates up to 112MB total cache if fully utilized, Mode 3 up to 192MB). This is OS-managed memory, not Go heap.
+- **Fast Initialization for Multi-DB**: Mode 2 (16 DBs) initializes significantly faster than Mode 0 (single DB with many tables).
+
+**Recommendation:**
+- **Mode 2 (16 DBs, 256 tables each)** is recommended for most use cases, offering a strong balance of fast startup, high throughput, and efficient memory utilization.
+- Use Mode 0 if simplicity is paramount or for predominantly read-heavy workloads that benefit from a single, large shared cache.
+- Consider Mode 3 or other multi-DB options for very specific high-concurrency write scenarios.
+
+Refer to `examples/README.md` and `sqlite-sharded-integration-log.md` for more detailed analysis.
 
 ## 📁 Related Repositories
 

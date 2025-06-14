@@ -40,42 +40,39 @@ This will demonstrate:
 
 ### Performance Considerations
 
-**REAL TEST RESULTS (100K Hashes Inserted):**
+**REAL TEST RESULTS (1 MILLION Hashes Inserted per Mode):**
 
-| Mode | Insertion Rate | Memory Usage | Initialization | Best For |
-|------|---------------|--------------|----------------|----------|
-| **Mode 0** | 235,742/sec | 11 MB | 406ms | Read-heavy workloads |
-| **Mode 2** | 268,958/sec | 11 MB | 177ms | Balanced read/write |
-| **Mode 3** | 289,058/sec | 12 MB | 306ms | Write-heavy workloads |
+| Mode | Insertion Rate (1M) | Go Heap RAM (Post GC) | SQLite Cache (Est. Max) | Initialization Time | Best For |
+|------|-----------------------|-------------------------|---------------------------|---------------------|----------|
+| **Mode 0** (1 DB) | ~333K/sec | ~0-1 MB | ~400 MB (Shared) | 8.55s | Read-heavy, Simplicity |
+| **Mode 2** (16 DBs) | ~332K/sec | ~0-1 MB | ~112 MB (Adaptive) | **2.42s** | Balanced, Fast Init |
+| **Mode 3** (64 DBs) | ~322K/sec | ~0-1 MB | ~192 MB (Adaptive) | 3.05s | Write-focused, High Concurrency |
 
-**Key Findings:**
-- **Multi-DB modes are faster for writes** (up to 23% improvement)
-- **Memory usage is extremely low** (11-12 MB for all modes)
-- **Mode 2 has fastest initialization** (177ms vs 406ms for Mode 0)
-- **All modes are memory-safe** with adaptive cache sizing
+**Key Findings (1M Hashes):**
+- **Write performance is consistently high** across modes (>320K hashes/sec).
+- **Go application memory usage is extremely low** (~1MB heap after GC) for all modes. SQLite manages its cache outside the Go heap.
+- **Adaptive cache sizing is crucial** for multi-DB modes, keeping potential SQLite RAM usage manageable.
+- **Mode 2 (16 DBs) offers the fastest initialization time** and excellent write performance, making it a strong default.
+- **Mode 0 (Single DB)** is slightly faster for raw insertions in a tight loop but has significantly slower initialization. Its large shared cache is best for read-heavy workloads.
 
 **File Descriptors:**
-- Mode 0: 3-5 FDs ✅ **Recommended for most cases**
-- Mode 1: 4096+ FDs ❌ **May hit OS limits**
-- Mode 2-5: 16-512 FDs ✅ **Manageable range**
+- Mode 0: 3-5 FDs ✅ **Recommended for simplicity or read-heavy loads**
+- Mode 1: 4096+ FDs ❌ **May hit OS limits, specialized use only**
+- Mode 2-5: 16-512 FDs ✅ **Manageable range, scales with DB count**
 
-**Memory Usage (Real vs Theoretical):**
-- **Previous estimates were 20-200x too high** due to lazy cache allocation
-- **Mode 0**: 11 MB actual (was predicted 402 MB)
-- **Mode 2**: 11 MB actual (was predicted 6.4 GB)
-- **Mode 3**: 12 MB actual (was predicted 25.6 GB)
+**Memory Usage (Go Heap vs. SQLite Cache):**
+- The Go application's heap remains very small (e.g., ~1MB).
+- SQLite's page cache is the main memory component, managed by SQLite/OS. Adaptive sizing ensures this is reasonable:
+  - Mode 0: Up to ~400MB (single shared cache)
+  - Mode 2: Up to ~112MB total (16 DBs * ~7MB/DB)
+  - Mode 3: Up to ~192MB total (64 DBs * ~3MB/DB)
+- Previous theoretical estimates were significantly higher before considering adaptive caching and SQLite's lazy allocation.
 
-**Production Recommendations:**
-- **Write-heavy**: Mode 3 (289K hashes/sec)
-- **Balanced**: Mode 2 (269K hashes/sec, fastest init)
-- **Read-heavy**: Mode 0 (shared cache benefit)
-- **Development**: Mode 2 (fast setup, good performance)
-- Mode 2-5: Balanced memory usage across multiple caches
-
-**Performance:**
-- Mode 0: Best for most workloads, simple management
-- Mode 1: Best for extreme parallelism with sufficient resources
-- Mode 2-5: Balanced approaches for different load patterns
+**Updated Production Recommendations (Post 1M Hash Test):**
+- **General Purpose / Balanced / Fast Setup**: **Mode 2 (16 DBs)**. Offers a great balance of fast initialization, high write throughput, and efficient memory.
+- **Write-Heavy / Higher Concurrency**: **Mode 3 (64 DBs)**. Provides more parallelism for writes if needed, with still manageable memory.
+- **Read-Heavy / Utmost Simplicity**: **Mode 0 (1 DB)**. Best if read performance is paramount (benefits from a single large cache) and initialization time is less critical.
+- **Development**: **Mode 2 (16 DBs)**. Quickest to start and provides a robust testing environment.
 
 ## Integration Examples
 

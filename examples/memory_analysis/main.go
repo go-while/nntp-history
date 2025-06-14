@@ -68,7 +68,7 @@ func insertTestData(his *history.HISTORY, numHashes int, label string) error {
 		}
 
 		// Progress indicator
-		if (i+1)%1000 == 0 {
+		if (i+1)%100000 == 0 { // Changed from 1000 to 100000
 			fmt.Printf("  Inserted %d/%d hashes (%.1f%%, %d successful)...\n",
 				i+1, numHashes, float64(i+1)/float64(numHashes)*100, successCount)
 		}
@@ -132,13 +132,13 @@ func main() {
 	printMemStats("Mode 0 - After initialization")
 
 	// Insert test data to get realistic memory usage
-	numTestHashes := 100000 // Start with 100K hashes for testing (increase from 10K)
+	numTestHashes := 1000000 // Run with 1M hashes
 	err = insertTestData(his0, numTestHashes, "Mode 0")
 	if err != nil {
 		log.Printf("Error inserting test data: %v", err)
 		return
 	}
-	printMemStats("Mode 0 - After inserting 100K hashes")
+	printMemStats("Mode 0 - After inserting test hashes")
 
 	// Force garbage collection to get accurate measurement
 	runtime.GC()
@@ -185,12 +185,13 @@ func main() {
 	printMemStats("Mode 2 - After initialization")
 
 	// Insert test data to get realistic memory usage
+	// numTestHashes is already 1000000
 	err = insertTestData(his2, numTestHashes, "Mode 2")
 	if err != nil {
 		log.Printf("Error inserting test data: %v", err)
 		return
 	}
-	printMemStats("Mode 2 - After inserting 100K hashes")
+	printMemStats("Mode 2 - After inserting test hashes")
 
 	runtime.GC()
 	time.Sleep(100 * time.Millisecond)
@@ -236,12 +237,13 @@ func main() {
 	printMemStats("Mode 3 - After initialization")
 
 	// Insert test data to get realistic memory usage
+	// numTestHashes is already 1000000
 	err = insertTestData(his3, numTestHashes, "Mode 3")
 	if err != nil {
 		log.Printf("Error inserting test data: %v", err)
 		return
 	}
-	printMemStats("Mode 3 - After inserting 100K hashes")
+	printMemStats("Mode 3 - After inserting test hashes")
 
 	runtime.GC()
 	time.Sleep(100 * time.Millisecond)
