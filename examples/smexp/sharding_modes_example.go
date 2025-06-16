@@ -34,6 +34,7 @@ func main() {
 
 	// Example 3: Initialize with 16 DBs, 256 tables each (Mode 2)
 	fmt.Println("=== Example 3: Hybrid Approach (16 DBs, 256 tables each) ===")
+	his3 := &history.HISTORY{DIR: "/tmp/history_16x256"}
 	err = his3.Initialize16DB256Tables()
 	if err != nil {
 		log.Printf("Error initializing 16DB256Tables: %v", err)
