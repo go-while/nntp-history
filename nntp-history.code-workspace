@@ -1,0 +1,46 @@
+{
+    "folders": [
+        {
+            "name": "nntp-history",
+            "path": "."
+        }
+    ],
+    "settings": {
+        "go.toolsManagement.autoUpdate": true,
+        "go.useLanguageServer": true,
+        "go.lintOnSave": "package",
+        "go.buildOnSave": "package",
+        "go.vetOnSave": "package",
+        "go.gopath": "~/GO",
+        "go.inferGopath": false,
+        "files.watcherExclude": {
+            "../**": true,
+            "**/vendor/**": true,
+            "**/tmp/**": true,
+            "**/temp/**": true,
+            "**/.git/**": true,
+            "**/.cache/**": true,
+            "**/node_modules/**": true
+        },
+        "search.exclude": {
+            "../**": true,
+            "**/vendor/**": true,
+            "**/tmp/**": true,
+            "**/temp/**": true,
+            "**/.cache/**": true,
+            "**/node_modules/**": true
+        },
+        "files.exclude": {
+            "../.git": true,
+            "**/vendor/**": true,
+            "**/tmp/**": true,
+            "**/temp/**": true
+        }
+    },
+    "extensions": {
+        "recommendations": [
+            "golang.go",
+            "ms-vscode.vscode-json"
+        ]
+    }
+}
