@@ -1029,3 +1029,26 @@ func (his *HISTORY) GetShardingInfo() (mode, numDBs, tablesPerDB int, descriptio
 	return his.ShardMode, numDBs, tablesPerDB, description
 }
 
+
+// SetBackend configures the backend type for the history system.
+// This method should be called before BootHistory to set the desired backend.
+// Parameters:
+//   - backend: The backend type string ("sqlite3", "rocksdb", or "none")
+func (his *HISTORY) SetBackend(backend string) {
+	his.mux.Lock()
+	defer his.mux.Unlock()
+
+	switch backend {
+	case "sqlite3":
+		his.BackendType = BACKEND_SQLITE3
+	case "rocksdb":
+		his.BackendType = BACKEND_ROCKSDB
+	case "none":
+		his.BackendType = BACKEND_NONE
+	default:
+		log.Printf("WARN: Unknown backend '%s', defaulting to 'none'", backend)
+		his.BackendType = BACKEND_NONE
+	}
+
+	logf(DEBUG, "Backend set to: %s", backend)
+}
