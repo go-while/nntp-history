@@ -7,6 +7,9 @@ import (
 
 const (
 	FlagSearch = -1
+	BACKEND_SQLITE3 = "sqlite3" // sqlite3 backend
+	BACKEND_ROCKSDB = "rocksdb" // mysql rocksdb backend
+	BACKEND_NONE    = "none"    // no backend, only L1 cache
 )
 
 var (
@@ -51,6 +54,7 @@ type HISTORY struct {
 	ShardTables int // number of tables per database
 	// L1 cache for lightweight duplicate detection when hash DB is disabled
 	L1 L1CACHE
+	BackendType string // type of backend used for history storage
 }
 
 /* builds the history.dat header */
