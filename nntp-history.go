@@ -180,8 +180,8 @@ func (his *HISTORY) BootHistory(history_dir string, keylen int) {
 			log.Printf("ERROR BootHistory gobDecodeHeader err='%v'", err)
 			os.Exit(1)
 		}
-		if history_settings.Kl != his.keylen {
-			log.Printf("ERROR BootHistory history_settings.Kl != his.keylen")
+		if history_settings.Kl < 4 {
+			log.Printf("ERROR BootHistory history_settings.Kl < 4")
 			os.Exit(1)
 		}
 		switch history_settings.Ka { // KeyAlgo
