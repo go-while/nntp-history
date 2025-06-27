@@ -53,7 +53,6 @@ func (his *HISTORY) hashDB_Init(driver string) {
 
 	// Initialize charsMap and indexChans
 	his.charsMap = make(map[string]int, NumCacheDBs)
-	his.indexChans = make([]chan *HistoryIndex, NumCacheDBs)
 	for i, char := range ROOTDBS {
 		his.charsMap[char] = i
 		his.indexChans[i] = make(chan *HistoryIndex, 16)
@@ -62,7 +61,7 @@ func (his *HISTORY) hashDB_Init(driver string) {
 	// Start workers
 	for i, char := range ROOTDBS {
 		// dont move this up into the first for loop or it drops race conditions for nothing...
-		go his.hashDB_Worker(char, i, his.indexChans[i])
+		go his.hashDB_Worker(char, his.indexChans[i])
 	}
 	go his.hashDB_Index()
 	//his.ReplayHisDat() // TODO!
@@ -315,6 +314,7 @@ func (s *SQL) ClosePool() {
 		if isopen == 0 {
 			return
 		}
+
 	} // end for
 } // end func ClosePool
 

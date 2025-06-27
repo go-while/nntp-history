@@ -28,7 +28,7 @@ type Offsets struct {
 }
 
 func concatInt64(input []int64, output *[]byte) (int, error) {
-	if input == nil || len(input) == 0 || output == nil {
+	if len(input) == 0 || output == nil {
 		return 0, fmt.Errorf("ERROR concatInt64 io nil")
 	}
 	strSlice := make([]string, len(input))

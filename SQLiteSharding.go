@@ -6,7 +6,6 @@ import (
 	"log"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -23,8 +22,8 @@ const (
 
 // SQLite3ShardedDB manages multiple SQLite databases for sharding
 type SQLite3ShardedDB struct {
-	mux         sync.RWMutex
-	ctr         sync.RWMutex
+	//mux         sync.RWMutex
+	//ctr         sync.RWMutex
 	DBPools     []*SQLite3DB // Array of database pools
 	shardMode   int
 	numDBs      int
@@ -88,14 +87,15 @@ func NewSQLite3ShardedDB(config *ShardConfig, createTables bool) (*SQLite3Sharde
 	// Initialize database pools
 	for i := 0; i < numDBs; i++ {
 		var dbPath string
-		if numDBs == 1 {
+		switch numDBs {
+		case 1:
 			// Single database mode
 			dbPath = filepath.Join(config.BaseDir, "hashdb.sqlite3")
-		} else if numDBs == 4096 {
+		case 4096:
 			// Full split mode: use 3-char hex names
 			dbPath = filepath.Join(config.BaseDir, fmt.Sprintf("hashdb_%s.sqlite3",
 				s.getDBNameFromIndex(i)))
-		} else {
+		default:
 			// Hybrid modes: use simple numbering
 			dbPath = filepath.Join(config.BaseDir, fmt.Sprintf("hashdb_%03d.sqlite3", i))
 		}
@@ -285,7 +285,7 @@ func (s *SQLite3ShardedDB) createTablesForDB(dbIndex int) error {
 		}
 	} else {
 		// Create multiple tables per database
-		tableNames := s.getTableNamesForDB(dbIndex)
+		tableNames := s.getTableNamesForDB()
 		for _, tableName := range tableNames {
 			query := fmt.Sprintf(`
 				CREATE TABLE IF NOT EXISTS %s (
@@ -312,7 +312,7 @@ func (s *SQLite3ShardedDB) createTablesForDB(dbIndex int) error {
 }
 
 // getTableNamesForDB returns all table names for a specific database
-func (s *SQLite3ShardedDB) getTableNamesForDB(dbIndex int) []string {
+func (s *SQLite3ShardedDB) getTableNamesForDB() []string {
 	var tableNames []string
 
 	switch s.shardMode {

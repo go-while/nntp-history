@@ -13,7 +13,7 @@ import (
 )
 
 type SQLite3DB struct {
-	mux     sync.RWMutex
+	//mux     sync.RWMutex
 	ctr     sync.RWMutex // counter
 	DBs     chan *SQLite3Conn
 	dsn     string
